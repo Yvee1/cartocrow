@@ -1,5 +1,7 @@
 set(SOURCES
     cartocrow.cpp
+        ../demos/medial_axis/medial_axis_demo.cpp
+        ../demos/medial_axis/medial_axis_demo.h
 )
 
 add_executable(cartocrow ${SOURCES})
