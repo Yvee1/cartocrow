@@ -40,6 +40,10 @@ Line<Inexact> approximate(const Line<Exact>& l) {
 	return Line<Inexact>(CGAL::to_double(l.a()), CGAL::to_double(l.b()), CGAL::to_double(l.c()));
 }
 
+Ray<Inexact> approximate(const Ray<Exact>& r) {
+	return Ray<Inexact>(approximate(r.source()), approximate(r.second_point()));
+}
+
 Segment<Inexact> approximate(const Segment<Exact>& s) {
 	return Segment<Inexact>(approximate(s.start()), approximate(s.end()));
 }

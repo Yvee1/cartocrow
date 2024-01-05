@@ -546,6 +546,26 @@ void GeometryWidget::draw(const BezierSpline& s) {
 	m_painter->drawPath(path);
 }
 
+void GeometryWidget::draw(const Ray<Inexact>& r) {
+	Box bounds = inverseConvertBox(rect());
+	auto result = intersection(r, CGAL::Iso_rectangle_2<Inexact>(Point<Inexact>(bounds.xmin(), bounds.ymin()), Point<Inexact>(bounds.xmax(), bounds.ymax())));
+	if (result) {
+		if (const Segment<Inexact>* s = boost::get<Segment<Inexact>>(&*result)) {
+			draw(*s);
+		}
+	}
+}
+
+void GeometryWidget::draw(const Line<Inexact>& l) {
+	Box bounds = inverseConvertBox(rect());
+	auto result = intersection(l, CGAL::Iso_rectangle_2<Inexact>(Point<Inexact>(bounds.xmin(), bounds.ymin()), Point<Inexact>(bounds.xmax(), bounds.ymax())));
+	if (result) {
+		if (const Segment<Inexact>* s = boost::get<Segment<Inexact>>(&*result)) {
+			draw(*s);
+		}
+	}
+}
+
 void GeometryWidget::drawText(const Point<Inexact>& p, const std::string& text) {
 	setupPainter();
 	QPointF p2 = convertPoint(p);

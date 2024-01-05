@@ -54,12 +54,26 @@ void GeometryRenderer::draw(const PolygonSet<Exact>& ps) {
 	draw(approximate(ps));
 }
 
+void GeometryRenderer::draw(const Line<Exact>& l) {
+	draw(approximate(l));
+}
+
+void GeometryRenderer::draw(const Ray<Exact>& r) {
+	draw(approximate(r));
+}
+
 void GeometryRenderer::drawText(const Point<Exact>& p, const std::string& s) {
 	drawText(approximate(p), s);
 }
 
 QPainter& GeometryRenderer::getQPainter() {
 	throw std::runtime_error("No QPainter.");
+}
+
+void GeometryRenderer::draw(const BezierCurve& c) {
+	BezierSpline spline;
+	spline.AppendCurve(c);
+	draw(spline);
 }
 
 } // namespace cartocrow::renderer

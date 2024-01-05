@@ -6,6 +6,7 @@
 #include <QApplication>
 #include <utility>
 #include "cartocrow/core/ipe_reader.h"
+#include "cartocrow/renderer/ipe_renderer.h"
 #include <ipepath.h>
 #include "medial_axis.h"
 
@@ -17,12 +18,6 @@ MedialAxisDemo::MedialAxisDemo() {
 
 	std::shared_ptr<ipe::Document> document = IpeReader::loadIpeFile("/home/steven/Documents/cartocrow/polygon.ipe");
 	ipe::Page* page = document->page(0);
-//	ipe::Object* object = page->object(0);
-//	ipe::Path* path = object->asPath();
-//	ipe::Matrix matrix = path->matrix();
-//	ipe::Shape shape = path->shape();
-//	auto polygonSet = IpeReader::convertShapeToPolygonSet(shape, matrix);
-//	polygonSet.polygons_with_holes(std::back_inserter(m_isolines));
 	m_isolines = isolinesInPage(page);
 
 	for (const auto& isoline : m_isolines) {
@@ -39,6 +34,9 @@ void MedialAxisDemo::recalculate() {
 	auto painting = std::make_shared<MedialAxisPainting>(&m_isolines, &m_voronoi);
 	m_renderer->addPainting(painting, "Medial axis painting");
 	m_renderer->update();
+
+	IpeRenderer ipeRenderer(painting);
+	ipeRenderer.save("/home/steven/Documents/cartocrow/output.ipe");
 }
 
 std::vector<Isoline> MedialAxisDemo::isolinesInPage(ipe::Page* page) {
@@ -112,38 +110,34 @@ VoronoiDrawer& VoronoiDrawer::operator<<(const Gt::Segment_2& s) {
 }
 
 VoronoiDrawer& VoronoiDrawer::operator<<(const CGAL::Parabola_segment_2<Gt>& p) {
-//	m_renderer->draw(p);
-//	p.line();
-//	p.center();
-	m_renderer->draw(p.center());
 	// Directrix
-	auto d = p.line();
+	auto dir = p.line();
 	// Focus
-	auto f = p.center();
+	auto focus = p.center();
 
-	// (ax + by + c)² / (a² + b²) = (x - f_x)² + (y - f_y)²
-	// 2a(ax + by + c) 
-	// d/dx  ...
-	// d/dy
-	// y-intercept
+	// Roundabout way to obtain start and end of parabolic segment because they are protected -_-
+	std::vector<Point<Inexact>> pts;
+	p.generate_points(pts, 100000000);
+	auto start = pts.front();
+	auto end = pts.back();
 
+	// Geometric magic: the intersection of the tangents at points p and q of the parabola is
+	// the circumcenter of the focus and the projections of p and q on the directrix.
+	auto control = CGAL::circumcenter(focus, dir.projection(start), dir.projection(end));
+	auto bezier = BezierCurve(start, control, end);
 
+	m_renderer->draw(bezier);
 
 	return *this;
 }
 
 VoronoiDrawer& VoronoiDrawer::operator<<(const Gt::Line_2& l) {
-//	m_renderer->draw(l);
+	m_renderer->draw(l);
 	return *this;
 }
 
 VoronoiDrawer& VoronoiDrawer::operator<<(const Gt::Ray_2& r) {
-	QPainter& painter = m_renderer->getQPainter();
-	auto vp = painter.viewport();
-	auto diag = pow(vp.width(), 2) + pow(vp.height(), 2);
-	auto dir = r.to_vector();
-	dir /= sqrt(dir.squared_length());
-	m_renderer->draw(Segment<Inexact>(r.source(), r.source() + dir * diag));
+	m_renderer->draw(r);
 	return *this;
 }
 

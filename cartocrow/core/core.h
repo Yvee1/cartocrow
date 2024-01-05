@@ -94,6 +94,9 @@ Circle<Inexact> approximate(const Circle<Exact>& p);
 /// Converts a line from exact representation to an approximation in inexact
 /// representation.
 Line<Inexact> approximate(const Line<Exact>& p);
+/// Converts a ray from exact representation to an approximation in inexact
+/// representation.
+Ray<Inexact> approximate(const Ray<Exact>& p);
 /// Converts a line segment from exact representation to an approximation in
 /// inexact representation.
 Segment<Inexact> approximate(const Segment<Exact>& p);

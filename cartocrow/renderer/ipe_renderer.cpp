@@ -105,6 +105,26 @@ void IpeRenderer::draw(const Segment<Inexact>& s) {
 	}
 }
 
+void IpeRenderer::draw(const Line<Inexact>& l) {
+	auto bounds = CGAL::Iso_rectangle_2<Inexact>(CGAL::ORIGIN, Point<Inexact>(1000.0, 1000.0));
+	auto result = intersection(l, bounds);
+	if (result) {
+		if (const Segment<Inexact>* s = boost::get<Segment<Inexact>>(&*result)) {
+			draw(*s);
+		}
+	}
+}
+
+void IpeRenderer::draw(const Ray<Inexact>& r) {
+	auto bounds = CGAL::Iso_rectangle_2<Inexact>(CGAL::ORIGIN, Point<Inexact>(1000.0, 1000.0));
+	auto result = intersection(r, bounds);
+	if (result) {
+		if (const Segment<Inexact>* s = boost::get<Segment<Inexact>>(&*result)) {
+			draw(*s);
+		}
+	}
+}
+
 void IpeRenderer::draw(const Polygon<Inexact>& p) {
 	ipe::Curve* curve = convertPolygonToCurve(p);
 	ipe::Shape* shape = new ipe::Shape();

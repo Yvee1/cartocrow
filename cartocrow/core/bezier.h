@@ -40,6 +40,8 @@ class BezierCurve {
 	BezierCurve(const Point<Inexact>& source, const Point<Inexact>& source_control,
 	            const Point<Inexact>& target_control, const Point<Inexact>& target);
 
+	BezierCurve(const Point<Inexact>& source, const Point<Inexact>& control, const Point<Inexact>& target);
+
 	/// Returns the source of this curve.
 	Point<Inexact> source() const;
 	/// Returns the control point on the source side of this curve.
@@ -56,6 +58,8 @@ class BezierCurve {
 	// There can be up to three intersections.
 	size_t intersectRay(const Point<Inexact>& source, const Point<Inexact>& target,
 	                    Point<Inexact>* intersections, Number<Inexact>* intersection_t) const;
+
+	BezierCurve transform(const CGAL::Aff_transformation_2<Inexact> &t) const;
 
   protected:
 	// TODO control points stored as Vectors instead of Points
@@ -85,6 +89,8 @@ class BezierSpline {
 
 	void AppendCurve(const Point<Inexact>& source, const Point<Inexact>& source_control,
 	                 const Point<Inexact>& target_control, const Point<Inexact>& target);
+
+	void AppendCurve(BezierCurve curve);
 
 	void AppendCurve(const Point<Inexact>& source_control, const Point<Inexact>& target_control,
 	                 const Point<Inexact>& target);

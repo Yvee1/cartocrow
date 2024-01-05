@@ -187,6 +187,15 @@ size_t BezierCurve::intersectRay(const Point<Inexact>& source, const Point<Inexa
 	return num;
 }
 
+BezierCurve BezierCurve::transform(const CGAL::Aff_transformation_2<Inexact> &t) const {
+	return { source().transform(t), sourceControl().transform(t),
+	        targetControl().transform(t), target().transform(t) };
+}
+BezierCurve::BezierCurve(const Point<Inexact>& source, const Point<Inexact>& control,
+                         const Point<Inexact>& target)
+    : BezierCurve(source, CGAL::ORIGIN + (source - CGAL::ORIGIN) / 3 + 2 * (control - CGAL::ORIGIN) / 3,
+                  CGAL::ORIGIN + (target - CGAL::ORIGIN) / 3 + 2 * (control - CGAL::ORIGIN) / 3, target) {}
+
 /**@class BezierSpline
  * @brief A cubic Bezier spline.
  */
@@ -331,6 +340,10 @@ BezierSpline::CurveSet& BezierSpline::curves() {
 void BezierSpline::AppendCurve(const Point<Inexact>& source, const Point<Inexact>& source_control,
                                const Point<Inexact>& target_control, const Point<Inexact>& target) {
 	curves_.emplace_back(source, source_control, target_control, target);
+}
+
+void BezierSpline::AppendCurve(BezierCurve curve) {
+	curves_.push_back(curve);
 }
 
 /**@brief Add a Bezier curve to the end of the spline.

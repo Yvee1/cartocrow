@@ -108,11 +108,21 @@ class GeometryRenderer {
 	/// Draws a circle with the currently set style.
 	void draw(const Circle<Exact>& c);
 	/// Draws a Bézier spline with the currently set style.
+	void draw(const BezierCurve& c);
+	/// Draws a Bézier spline with the currently set style.
 	virtual void draw(const BezierSpline& s) = 0;
 	/// Draws a polygon set with the currently set style.
 	virtual void draw(const PolygonSet<Inexact>& p);
 	/// Draws a polygon set with the currently set style.
 	void draw(const PolygonSet<Exact>& p);
+	// Draws a line with the currently set style.
+	virtual void draw(const Line<Inexact>& l) = 0;
+	// Draws a line with the currently set style.
+	void draw(const Line<Exact>& l);
+	// Draws a ray with the currently set style.
+	virtual void draw(const Ray<Inexact>& r) = 0;
+	// Draws a ray with the currently set style.
+	void draw(const Ray<Exact>& r);
 
 	/// Draws a string at a given location.
 	/// The string is drawn centered horizontally around the location given.
