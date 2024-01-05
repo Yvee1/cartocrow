@@ -491,6 +491,11 @@ void GeometryWidget::draw(const Polygon<Inexact>& p) {
 	QPainterPath path;
 	addPolygonToPath(path, p);
 	m_painter->drawPath(path);
+	if (m_style.m_mode & vertices) {
+		for (auto v = p.vertices_begin(); v != p.vertices_end(); v++) {
+			draw(*v);
+		}
+	}
 }
 
 void GeometryWidget::draw(const PolygonWithHoles<Inexact>& p) {
@@ -501,6 +506,16 @@ void GeometryWidget::draw(const PolygonWithHoles<Inexact>& p) {
 		addPolygonToPath(path, hole);
 	}
 	m_painter->drawPath(path);
+	if (m_style.m_mode & vertices) {
+		for (auto v = p.outer_boundary().vertices_begin(); v != p.outer_boundary().vertices_end(); v++) {
+			draw(*v);
+		}
+		for (auto h = p.holes_begin(); h != p.holes_end(); h++) {
+			for (auto v = h->vertices_begin(); v != h->vertices_end(); v++) {
+				draw(*v);
+			}
+		}
+	}
 }
 
 void GeometryWidget::addPolygonToPath(QPainterPath& path, const Polygon<Inexact>& p) {
@@ -520,7 +535,7 @@ void GeometryWidget::draw(const Circle<Inexact>& c) {
 	m_painter->drawEllipse(rect);
 }
 
-/*void GeometryWidget::draw(const BezierSpline& s) {
+void GeometryWidget::draw(const BezierSpline& s) {
 	setupPainter();
 	QPainterPath path;
 	path.moveTo(convertPoint(s.curves()[0].source()));
@@ -529,7 +544,7 @@ void GeometryWidget::draw(const Circle<Inexact>& c) {
 		             convertPoint(c.target()));
 	}
 	m_painter->drawPath(path);
-}*/
+}
 
 void GeometryWidget::drawText(const Point<Inexact>& p, const std::string& text) {
 	setupPainter();
@@ -577,9 +592,9 @@ void GeometryWidget::setFillOpacity(int alpha) {
 	m_style.m_fillColor.setAlpha(alpha);
 }
 
-/*std::unique_ptr<QPainter> GeometryWidget::getQPainter() {
-	return std::make_unique<QPainter>(this);
-}*/
+QPainter& GeometryWidget::getQPainter() {
+	return *m_painter;
+}
 
 void GeometryWidget::addPainting(std::shared_ptr<GeometryPainting> painting, const std::string& name) {
 	bool visible = !m_invisibleLayerNames.contains(name);

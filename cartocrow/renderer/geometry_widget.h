@@ -163,7 +163,7 @@ class GeometryWidget : public QWidget, GeometryRenderer {
 	void draw(const Polygon<Inexact>& p) override;
 	void draw(const PolygonWithHoles<Inexact>& p) override;
 	void draw(const Circle<Inexact>& c) override;
-	//void draw(const BezierSpline& s) override;
+	void draw(const BezierSpline& s) override;
 	void drawText(const Point<Inexact>& p, const std::string& text) override;
 
 	void pushStyle() override;
@@ -201,6 +201,7 @@ class GeometryWidget : public QWidget, GeometryRenderer {
 	void zoomOut();
 	/// Sets the type of grid.
 	void setGridMode(GridMode mode);
+	QPainter& getQPainter() override;
 
   signals:
 	/// Emitted when the user clicks on the widget.

@@ -1,7 +1,7 @@
 set(SOURCES
     medial_axis_demo.cpp
-        medial_axis.h
         medial_axis.cpp
+        medial_axis.h
 )
 
 add_executable(medial_axis_demo ${SOURCES})

@@ -6,6 +6,7 @@
 #include <QApplication>
 #include <utility>
 #include "cartocrow/core/core.h"
+#include "cartocrow/renderer/ipe_renderer.h"
 #include <CGAL/convex_hull_2.h>
 
 using namespace cartocrow;
@@ -55,16 +56,20 @@ void CGALTutorial::recalculate() {
 	auto painting = std::make_shared<ConvexHullPainting>(real_points, std::move(polygon));
 	m_renderer->addPainting(painting, "Convex hull painting");
 	m_renderer->update();
+	cartocrow::renderer::IpeRenderer renderer(painting);
+	renderer.save("test.ipe");
 }
 
 void ConvexHullPainting::paint(GeometryRenderer& renderer) const {
 	renderer.setMode(GeometryRenderer::stroke | GeometryRenderer::vertices | GeometryRenderer::fill);
 
+	renderer.setFill(Color{50, 100, 255});
 	renderer.draw(*m_convex_hull);
 	for (auto &p : *m_points) {
 		renderer.draw(p);
 	}
 }
+
 ConvexHullPainting::ConvexHullPainting(std::shared_ptr<std::vector<Point<Inexact>>> points,
                                        std::shared_ptr<Polygon<Inexact>> convex_hull)
     : m_points(std::move(points)), m_convex_hull(std::move(convex_hull)) {}

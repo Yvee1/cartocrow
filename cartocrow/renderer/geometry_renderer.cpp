@@ -58,4 +58,8 @@ void GeometryRenderer::drawText(const Point<Exact>& p, const std::string& s) {
 	drawText(approximate(p), s);
 }
 
+QPainter& GeometryRenderer::getQPainter() {
+	throw std::runtime_error("No QPainter.");
+}
+
 } // namespace cartocrow::renderer

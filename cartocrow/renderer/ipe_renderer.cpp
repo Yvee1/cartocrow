@@ -136,7 +136,7 @@ void IpeRenderer::draw(const Circle<Inexact>& c) {
 	m_page->append(ipe::TSelect::ENotSelected, m_layer, path);
 }
 
-/*void IpeRenderer::draw(const BezierSpline& s) {
+void IpeRenderer::draw(const BezierSpline& s) {
 	ipe::Curve* curve = new ipe::Curve();
 	for (BezierCurve c : s.curves()) {
 		std::vector<ipe::Vector> coords;
@@ -150,7 +150,7 @@ void IpeRenderer::draw(const Circle<Inexact>& c) {
 	shape->appendSubPath(curve);
 	ipe::Path* path = new ipe::Path(getAttributesForStyle(), *shape);
 	m_page->append(ipe::TSelect::ENotSelected, m_layer, path);
-}*/
+}
 
 void IpeRenderer::drawText(const Point<Inexact>& p, const std::string& text) {
 	ipe::String labelText = escapeForLaTeX(text).data();

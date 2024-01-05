@@ -21,9 +21,10 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #define CARTOCROW_RENDERER_GEOMETRY_RENDERER_H
 
 // TODO
-//#include "../core/bezier_spline.h"
+#include "../core/bezier.h"
 #include "../core/core.h"
 #include "../core/region_map.h"
+#include <QPainter>
 
 namespace cartocrow::renderer {
 
@@ -107,7 +108,7 @@ class GeometryRenderer {
 	/// Draws a circle with the currently set style.
 	void draw(const Circle<Exact>& c);
 	/// Draws a Bézier spline with the currently set style.
-	//virtual void draw(const BezierSpline<Inexact>& s) = 0; // TODO
+	virtual void draw(const BezierSpline& s) = 0;
 	/// Draws a polygon set with the currently set style.
 	virtual void draw(const PolygonSet<Inexact>& p);
 	/// Draws a polygon set with the currently set style.
@@ -140,6 +141,7 @@ class GeometryRenderer {
 	/// Sets the fill opacity of the renderer (range 0-255).
 	virtual void setFillOpacity(int alpha) = 0;
 
+	virtual QPainter& getQPainter();
 	/// @}
 };
 
