@@ -24,7 +24,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "../core/bezier.h"
 #include "../core/core.h"
 #include "../core/region_map.h"
-#include <QPainter>
+#include "../core/polyline.h"
+//#include <QPainter>
 
 namespace cartocrow::renderer {
 
@@ -91,6 +92,10 @@ class GeometryRenderer {
 	virtual void draw(const Point<Inexact>& p) = 0;
 	/// Draws a single point with the currently set style.
 	void draw(const Point<Exact>& p);
+	template<class Geometry>
+	void draw(const Geometry& g) {
+	    draw(approximate(g));
+	};
 	/// Draws a single line segment with the currently set style.
 	virtual void draw(const Segment<Inexact>& s) = 0;
 	/// Draws a single line segment with the currently set style.
@@ -123,6 +128,10 @@ class GeometryRenderer {
 	virtual void draw(const Ray<Inexact>& r) = 0;
 	// Draws a ray with the currently set style.
 	void draw(const Ray<Exact>& r);
+	// Draws a polyline with the currently set style.
+	virtual void draw(const Polyline<Inexact>& p) = 0;
+	// Draws a polyline with the currently set style.
+	void draw(const Polyline<Exact>& p);
 
 	/// Draws a string at a given location.
 	/// The string is drawn centered horizontally around the location given.
@@ -151,7 +160,7 @@ class GeometryRenderer {
 	/// Sets the fill opacity of the renderer (range 0-255).
 	virtual void setFillOpacity(int alpha) = 0;
 
-	virtual QPainter& getQPainter();
+//	virtual QPainter& getQPainter();
 	/// @}
 };
 

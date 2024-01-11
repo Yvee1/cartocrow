@@ -16,28 +16,39 @@
 #include <CGAL/Segment_Delaunay_graph_traits_2.h>
 #include "cartocrow/core/ipe_reader.h"
 #include <ipepath.h>
+#include <CGAL/Exact_predicates_exact_constructions_kernel_with_sqrt.h>
 
-typedef cartocrow::Inexact K;
-//typedef CGAL::Delaunay_triangulation_2<K>                                    DT;
-//typedef CGAL::Delaunay_triangulation_adaptation_traits_2<DT>                 AT;
-//typedef CGAL::Delaunay_triangulation_caching_degeneracy_removal_policy_2<DT> AP;
-//typedef CGAL::Voronoi_diagram_2<DT,AT,AP>                                    VD;
-//typedef AT::Site_2                          							     Site;
-typedef CGAL::Segment_Delaunay_graph_traits_2<K>                       Gt;
+//typedef CGAL::Exact_predicates_exact_constructions_kernel_with_sqrt    K;
+typedef CGAL::Exact_predicates_inexact_constructions_kernel    K;
+//typedef CGAL::Segment_Delaunay_graph_traits_2<K>                       Gt;
+typedef CGAL::Segment_Delaunay_graph_filtered_traits_2<K, CGAL::Field_with_sqrt_tag>  Gt;
 typedef CGAL::Segment_Delaunay_graph_2<Gt>                             SDG2;
 typedef CGAL::Segment_Delaunay_graph_adaptation_traits_2<SDG2>         AT;
-typedef CGAL::Segment_Delaunay_graph_degeneracy_removal_policy_2<SDG2> AP;
-typedef CGAL::Voronoi_diagram_2<SDG2, AT, AP>      VD;
 typedef AT::Site_2                                 Site;
+//typedef CGAL::Segment_Delaunay_graph_degeneracy_removal_policy_2<SDG2> AP;
+//typedef CGAL::Voronoi_diagram_2<SDG2, AT, AP>      VD;
 
 using namespace cartocrow;
 using namespace cartocrow::renderer;
 
 class Isoline {
   public:
-	Isoline(std::vector<Segment<Inexact>> segments);
+	Isoline(std::vector<Point<K>> points, bool closed);
 
-	std::vector<Segment<Inexact>> m_segments;
+	std::vector<Point<K>> m_points;
+	bool m_closed;
+
+	std::variant<Polyline<K>, Polygon<K>> m_drawing_representation;
+
+	Polyline<K> m_polyline;
+
+	[[nodiscard]] Polyline<K>::Edge_iterator edges_begin() const {
+		return m_polyline.edges_begin();
+	}
+
+	[[nodiscard]] Polyline<K>::Edge_iterator edges_end() const {
+		return m_polyline.edges_end();
+	}
 };
 
 class MedialAxisDemo : public QMainWindow {
@@ -45,26 +56,38 @@ class MedialAxisDemo : public QMainWindow {
 
   public:
 	MedialAxisDemo();
-	void recalculate();
+	void recalculate(bool voronoi, int target);
 	void addIsolineToVoronoi(const Isoline& isoline);
-	std::vector<Isoline> isolinesInPage(ipe::Page* page);
 
   private:
 	std::vector<Isoline> m_isolines;
-	VD m_voronoi;
+	std::vector<Isoline> m_cgal_simplified;
+	SDG2 m_delaunay;
 	cartocrow::renderer::GeometryWidget* m_renderer;
 };
 
+std::vector<Isoline> isolinesInPage(ipe::Page* page);
+
 class MedialAxisPainting : public cartocrow::renderer::GeometryPainting {
   public:
-	MedialAxisPainting(std::vector<Isoline>* isolines, VD* voronoi);
+	MedialAxisPainting(SDG2& delaunay);
 
   protected:
 	void paint(cartocrow::renderer::GeometryRenderer& renderer) const override;
 
   private:
-	std::vector<Isoline>* m_isolines;
-	VD* m_voronoi;
+	SDG2& m_delaunay;
+};
+
+class IsolinePainting : public cartocrow::renderer::GeometryPainting {
+  public:
+	IsolinePainting(std::vector<Isoline>& isolines);
+
+  protected:
+	void paint(cartocrow::renderer::GeometryRenderer& renderer) const override;
+
+  private:
+	std::vector<Isoline>& m_isolines;
 };
 
 class VoronoiDrawer {

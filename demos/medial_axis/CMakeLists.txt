@@ -1,6 +1,5 @@
 set(SOURCES
     medial_axis_demo.cpp
-        medial_axis.cpp
         medial_axis.h
 )
 

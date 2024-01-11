@@ -487,6 +487,7 @@ void GeometryWidget::draw(const Segment<Inexact>& s) {
 }
 
 void GeometryWidget::draw(const Polygon<Inexact>& p) {
+//	std::cout << p.size() << std::endl;
 	setupPainter();
 	QPainterPath path;
 	addPolygonToPath(path, p);
@@ -544,6 +545,12 @@ void GeometryWidget::draw(const BezierSpline& s) {
 		             convertPoint(c.target()));
 	}
 	m_painter->drawPath(path);
+	if (m_style.m_mode & vertices) {
+		for (BezierCurve c : s.curves()) {
+			draw(c.source());
+			draw(c.target());
+		}
+	}
 }
 
 void GeometryWidget::draw(const Ray<Inexact>& r) {
@@ -552,6 +559,9 @@ void GeometryWidget::draw(const Ray<Inexact>& r) {
 	if (result) {
 		if (const Segment<Inexact>* s = boost::get<Segment<Inexact>>(&*result)) {
 			draw(*s);
+		}
+		if (m_style.m_mode & vertices) {
+			draw(r.source());
 		}
 	}
 }
@@ -562,6 +572,21 @@ void GeometryWidget::draw(const Line<Inexact>& l) {
 	if (result) {
 		if (const Segment<Inexact>* s = boost::get<Segment<Inexact>>(&*result)) {
 			draw(*s);
+		}
+	}
+}
+
+void GeometryWidget::draw(const Polyline<Inexact>& p) {
+	setupPainter();
+	QPainterPath path;
+	path.moveTo(convertPoint(*p.vertices_begin()));
+	for (auto v = p.vertices_begin()++; v != p.vertices_end(); v++) {
+		path.lineTo(convertPoint(*v));
+	}
+	m_painter->drawPath(path);
+	if (m_style.m_mode & vertices) {
+		for (auto v = p.vertices_begin(); v != p.vertices_end(); v++) {
+			draw(*v);
 		}
 	}
 }
@@ -612,9 +637,9 @@ void GeometryWidget::setFillOpacity(int alpha) {
 	m_style.m_fillColor.setAlpha(alpha);
 }
 
-QPainter& GeometryWidget::getQPainter() {
-	return *m_painter;
-}
+//QPainter& GeometryWidget::getQPainter() {
+//	return *m_painter;
+//}
 
 void GeometryWidget::addPainting(std::shared_ptr<GeometryPainting> painting, const std::string& name) {
 	bool visible = !m_invisibleLayerNames.contains(name);

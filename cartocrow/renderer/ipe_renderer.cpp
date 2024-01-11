@@ -125,6 +125,15 @@ void IpeRenderer::draw(const Ray<Inexact>& r) {
 	}
 }
 
+void IpeRenderer::draw(const Polyline<Inexact>& p) {
+	// TODO
+//	ipe::Curve* curve = convertPolyline(p);
+//	ipe::Shape* shape = new ipe::Shape();
+//	shape->appendSubPath(curve);
+//	ipe::Path* path = new ipe::Path(getAttributesForStyle(), *shape);
+//	m_page->append(ipe::TSelect::ENotSelected, m_layer, path);
+}
+
 void IpeRenderer::draw(const Polygon<Inexact>& p) {
 	ipe::Curve* curve = convertPolygonToCurve(p);
 	ipe::Shape* shape = new ipe::Shape();
@@ -227,6 +236,12 @@ ipe::Curve* IpeRenderer::convertPolygonToCurve(const Polygon<Inexact>& p) const 
 	curve->setClosed(true);
 	return curve;
 }
+
+//ipe::Curve* IpeRenderer::convertPolylineToCurve(const Polyline<Inexact>& p) const {
+//	ipe::Curve* curve = new ipe::Curve();
+//	// TODO;
+//	return curve;
+//}
 
 ipe::AllAttributes IpeRenderer::getAttributesForStyle() const {
 	ipe::AllAttributes attributes;

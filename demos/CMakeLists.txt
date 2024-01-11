@@ -1,3 +1,2 @@
 add_subdirectory(flow_map)
 add_subdirectory(medial_axis)
-add_subdirectory(cgal_tutorial)

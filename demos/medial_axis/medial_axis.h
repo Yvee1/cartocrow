@@ -11,7 +11,7 @@
 #include <CGAL/Segment_Delaunay_graph_traits_2.h>
 
 template<class K,
-          class Gt  = CGAL::Segment_Delaunay_graph_traits_2<K>,
+          class Gt  = CGAL::Segment_Delaunay_graph_filtered_traits_2<K, CGAL::Field_with_sqrt_tag>,
           class SDG = CGAL::Segment_Delaunay_graph_2<Gt>,
           class AT  = CGAL::Segment_Delaunay_graph_adaptation_traits_2<SDG>>
 bool same_points(const SDG& dg, const typename AT::Site_2& p, const typename AT::Site_2& q) {
@@ -19,7 +19,7 @@ bool same_points(const SDG& dg, const typename AT::Site_2& p, const typename AT:
 }
 
 template<class K,
-          class Gt  = CGAL::Segment_Delaunay_graph_traits_2<K>,
+          class Gt  = CGAL::Segment_Delaunay_graph_filtered_traits_2<K, CGAL::Field_with_sqrt_tag>,
           class SDG = CGAL::Segment_Delaunay_graph_2<Gt>,
           class AT  = CGAL::Segment_Delaunay_graph_adaptation_traits_2<SDG>>
 bool is_endpoint_of_segment(const SDG& dg, typename AT::Site_2& p, typename AT::Site_2& s) {
@@ -30,14 +30,12 @@ bool is_endpoint_of_segment(const SDG& dg, typename AT::Site_2& p, typename AT::
 
 template <class Stream,
           class K,
-          class Gt  = CGAL::Segment_Delaunay_graph_traits_2<K>,
+          class Gt  = CGAL::Segment_Delaunay_graph_filtered_traits_2<K, CGAL::Field_with_sqrt_tag>,
           class SDG = CGAL::Segment_Delaunay_graph_2<Gt>,
           class ST = CGAL::Segment_Delaunay_graph_storage_traits_2<Gt>,
           class D_S = CGAL::Triangulation_data_structure_2<CGAL::Segment_Delaunay_graph_vertex_base_2<ST>, CGAL::Segment_Delaunay_graph_face_base_2<Gt>>>
 Stream& draw_dual_edge(const SDG& dg, typename D_S::Edge e, Stream& str)
 {
-	CGAL_precondition( !is_infinite(e) );
-
 	typename Gt::Line_2    l;
 	typename Gt::Segment_2 s;
 	typename Gt::Ray_2     r;
@@ -55,21 +53,10 @@ Stream& draw_dual_edge(const SDG& dg, typename D_S::Edge e, Stream& str)
 
 template <class Stream,
           class K,
-          class Gt  = CGAL::Segment_Delaunay_graph_traits_2<K>,
+          class Gt  = CGAL::Segment_Delaunay_graph_filtered_traits_2<K, CGAL::Field_with_sqrt_tag>,
           class SDG = CGAL::Segment_Delaunay_graph_2<Gt>
           >
 Stream& draw_skeleton(const SDG& dg, Stream& str) {
-	//	typedef Segment_Delaunay_graph_traits_2<K> Gt;
-	//	typedef Segment_Delaunay_graph_2<Gt> SDG;
-	//	typedef Segment_Delaunay_graph_adaptation_traits_2<SDG>	AT;
-	//	typedef typename AT::Site_2 Site;
-	//	typedef Segment_Delaunay_graph_degeneracy_removal_policy_2<SDG>	AP;
-	//	typedef Segment_Delaunay_graph_storage_traits_2<Gt> ST;
-	//	typedef Triangulation_data_structure_2<Segment_Delaunay_graph_vertex_base_2<ST>, Segment_Delaunay_graph_face_base_2<Gt>> D_S;
-	//	typedef Segment_Delaunay_graph_traits_wrapper_2<Gt>	Modified_traits;
-	//	typedef Triangulation_2<Modified_traits,D_S> DG;
-	//	typedef typename DG::Finite_edges_iterator Finite_edges_iterator;
-
 	auto eit = dg.finite_edges_begin();
 	for (; eit != dg.finite_edges_end(); ++eit) {
 		auto p = eit->first->vertex(  SDG::cw(eit->second) )->site();
