@@ -40,6 +40,7 @@ class BezierCurve {
 	BezierCurve(const Point<Inexact>& source, const Point<Inexact>& source_control,
 	            const Point<Inexact>& target_control, const Point<Inexact>& target);
 
+	/// Constructs a cubic Bezier curve from a quadratic Bezier curve consisting of three control points.
 	BezierCurve(const Point<Inexact>& source, const Point<Inexact>& control, const Point<Inexact>& target);
 
 	/// Returns the source of this curve.
@@ -73,31 +74,31 @@ class BezierSpline {
 
 	BezierSpline();
 
-	bool IsValid() const;
+	bool isValid() const;
 
-	bool IsEmpty() const;
+	bool isEmpty() const;
 
-	bool IsContinuous() const;
+	bool isContinuous() const;
 
-	bool IsClosed() const;
+	bool isClosed() const;
 
-	bool ToCircle(Circle<Inexact>& circle, const Number<Inexact>& epsilon = 0.01) const;
+	bool toCircle(Circle<Inexact>& circle, const Number<Inexact>& epsilon = 0.01) const;
 
 	const CurveSet& curves() const;
 
 	CurveSet& curves();
 
-	void AppendCurve(const Point<Inexact>& source, const Point<Inexact>& source_control,
+	void appendCurve(const Point<Inexact>& source, const Point<Inexact>& source_control,
 	                 const Point<Inexact>& target_control, const Point<Inexact>& target);
 
-	void AppendCurve(BezierCurve curve);
+	void appendCurve(BezierCurve curve);
 
-	void AppendCurve(const Point<Inexact>& source_control, const Point<Inexact>& target_control,
+	void appendCurve(const Point<Inexact>& source_control, const Point<Inexact>& target_control,
 	                 const Point<Inexact>& target);
 
-	void Reverse();
+	void reverse();
 
-	Box ComputeBoundingBox() const;
+	Box computeBoundingBox() const;
 
   private:
 	CurveSet curves_;

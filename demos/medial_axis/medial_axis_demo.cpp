@@ -99,9 +99,11 @@ void MedialAxisDemo::recalculate(bool voronoi, int target) {
 
 	if (voronoi) {
 		for (const auto& isoline : m_isolines) {
-			addIsolineToVoronoi(isoline);
+//			addIsolineToVoronoi(isoline);
 		}
-		auto medial_axis_p = std::make_shared<MedialAxisPainting>(m_delaunay);
+	}
+	auto medial_axis_p = std::make_shared<MedialAxisPainting>(m_delaunay);
+	if (voronoi) {
 		m_renderer->addPainting(medial_axis_p, "Medial axis");
 	}
 	CT ct;
@@ -109,9 +111,13 @@ void MedialAxisDemo::recalculate(bool voronoi, int target) {
 	std::vector<CT::Constraint_id> ids;
 
 	for (const auto& isoline : m_isolines) {
-		// TODO: check if constraint should be different for closed isolines.
-		CT::Constraint_id id = ct.insert_constraint(isoline.m_points);
-		ids.push_back(id);
+		if (isoline.m_closed) {
+			CT::Constraint_id id = ct.insert_constraint(isoline.polygon());
+			ids.push_back(id);
+		} else {
+			CT::Constraint_id id = ct.insert_constraint(isoline.m_points);
+			ids.push_back(id);
+		}
 	}
 
 	PS::simplify(ct, Cost(), Stop(target));
@@ -134,8 +140,10 @@ void MedialAxisDemo::recalculate(bool voronoi, int target) {
 
 	m_renderer->update();
 
-//	IpeRenderer ipeRenderer(medial_axis_p, isolines_p);
-//	ipeRenderer.save("/home/steven/Documents/cartocrow/output.ipe");
+	IpeRenderer ipeRenderer;
+//	ipeRenderer.addPainting(medial_axis_p);
+	ipeRenderer.addPainting(isolines_p);
+	ipeRenderer.save("/home/steven/Documents/cartocrow/output.ipe");
 }
 
 std::vector<Isoline> isolinesInPage(ipe::Page* page) {
@@ -171,9 +179,6 @@ std::vector<Isoline> isolinesInPage(ipe::Page* page) {
 }
 
 void MedialAxisDemo::addIsolineToVoronoi(const Isoline& isoline) {
-//	for (auto e = isoline.edges_begin(); e != isoline.edges_end(); e++) {
-//		m_delaunay.insert(Site::construct_site_2((*e).source(), (*e).target()));
-//	}
 	m_delaunay.insert_segments(isoline.edges_begin(), isoline.edges_end());
 }
 
@@ -189,8 +194,8 @@ MedialAxisPainting::MedialAxisPainting(SDG2& delaunay): m_delaunay(delaunay) {}
 void MedialAxisPainting::paint(GeometryRenderer& renderer) const {
 	renderer.setStroke(Color(150, 150, 150), 1);
 	renderer.setMode(GeometryRenderer::stroke);
-	auto voronoiDrawer = VoronoiDrawer(&renderer);
-	draw_skeleton<VoronoiDrawer, K>(m_delaunay,voronoiDrawer);
+//	auto voronoiDrawer = VoronoiDrawer(&renderer);
+//	draw_skeleton<VoronoiDrawer, K>(m_delaunay,voronoiDrawer);
 }
 
 IsolinePainting::IsolinePainting(std::vector<Isoline>& isolines):
@@ -203,7 +208,7 @@ void IsolinePainting::paint(GeometryRenderer& renderer) const {
 	renderer.setStroke(Color(0, 0, 0), 2);
 	for (const auto& isoline : m_isolines) {
 		std::visit([&](auto&& v){
-			renderer.draw(approximate(v));
+			renderer.draw(v);
 		}, isoline.m_drawing_representation);
 	}
 }
@@ -223,7 +228,7 @@ VoronoiDrawer& VoronoiDrawer::operator<<(const CGAL::Parabola_segment_2<Gt>& p) 
 
 	// Roundabout way to obtain start and end of parabolic segment because they are protected -_-
 	std::vector<Gt::Point_2> pts;
-	p.generate_points(pts, Gt::FT(1000000));
+//	p.generate_points(pts, Gt::FT(1000000));
 	auto start = pts.front();
 	auto end = pts.back();
 

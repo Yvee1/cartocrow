@@ -90,55 +90,42 @@ class GeometryRenderer {
 
 	/// Draws a single point with the currently set style.
 	virtual void draw(const Point<Inexact>& p) = 0;
-	/// Draws a single point with the currently set style.
-	void draw(const Point<Exact>& p);
-	template<class Geometry>
-	void draw(const Geometry& g) {
-	    draw(approximate(g));
-	};
 	/// Draws a single line segment with the currently set style.
 	virtual void draw(const Segment<Inexact>& s) = 0;
-	/// Draws a single line segment with the currently set style.
-	void draw(const Segment<Exact>& s);
 	/// Draws a simple polygon with the currently set style.
 	virtual void draw(const Polygon<Inexact>& p) = 0;
-	/// Draws a simple polygon with the currently set style.
-	void draw(const Polygon<Exact>& p);
 	/// Draws a polygon with holes with the currently set style.
 	virtual void draw(const PolygonWithHoles<Inexact>& p) = 0;
-	/// Draws a polygon with holes with the currently set style.
-	void draw(const PolygonWithHoles<Exact>& p);
 	/// Draws a circle with the currently set style.
 	virtual void draw(const Circle<Inexact>& c) = 0;
-	/// Draws a circle with the currently set style.
-	void draw(const Circle<Exact>& c);
 	/// Draws a Bézier spline with the currently set style.
 	void draw(const BezierCurve& c);
 	/// Draws a Bézier spline with the currently set style.
 	virtual void draw(const BezierSpline& s) = 0;
 	/// Draws a polygon set with the currently set style.
 	virtual void draw(const PolygonSet<Inexact>& p);
-	/// Draws a polygon set with the currently set style.
-	void draw(const PolygonSet<Exact>& p);
-	// Draws a line with the currently set style.
+	/// Draws a line with the currently set style.
 	virtual void draw(const Line<Inexact>& l) = 0;
-	// Draws a line with the currently set style.
-	void draw(const Line<Exact>& l);
-	// Draws a ray with the currently set style.
+	/// Draws a ray with the currently set style.
 	virtual void draw(const Ray<Inexact>& r) = 0;
-	// Draws a ray with the currently set style.
-	void draw(const Ray<Exact>& r);
-	// Draws a polyline with the currently set style.
+	/// Draws a polyline with the currently set style.
 	virtual void draw(const Polyline<Inexact>& p) = 0;
-	// Draws a polyline with the currently set style.
-	void draw(const Polyline<Exact>& p);
+
+	/// Draws an exact geometry with the currently set style by approximating it.
+	template<class ExactGeometry>
+	void draw(const ExactGeometry& g) {
+		draw(approximate(g));
+	};
 
 	/// Draws a string at a given location.
 	/// The string is drawn centered horizontally around the location given.
 	virtual void drawText(const Point<Inexact>& p, const std::string& text) = 0;
 	/// Draws a string at a given location.
 	/// The string is drawn centered horizontally around the location given.
-	void drawText(const Point<Exact>& p, const std::string& text);
+	template <class K>
+	void drawText(const Point<K>& p, const std::string& text) {
+		drawText(approximate(p), text);
+	}
 
 	/// @}
 

@@ -9,6 +9,17 @@
 #include <CGAL/Segment_2.h>
 
 namespace cartocrow {
+template <class Segment_>
+class Polyline_Segment_ptr
+{
+  public:
+	typedef Segment_ Segment;
+	Polyline_Segment_ptr(Segment const &seg) :m_seg(seg){}
+	Segment* operator->() {return &m_seg;}
+  private:
+	Segment m_seg;
+};
+
 template <class K, class InputIterator> class SegmentIterator:
     public std::iterator<
         std::input_iterator_tag, 			     // iterator_category
@@ -30,6 +41,9 @@ template <class K, class InputIterator> class SegmentIterator:
 		++second_vertex;
 		return { *m_first_vertex, *second_vertex };
 	}
+
+	Polyline_Segment_ptr<CGAL::Segment_2<K>> operator->() const
+	{return Polyline_Segment_ptr<CGAL::Segment_2<K>>(operator*());}
 
 	Self& operator++() {
 		++m_first_vertex;
@@ -78,8 +92,11 @@ template <class K> class Polyline {
 	[[nodiscard]] Vertex_iterator vertices_end() const { return m_points.end(); }
 	[[nodiscard]] Edge_iterator edges_begin() const { return { m_points.begin() }; }
 	[[nodiscard]] Edge_iterator edges_end() const { return { --m_points.end() }; }
-	[[nodiscard]] int size() const { return m_points.size(); }
+	[[nodiscard]] int num_vertices() const { return m_points.size(); }
+	[[nodiscard]] int num_edges() const { return m_points.size() - 1; }
+	[[nodiscard]] int size() const { return num_vertices(); }
 	[[nodiscard]] CGAL::Point_2<K> vertex(int i) const { return m_points[i]; }
+	[[nodiscard]] CGAL::Segment_2<K> edge(int i) const { return *(std::next(edges_begin(), i)); }
   private:
 	std::vector<CGAL::Point_2<K>> m_points;
 };

@@ -18,8 +18,8 @@
 #include <ipepath.h>
 #include <CGAL/Exact_predicates_exact_constructions_kernel_with_sqrt.h>
 
-//typedef CGAL::Exact_predicates_exact_constructions_kernel_with_sqrt    K;
-typedef CGAL::Exact_predicates_inexact_constructions_kernel    K;
+typedef CGAL::Exact_predicates_exact_constructions_kernel    K;
+//typedef CGAL::Exact_predicates_inexact_constructions_kernel    K;
 //typedef CGAL::Segment_Delaunay_graph_traits_2<K>                       Gt;
 typedef CGAL::Segment_Delaunay_graph_filtered_traits_2<K, CGAL::Field_with_sqrt_tag>  Gt;
 typedef CGAL::Segment_Delaunay_graph_2<Gt>                             SDG2;
@@ -49,6 +49,8 @@ class Isoline {
 	[[nodiscard]] Polyline<K>::Edge_iterator edges_end() const {
 		return m_polyline.edges_end();
 	}
+
+	[[nodiscard]] Polygon<K> polygon() const { return std::get<Polygon<K>>(m_drawing_representation); }
 };
 
 class MedialAxisDemo : public QMainWindow {

@@ -548,8 +548,8 @@ void GeometryWidget::draw(const BezierSpline& s) {
 	if (m_style.m_mode & vertices) {
 		for (BezierCurve c : s.curves()) {
 			draw(c.source());
-			draw(c.target());
 		}
+		draw(s.curves().back().target());
 	}
 }
 
