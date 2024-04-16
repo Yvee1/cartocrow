@@ -185,9 +185,17 @@ class GeometryWidget : public QWidget, GeometryRenderer {
 	Number<Inexact> zoomFactor() const;
 
 	/// Adds an editable point.
-	void registerEditable(std::shared_ptr<Point<Inexact>> point);
+	void registerEditable(const std::shared_ptr<Point<Inexact>>& point);
 	/// Adds an editable polygon.
-	void registerEditable(std::shared_ptr<Polygon<Inexact>> polygon);
+	void registerEditable(const std::shared_ptr<Polygon<Inexact>>& polygon);
+	/// Adds an editable segment.
+	void registerEditable(const std::shared_ptr<Segment<Inexact>>& segment);
+
+	/// The QPainter we are drawing with. Only valid while painting.
+	std::unique_ptr<QPainter> m_painter;
+
+	/// Converts a point in drawing coordinates to Qt coordinates.
+	QPointF convertPoint(Point<Inexact> p) const;
 
   public slots:
 	/// Determines whether to draw the axes and gridlines in the background.
@@ -228,8 +236,6 @@ class GeometryWidget : public QWidget, GeometryRenderer {
 	void leaveEvent(QEvent* event) override;
 	QSize sizeHint() const override;
 
-	/// Converts a point in drawing coordinates to Qt coordinates.
-	QPointF convertPoint(Point<Inexact> p) const;
 	/// Converts a rectangle in drawing coordinates to Qt coordinates.
 	QRectF convertBox(Box b) const;
 	/// Converts a point in Qt coordinates back to drawing coordinates.
@@ -268,8 +274,6 @@ class GeometryWidget : public QWidget, GeometryRenderer {
 	std::set<std::string> m_invisibleLayerNames;
 	/// List of the paintings we're drawing.
 	std::vector<DrawnPainting> m_paintings;
-	/// The QPainter we are drawing with. Only valid while painting.
-	std::unique_ptr<QPainter> m_painter;
 	/// The transform from drawing coordinates to Qt coordinates.
 	QTransform m_transform;
 	/// The zoom lower bound, in pixels per unit.
@@ -291,8 +295,12 @@ class GeometryWidget : public QWidget, GeometryRenderer {
 	bool m_drawAxes = true;
 	/// The grid mode.
 	GridMode m_gridMode = GridMode::CARTESIAN;
+
+  public:
 	/// The registered editables.
 	std::vector<std::unique_ptr<Editable>> m_editables;
+
+  private:
 	/// The editable in \ref m_editables that the user is currently interacting
 	/// with, or `nullptr` if no such interaction is going on.
 	Editable* m_activeEditable = nullptr;

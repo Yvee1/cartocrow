@@ -166,7 +166,7 @@ void GeometryWidget::paintEvent(QPaintEvent* event) {
 	if (m_drawAxes) {
 		drawAxes();
 	}
-	for (auto painting : m_paintings) {
+	for (const auto& painting : m_paintings) {
 		if (painting.visible) {
 			pushStyle();
 			painting.m_painting->paint(*this);
@@ -242,6 +242,7 @@ void GeometryWidget::mouseReleaseEvent(QMouseEvent* event) {
 		m_dragging = false;
 		emit dragEnded(inverseConvertPoint(m_previousMousePos));
 	} else if (m_activeEditable) {
+		m_activeEditable->endDrag();
 		m_activeEditable = nullptr;
 	} else {
 		emit clicked(inverseConvertPoint(m_previousMousePos));
@@ -651,12 +652,16 @@ Number<Inexact> GeometryWidget::zoomFactor() const {
 	return m_transform.m11();
 }
 
-void GeometryWidget::registerEditable(std::shared_ptr<Point<Inexact>> point) {
+void GeometryWidget::registerEditable(const std::shared_ptr<Point<Inexact>>& point) {
 	m_editables.push_back(std::make_unique<PointEditable>(this, point));
 }
 
-void GeometryWidget::registerEditable(std::shared_ptr<Polygon<Inexact>> polygon) {
+void GeometryWidget::registerEditable(const std::shared_ptr<Polygon<Inexact>>& polygon) {
 	m_editables.push_back(std::make_unique<PolygonEditable>(this, polygon));
+}
+
+void GeometryWidget::registerEditable(const std::shared_ptr<Segment<Inexact>>& segment) {
+	m_editables.push_back(std::make_unique<SegmentEditable>(this, segment));
 }
 
 void GeometryWidget::setDrawAxes(bool drawAxes) {
