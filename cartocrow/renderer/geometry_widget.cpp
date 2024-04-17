@@ -660,10 +660,6 @@ void GeometryWidget::registerEditable(const std::shared_ptr<Polygon<Inexact>>& p
 	m_editables.push_back(std::make_unique<PolygonEditable>(this, polygon));
 }
 
-void GeometryWidget::registerEditable(const std::shared_ptr<Segment<Inexact>>& segment) {
-	m_editables.push_back(std::make_unique<SegmentEditable>(this, segment));
-}
-
 void GeometryWidget::setDrawAxes(bool drawAxes) {
 	m_drawAxes = drawAxes;
 	update();

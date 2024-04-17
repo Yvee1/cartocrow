@@ -31,8 +31,8 @@ StaircaseDemo::StaircaseDemo() {
 	m_renderer->setMinZoom(0.01);
 	m_renderer->setMaxZoom(1000.0);
 
-//	auto input = std::make_shared<UniformStaircase>(10);
-	auto input = std::make_shared<Staircase>(std::vector<double>({0, 1, 5, 6, 10}), std::vector<double>({0, 3, 4, 6, 8, 10}));
+	auto input = std::make_shared<UniformStaircase>(20);
+//	auto input = std::make_shared<Staircase>(std::vector<double>({0, 1, 5, 6, 10}), std::vector<double>({0, 3, 4, 6, 8, 10}));
 	auto gridP = std::make_shared<GridPainting>(input);
 
 	auto s = std::make_shared<Staircase>(*input);
@@ -102,6 +102,13 @@ bool StaircaseEditable::drawHoverHint(Point<K> location, Number<K> radius) const
 
 bool StaircaseEditable::startDrag(Point<K> location, Number<K> radius) {
 	m_step = closestStep(location, radius);
+	if (m_step.has_value()) {
+		if (m_step->vertical) {
+			QApplication::setOverrideCursor(QCursor(Qt::SizeHorCursor));
+		} else {
+			QApplication::setOverrideCursor(QCursor(Qt::SizeVerCursor));
+		}
+	}
 	return m_step.has_value();
 }
 
@@ -143,6 +150,7 @@ Number<K> snap(const Staircase& s, Number<K> value, bool vertical) {
 }
 
 void StaircaseEditable::endDrag() {
+	QApplication::restoreOverrideCursor();
 	if (m_step.has_value()) {
 		Number<K> v;
 		auto& xs = m_staircase->m_xs;
