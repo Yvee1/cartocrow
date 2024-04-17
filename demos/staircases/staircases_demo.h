@@ -24,11 +24,14 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "cartocrow/core/ipe_reader.h"
 #include "cartocrow/renderer/geometry_painting.h"
 #include "cartocrow/renderer/geometry_widget.h"
+#include <QCheckBox>
 #include <QMainWindow>
 
 
 using namespace cartocrow;
 using namespace cartocrow::renderer;
+
+template <class K> using Rectangle = CGAL::Iso_rectangle_2<K>;
 
 typedef Inexact K;
 
@@ -42,7 +45,7 @@ class StaircaseDemo : public QMainWindow {
 
   private:
 	GeometryWidget* m_renderer;
-
+	std::function<void()> m_update;
 };
 
 class OrthoPolygon {
@@ -63,34 +66,13 @@ class Staircase {
 	std::vector<Number<K>> m_xs;
 	std::vector<Number<K>> m_ys;
 
-	std::vector<Step> steps() {
-		std::vector<Step> result;
-		for (int i = 0; i < 2 * m_xs.size() - 1; i++) {
-			Point<K> p1(m_xs[ceil((i)/2)], m_ys[ceil((i+1)/2)]);
-			Point<K> p2(m_xs[ceil((i+1)/2)], m_ys[ceil((i+2)/2)]);
+	[[nodiscard]] std::vector<Step> steps() const;
 
-			result.emplace_back(i % 2 == 0, ceil((i + 1) / 2), Segment<K>(p1, p2));
-		}
-		return result;
-	}
+	[[nodiscard]] bool is_valid() const;
 
-	bool is_valid() {
-		if (m_xs.size() + 1 != m_ys.size()) return false;
+	[[nodiscard]] bool supported_by(const Staircase& other) const;
 
-		for (int i = 1; i < m_xs.size(); i++) {
-			if (m_xs[i-1] > m_xs[i]) {
-				return false;
-			}
-		}
-
-		for (int i = 1; i < m_ys.size(); i++) {
-			if (m_ys[i - 1] > m_ys[i]) {
-				return false;
-			}
-		}
-
-		return true;
-	}
+	std::vector<CGAL::Iso_rectangle_2<K>> moves();
 
   private:
 };
@@ -139,4 +121,60 @@ class GridPainting : public GeometryPainting {
   private:
 	const std::shared_ptr<Staircase> m_staircase;
 };
+
+bool supported_by(Segment<K> segment, Segment<K> other);
+
+struct Bracket {
+	int start;
+	int end;
+
+	std::optional<Polygon<K>> polygon(const Staircase& input) const {
+		bool vertical = start % 2 == 0;
+		if (start + 1 == end) return std::nullopt;
+
+		std::vector<Point<K>> pts;
+		pts.emplace_back(input.m_xs[ceil((start + 1)/2)], input.m_ys[ceil((start+2)/2)]);
+		for (int i = start + 1; i < end; i++) {
+			pts.emplace_back(input.m_xs[ceil((i+1)/2)], input.m_ys[ceil((i+2)/2)]);
+		}
+		if (vertical) {
+			pts.emplace_back(pts.front().x(), pts.back().y());
+		} else {
+			pts.emplace_back(pts.back().x(), pts.front().y());
+		}
+
+		return Polygon<K>(pts.begin(), pts.end());
+	}
+};
+
+std::vector<Bracket> brackets(const Staircase& input, const Staircase& simplification);
+
+class BracketPainting : public GeometryPainting {
+  public:
+	BracketPainting(const std::shared_ptr<Staircase>& input,
+	                const std::shared_ptr<Staircase>& simplification,
+	                QCheckBox* show_bracket_complexity,
+					QCheckBox* show_bracket_dimensions);
+	void paint(GeometryRenderer& renderer) const override;
+
+  private:
+	const std::shared_ptr<Staircase> m_input;
+	const std::shared_ptr<Staircase> m_simplification;
+	QCheckBox* m_show_bracket_complexity;
+	QCheckBox* m_show_bracket_dimensions;
+
+};
+
+class MovesPainting : public GeometryPainting {
+  public:
+	MovesPainting(const std::shared_ptr<Staircase>& staircase);
+	void paint(GeometryRenderer& renderer) const override;
+
+  private:
+	const std::shared_ptr<Staircase> m_staircase;
+	const std::vector<Polygon<K>> m_polys;
+};
+
+void do_greedy_step(Staircase& staircase);
+
 #endif //CARTOCROW_STAIRCASES_H
