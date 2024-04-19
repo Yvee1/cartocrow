@@ -96,15 +96,15 @@ class StaircasePainting : public GeometryPainting {
 class StaircaseEditable : public GeometryWidget::Editable {
   public:
 	StaircaseEditable(GeometryWidget* widget, std::shared_ptr<Staircase> staircase, const std::shared_ptr<Staircase>& input);
-	bool drawHoverHint(Point<K> location, Number<K> radius) const override;
-	bool startDrag(Point<K> location, Number<K> radius) override;
-	void handleDrag(Point<K> to) const override;
+	bool drawHoverHint(Point<Inexact> location, Number<Inexact> radius) const override;
+	bool startDrag(Point<Inexact> location, Number<Inexact> radius) override;
+	void handleDrag(Point<Inexact> to) const override;
 	void endDrag() override;
 
   private:
 	/// Checks if the location is within a circle with the given radius
 	/// around the point.
-	std::optional<Step> closestStep(Point<K> location, Number<K> radius) const;
+	std::optional<Step> closestStep(Point<Inexact> location, Number<K> radius) const;
 	/// The staircase that we are editing.
 	std::shared_ptr<Staircase> m_staircase;
 	/// The input staircase.

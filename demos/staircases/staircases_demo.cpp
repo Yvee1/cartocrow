@@ -35,8 +35,8 @@ StaircaseDemo::StaircaseDemo() {
 	//	auto input = std::make_shared<UniformStaircase>(20);
 	//	auto input = std::make_shared<Staircase>(std::vector<double>({0, 1, 5, 6, 10}), std::vector<double>({0, 3, 4, 6, 8, 10}));
 	auto input = std::make_shared<Staircase>(
-	    std::vector<double>({0, 1, 5, 6, 10, 11, 20, 21, 26, 30, 33, 35, 37}),
-	    std::vector<double>({0, 3, 4, 6, 8,  10, 12, 14, 19, 25, 26, 27, 29, 30})
+	    std::vector<Number<K>>({0, 1, 5, 6, 10, 11, 20, 21, 26, 30, 33, 35, 37}),
+	    std::vector<Number<K>>({0, 3, 4, 6, 8,  10, 12, 14, 19, 25, 26, 27, 29, 30})
 	);
 	auto s = std::make_shared<Staircase>(*input);
 
@@ -246,7 +246,7 @@ UniformStaircase::UniformStaircase(int n) : Staircase(std::vector<Number<K>>(n),
 StaircaseEditable::StaircaseEditable(GeometryWidget* widget, std::shared_ptr<Staircase> staircase, const std::shared_ptr<Staircase>& input)
     : Editable(widget), m_staircase(std::move(staircase)), m_input(input) {}
 
-bool StaircaseEditable::drawHoverHint(Point<K> location, Number<K> radius) const {
+bool StaircaseEditable::drawHoverHint(Point<Inexact> location, Number<Inexact> radius) const {
 	auto closest = closestStep(location, radius);
 
 	if (!closest.has_value()) {
@@ -254,12 +254,12 @@ bool StaircaseEditable::drawHoverHint(Point<K> location, Number<K> radius) const
 	}
 
 	m_widget->setStroke(Color(0, 0, 200), 3.0);
-	m_widget->draw(closest->segment);
+	m_widget->draw(approximate(closest->segment));
 
 	return true;
 }
 
-bool StaircaseEditable::startDrag(Point<K> location, Number<K> radius) {
+bool StaircaseEditable::startDrag(Point<Inexact> location, Number<Inexact> radius) {
 	m_step = closestStep(location, radius);
 	if (m_step.has_value()) {
 		if (m_step->vertical) {
@@ -271,17 +271,17 @@ bool StaircaseEditable::startDrag(Point<K> location, Number<K> radius) {
 	return m_step.has_value();
 }
 
-void StaircaseEditable::handleDrag(Point<K> to) const {
+void StaircaseEditable::handleDrag(Point<Inexact> to) const {
 	//	*m_point = to;
 	if (m_step.has_value()) {
 		if (m_step->vertical) {
-			double temp = m_staircase->m_xs[m_step->index];
+			Number<K> temp = m_staircase->m_xs[m_step->index];
 			m_staircase->m_xs[m_step->index] = to.x();
 			if (!m_staircase->is_valid()) {
 				m_staircase->m_xs[m_step->index] = temp;
 			}
 		} else {
-			double temp = m_staircase->m_ys[m_step->index];
+			Number<K> temp = m_staircase->m_ys[m_step->index];
 			m_staircase->m_ys[m_step->index] = to.y();
 			if (!m_staircase->is_valid()) {
 				m_staircase->m_ys[m_step->index] = temp;
@@ -299,7 +299,7 @@ Number<K> snap(const Staircase& s, Number<K> value, bool vertical) {
 	}
 
 	std::optional<Number<K>> closest;
-	for (double v : *vs) {
+	for (Number<K> v : *vs) {
 			if (!closest.has_value() || abs(value - v) < abs(*closest - value)) {
 			closest = v;
 		}
@@ -344,12 +344,12 @@ void StaircaseEditable::endDrag() {
 	m_widget->repaint();
 }
 
-std::optional<Step> StaircaseEditable::closestStep(Point<K> location, Number<K> radius) const {
-	double min_dist = std::numeric_limits<double>::infinity();
+std::optional<Step> StaircaseEditable::closestStep(Point<Inexact> location, Number<K> radius) const {
+	Number<K> min_dist = 100000;//std::numeric_limits<double>::infinity();
 	std::optional<Step> closest;
 	auto steps = m_staircase->steps();
 	for (auto step : steps) {
-		double dist = squared_distance(step.segment, location);
+		Number<K> dist = squared_distance(approximate(step.segment), location);
 		if (dist < radius * radius && dist < min_dist) {
 			min_dist = dist;
 			closest = step;
@@ -392,7 +392,7 @@ std::vector<Bracket> brackets(const Staircase& input, const Staircase& simplific
 	for (const auto& step : sim_steps) {
 		int prev_j = j;
 
-		while (!supported_by(step.segment, inp_steps[j].segment)) {
+		while (j < 0 || !supported_by(step.segment, inp_steps[j].segment) && j < inp_steps.size()) {
 			++j;
 		}
 
@@ -463,7 +463,7 @@ void do_greedy_step(Staircase& staircase) {
 
 	if (xs.size() <= 1) return;
 
-	double min_area = std::numeric_limits<double>::infinity();
+	Number<K> min_area = 1000000;//std::numeric_limits<double>::infinity();
 	int min_index = -1;
 
 	for (int i = 0; i < 2 * xs.size() - 2; i++) {
