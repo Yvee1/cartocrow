@@ -1,22 +1,3 @@
-/*
-The CartoCrow library implements algorithmic geo-visualization methods,
-developed at TU Eindhoven.
-Copyright (C) 2021  Netherlands eScience Center and TU Eindhoven
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3f of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <https://www.gnu.org/licenses/>.
-*/
-
 #ifndef CARTOCROW_STAIRCASES_H
 #define CARTOCROW_STAIRCASES_H
 
@@ -37,26 +18,20 @@ typedef Inexact K;
 
 #include <QMainWindow>
 
-class StaircaseDemo : public QMainWindow {
-	Q_OBJECT
-
-  public:
-	StaircaseDemo();
-
-  private:
-	GeometryWidget* m_renderer;
-	std::function<void()> m_update;
-};
-
 class OrthoPolygon {
 	std::vector<Number<K>> m_xs;
 	std::vector<Number<K>> m_ys;
 };
 
-struct Step {
+struct Edge {
 	bool vertical;
 	int index;
 	Segment<K> segment;
+};
+
+struct MoveBox {
+	int index;
+	Rectangle<K> rectangle;
 };
 
 class Staircase {
@@ -66,13 +41,19 @@ class Staircase {
 	std::vector<Number<K>> m_xs;
 	std::vector<Number<K>> m_ys;
 
-	[[nodiscard]] std::vector<Step> steps() const;
+	[[nodiscard]] std::vector<Edge> steps() const;
 
 	[[nodiscard]] bool is_valid() const;
 
 	[[nodiscard]] bool supported_by(const Staircase& other) const;
 
-	std::vector<CGAL::Iso_rectangle_2<K>> moves();
+	MoveBox move(int i) const;
+
+	std::vector<MoveBox> moves() const;
+
+	[[nodiscard]] size_t num_of_segments() const {
+		return m_xs.size() + m_ys.size();
+	}
 
   private:
 };
@@ -91,26 +72,6 @@ class StaircasePainting : public GeometryPainting {
   private:
 	const std::shared_ptr<Staircase> m_staircase;
 	bool m_light;
-};
-
-class StaircaseEditable : public GeometryWidget::Editable {
-  public:
-	StaircaseEditable(GeometryWidget* widget, std::shared_ptr<Staircase> staircase, const std::shared_ptr<Staircase>& input);
-	bool drawHoverHint(Point<Inexact> location, Number<Inexact> radius) const override;
-	bool startDrag(Point<Inexact> location, Number<Inexact> radius) override;
-	void handleDrag(Point<Inexact> to) const override;
-	void endDrag() override;
-
-  private:
-	/// Checks if the location is within a circle with the given radius
-	/// around the point.
-	std::optional<Step> closestStep(Point<Inexact> location, Number<K> radius) const;
-	/// The staircase that we are editing.
-	std::shared_ptr<Staircase> m_staircase;
-	/// The input staircase.
-	const std::shared_ptr<Staircase> m_input;
-	/// The step that we are dragging
-	std::optional<Step> m_step;
 };
 
 class GridPainting : public GeometryPainting {
@@ -175,6 +136,80 @@ class MovesPainting : public GeometryPainting {
 	const std::vector<Polygon<K>> m_polys;
 };
 
-void do_greedy_step(Staircase& staircase);
+class Command {
+  public:
+	virtual void execute() = 0;
+	virtual void undo() = 0;
+	virtual ~Command() = default;
+};
+
+class Contraction : public Command {
+  public:
+	Contraction(std::shared_ptr<Staircase> staircase, MoveBox box);
+	void execute() override;
+	void undo() override;
+
+  private:
+	std::shared_ptr<Staircase> m_staircase;
+	MoveBox m_box;
+	std::optional<Number<K>> m_erased_x;
+	std::optional<Number<K>> m_erased_y;
+};
+
+class EdgeMove : public Command {
+  public:
+	EdgeMove(std::shared_ptr<Staircase> staircase, Edge edge, Number<K> start_pos, Number<K> new_pos);
+	void execute() override;
+	void undo() override;
+
+  private:
+	std::shared_ptr<Staircase> m_staircase;
+	Edge m_edge;
+	Number<K> m_new_pos;
+	Number<K> m_start_pos;
+};
+
+std::optional<std::unique_ptr<Contraction>> greedy_contraction(std::shared_ptr<Staircase>& staircase);
+
+std::unique_ptr<Command> move_or_contract(const std::shared_ptr<Staircase>& staircase, Edge edge, Number<K> start_pos, Number<K> new_pos);
+
+class StaircaseEditable : public GeometryWidget::Editable {
+  public:
+	StaircaseEditable(GeometryWidget* widget,
+	                  std::shared_ptr<Staircase> staircase,
+	                  const std::shared_ptr<Staircase>& input,
+	                  std::function<void(std::optional<std::unique_ptr<Command>>)> update);
+	bool drawHoverHint(Point<Inexact> location, Number<Inexact> radius) const override;
+	bool startDrag(Point<Inexact> location, Number<Inexact> radius) override;
+	void handleDrag(Point<Inexact> to) const override;
+	void endDrag() override;
+
+  private:
+	/// Checks if the location is within a circle with the given radius
+	/// around the point.
+	std::optional<Edge> closestStep(Point<Inexact> location, Number<K> radius) const;
+	/// The staircase that we are editing.
+	std::shared_ptr<Staircase> m_staircase;
+	/// The input staircase.
+	const std::shared_ptr<Staircase> m_input;
+	/// The step that we are dragging
+	std::optional<Edge> m_edge;
+	/// Update function called after dragging ends.
+	std::function<void(std::unique_ptr<Command>)> m_update;
+	/// Start position of edge
+	std::optional<Number<K>> m_start_position;
+};
+
+class StaircaseDemo : public QMainWindow {
+	Q_OBJECT
+
+  public:
+	StaircaseDemo();
+
+  private:
+	GeometryWidget* m_renderer;
+	std::function<void(std::optional<std::unique_ptr<Command>>)> m_update;
+	std::stack<std::unique_ptr<Command>> m_command_stack;
+};
 
 #endif //CARTOCROW_STAIRCASES_H

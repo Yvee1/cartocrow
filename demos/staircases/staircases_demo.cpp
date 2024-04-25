@@ -1,22 +1,3 @@
-/*
-The CartoCrow library implements algorithmic geo-visualization methods,
-developed at TU Eindhoven.
-Copyright (C) 2021  Netherlands eScience Center and TU Eindhoven
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3f of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <https://www.gnu.org/licenses/>.
-*/
-
 #include "staircases_demo.h"
 #include <QApplication>
 #include <QDockWidget>
@@ -32,13 +13,13 @@ StaircaseDemo::StaircaseDemo() {
 	// ============  STAIRCASES ==============
 	// =======================================
 
-	//	auto input = std::make_shared<UniformStaircase>(20);
+		auto input = std::make_shared<UniformStaircase>(20);
 	//	auto input = std::make_shared<Staircase>(std::vector<double>({0, 1, 5, 6, 10}), std::vector<double>({0, 3, 4, 6, 8, 10}));
-	auto input = std::make_shared<Staircase>(
-	    std::vector<Number<K>>({0, 1, 5, 6, 10, 11, 20, 21, 26, 30, 33, 35, 37}),
-	    std::vector<Number<K>>({0, 3, 4, 6, 8,  10, 12, 14, 19, 25, 26, 27, 29, 30})
-	);
-	auto s = std::make_shared<Staircase>(*input);
+//	auto input = std::make_shared<Staircase>(
+//	    std::vector<Number<K>>({0, 1, 5, 6, 10, 11, 20, 21, 26, 30, 33, 35, 37}),
+//	    std::vector<Number<K>>({0, 3, 4, 6, 8,  10, 12, 14, 19, 25, 26, 27, 29, 30})
+//	);
+	std::shared_ptr<Staircase> s = std::make_shared<Staircase>(*input);
 
 	// =======================================
 	// ========= GEOMETRY WIDGET SETUP =======
@@ -51,8 +32,6 @@ StaircaseDemo::StaircaseDemo() {
 
 	m_renderer->setMinZoom(0.01);
 	m_renderer->setMaxZoom(1000.0);
-
-	m_renderer->m_editables.push_back(std::make_unique<StaircaseEditable>(m_renderer, s, input));
 
 	// =======================================
 	// =============== WIDGETS ===============
@@ -70,7 +49,7 @@ StaircaseDemo::StaircaseDemo() {
 	auto* uniformN = new QSpinBox();
 	uniformN->setValue(10);
 	uniformN->setMinimum(1);
-	uniformN->setMaximum(1000);
+	uniformN->setMaximum(10000);
 	auto* uniformNLabel = new QLabel("Uniform n");
 	uniformNLabel->setBuddy(uniformN);
 	vLayout->addWidget(uniformNLabel);
@@ -82,6 +61,12 @@ StaircaseDemo::StaircaseDemo() {
 	auto* reset_button = new QPushButton("Reset");
 	vLayout->addWidget(reset_button);
 
+	auto* undoRedoSection = new QLabel("<h3>Undo redo</h3>");
+	vLayout->addWidget(undoRedoSection);
+
+	auto* undo_button = new QPushButton("Undo");
+	vLayout->addWidget(undo_button);
+
 	auto* infoSection = new QLabel("<h3>Info</h3>");
 	vLayout->addWidget(infoSection);
 
@@ -92,8 +77,62 @@ StaircaseDemo::StaircaseDemo() {
 	auto* show_bracket_dimensions = new QCheckBox("Show bracket dimension");
 //	vLayout->addWidget(show_bracket_dimensions);
 
-	auto* l_label = new QLabel("Distributed complexity: ");
+	auto* total_bracket_complexity_label = new QLabel();
+	vLayout->addWidget(total_bracket_complexity_label);
+
+	auto* num_brackets_label = new QLabel();
+	vLayout->addWidget(num_brackets_label);
+
+	auto* l_label = new QLabel();
 	vLayout->addWidget(l_label);
+
+	auto* m_label = new QLabel();
+	vLayout->addWidget(m_label);
+
+	auto* opt_area_label = new QLabel();
+	vLayout->addWidget(opt_area_label);
+
+	auto* simp_area_label = new QLabel();
+	vLayout->addWidget(simp_area_label);
+
+	auto* area_ratio_label = new QLabel();
+	vLayout->addWidget(area_ratio_label);
+
+	auto set_complexity_text = [input, s, l_label, m_label, total_bracket_complexity_label, num_brackets_label, opt_area_label,
+	                                simp_area_label, area_ratio_label]() {
+		int in = input->num_of_segments();
+		int sn = s->num_of_segments();
+		int distributed = (in - sn) / 2;
+		int num_brackets = (sn - 1);
+	    int l = std::floor(distributed / num_brackets);
+		int m = (((double) distributed) / ((double) num_brackets) - l) * (double (sn - 1));
+		auto f = [](int sl) { return sl * (sl + 1) / 2; };
+		int opt_area = (sn - 1 - m) * f(l) + m * f(l + 1);
+		auto simp_brackets = brackets(*input, *s);
+		int simp_area = 0;
+		for (auto& b : simp_brackets) {
+			simp_area += f((b.end - b.start - 1)/2);
+		}
+		double area_ratio = ((double) simp_area) / ((double) opt_area);
+	    total_bracket_complexity_label->setText(QString::fromStdString("Distributed complexity: " + std::to_string(distributed)));
+	    num_brackets_label->setText(QString::fromStdString("#Brackets: " + std::to_string(num_brackets)));
+	  	l_label->setText(QString::fromStdString("Min. opt. complexity: " + std::to_string(l)));
+		m_label->setText(QString::fromStdString("m: " + std::to_string(m)));
+		opt_area_label->setText(QString::fromStdString("Opt. area: " + std::to_string(opt_area)));
+	    simp_area_label->setText(QString::fromStdString("Simp. area: " + std::to_string(simp_area)));
+	    area_ratio_label->setText(QString::fromStdString("Area ratio: " + std::to_string(area_ratio)));
+	};
+
+	m_update = [this, set_complexity_text, s, input, undo_button](std::optional<std::unique_ptr<Command>> command) {
+		if (command.has_value()) {
+			(*command)->execute();
+			m_command_stack.push(std::move(*command));
+		}
+	    m_renderer->repaint();
+		set_complexity_text();
+
+		undo_button->setEnabled(!m_command_stack.empty());
+	};
 
 	auto* greedySection = new QLabel("<h3>Greedy</h3>");
 	vLayout->addWidget(greedySection);
@@ -101,11 +140,17 @@ StaircaseDemo::StaircaseDemo() {
 	auto* greedy_step = new QPushButton("Step");
 	vLayout->addWidget(greedy_step);
 
+	auto* greedy_step_10 = new QPushButton("Step x 10");
+	vLayout->addWidget(greedy_step_10);
+
+	auto* greedy_step_100 = new QPushButton("Step x 100");
+	vLayout->addWidget(greedy_step_100);
+
 	// =========== EVENT HANDLERS ============
 	connect(reset_button, &QPushButton::clicked, [s, input, this] {
 		s->m_xs = input->m_xs;
 		s->m_ys = input->m_ys;
-		m_renderer->repaint();
+		m_update(std::nullopt);
 	});
 	connect(create_uniform, &QPushButton::clicked, [uniformN, s, input, this] {
 		auto uni = UniformStaircase(uniformN->value());
@@ -113,14 +158,43 @@ StaircaseDemo::StaircaseDemo() {
 	  	input->m_ys = uni.m_ys;
 	    s->m_xs = input->m_xs;
 	    s->m_ys = input->m_ys;
-	  	m_renderer->repaint();
+		m_update(std::nullopt);
+	});
+	connect(undo_button, &QPushButton::clicked, [this] {
+		m_command_stack.top()->undo();
+		m_command_stack.pop();
+		m_update(std::nullopt);
 	});
 	connect(show_bracket_complexity, &QCheckBox::stateChanged, [this]{ m_renderer->repaint(); });
 //	connect(show_bracket_dimensions, &QCheckBox::stateChanged, [this]{ m_renderer->repaint(); });
 	connect(greedy_step, &QPushButton::clicked, [s, this] {
-		do_greedy_step(*s);
-		m_renderer->repaint();
-//		m_update();
+		std::shared_ptr<Staircase> t = s;
+		auto c = greedy_contraction(t);
+		if (c.has_value()) {
+			m_update(std::move(*c));
+		}
+	});
+	connect(greedy_step_100, &QPushButton::clicked, [s, this] {
+		std::shared_ptr<Staircase> t = s;
+		for (int i = 0; i < 100; i++) {
+			auto c = greedy_contraction(t);
+			if (c.has_value()) {
+				(*c)->execute();
+				m_command_stack.push(std::move(*c));
+			}
+		}
+		m_update(std::nullopt);
+	});
+	connect(greedy_step_10, &QPushButton::clicked, [s, this] {
+		std::shared_ptr<Staircase> t = s;
+		for (int i = 0; i < 10; i++) {
+			auto c = greedy_contraction(t);
+			if (c.has_value()) {
+				(*c)->execute();
+				m_command_stack.push(std::move(*c));
+			}
+		}
+		m_update(std::nullopt);
 	});
 
 	// =======================================
@@ -136,6 +210,13 @@ StaircaseDemo::StaircaseDemo() {
 //	m_renderer->addPainting(movesP, "Moves");
 	m_renderer->addPainting(inputP, "Input");
 	m_renderer->addPainting(sP, "Simplification");
+
+	// =======================================
+	// ============== EDITABLES ==============
+	// =======================================
+	m_renderer->m_editables.push_back(std::make_unique<StaircaseEditable>(m_renderer, s, input, m_update));
+
+	m_update(std::nullopt);
 }
 
 int main(int argc, char* argv[]) {
@@ -191,8 +272,8 @@ bool Staircase::is_valid() const {
 	return true;
 }
 
-std::vector<Step> Staircase::steps() const {
-	std::vector<Step> result;
+std::vector<Edge> Staircase::steps() const {
+	std::vector<Edge> result;
 	for (int i = 0; i < 2 * m_xs.size() - 1; i++) {
 		Point<K> p1(m_xs[ceil((i)/2)], m_ys[ceil((i+1)/2)]);
 		Point<K> p2(m_xs[ceil((i+1)/2)], m_ys[ceil((i+2)/2)]);
@@ -202,16 +283,20 @@ std::vector<Step> Staircase::steps() const {
 	return result;
 }
 
-std::vector<Rectangle<K>> Staircase::moves() {
-	std::vector<Rectangle<K>> rects;
-
+std::vector<MoveBox> Staircase::moves() const {
+	std::vector<MoveBox> boxes;
 	for (int i = 0; i < 2 * m_xs.size() - 2; i++) {
 		Point<K> top_left(m_xs[floor(i / 2)], m_ys[floor((i + 1) / 2)]);
 		Point<K> bottom_right(m_xs[floor((i / 2) + 1)], m_ys[floor((i + 1) / 2 + 1)]);
-		rects.emplace_back(top_left, bottom_right);
+		boxes.emplace_back(i, Rectangle<K>(top_left, bottom_right));
 	}
+	return boxes;
+}
 
-	return rects;
+MoveBox Staircase::move(int i) const {
+	Point<K> top_left(m_xs[floor(i / 2)], m_ys[floor((i + 1) / 2)]);
+	Point<K> bottom_right(m_xs[floor((i / 2) + 1)], m_ys[floor((i + 1) / 2 + 1)]);
+	return { i, Rectangle<K>(top_left, bottom_right) };
 }
 
 StaircasePainting::StaircasePainting(const std::shared_ptr<Staircase>& staircase, bool light):
@@ -243,8 +328,10 @@ UniformStaircase::UniformStaircase(int n) : Staircase(std::vector<Number<K>>(n),
 	std::iota(m_ys.begin(), m_ys.end(), 0);
 }
 
-StaircaseEditable::StaircaseEditable(GeometryWidget* widget, std::shared_ptr<Staircase> staircase, const std::shared_ptr<Staircase>& input)
-    : Editable(widget), m_staircase(std::move(staircase)), m_input(input) {}
+StaircaseEditable::StaircaseEditable(GeometryWidget* widget, std::shared_ptr<Staircase> staircase,
+                                     const std::shared_ptr<Staircase>& input,
+                                     std::function<void(std::optional<std::unique_ptr<Command>>)> update)
+    : Editable(widget), m_staircase(std::move(staircase)), m_input(input), m_update(std::move(update)) {}
 
 bool StaircaseEditable::drawHoverHint(Point<Inexact> location, Number<Inexact> radius) const {
 	auto closest = closestStep(location, radius);
@@ -260,31 +347,32 @@ bool StaircaseEditable::drawHoverHint(Point<Inexact> location, Number<Inexact> r
 }
 
 bool StaircaseEditable::startDrag(Point<Inexact> location, Number<Inexact> radius) {
-	m_step = closestStep(location, radius);
-	if (m_step.has_value()) {
-		if (m_step->vertical) {
+	m_edge = closestStep(location, radius);
+	if (m_edge.has_value()) {
+		if (m_edge->vertical) {
 			QApplication::setOverrideCursor(QCursor(Qt::SizeHorCursor));
+			m_start_position = m_staircase->m_xs[m_edge->index];
 		} else {
 			QApplication::setOverrideCursor(QCursor(Qt::SizeVerCursor));
+			m_start_position = m_staircase->m_ys[m_edge->index];
 		}
 	}
-	return m_step.has_value();
+	return m_edge.has_value();
 }
 
 void StaircaseEditable::handleDrag(Point<Inexact> to) const {
-	//	*m_point = to;
-	if (m_step.has_value()) {
-		if (m_step->vertical) {
-			Number<K> temp = m_staircase->m_xs[m_step->index];
-			m_staircase->m_xs[m_step->index] = to.x();
+	if (m_edge.has_value()) {
+		if (m_edge->vertical) {
+			Number<K> temp = m_staircase->m_xs[m_edge->index];
+			m_staircase->m_xs[m_edge->index] = to.x();
 			if (!m_staircase->is_valid()) {
-				m_staircase->m_xs[m_step->index] = temp;
+				m_staircase->m_xs[m_edge->index] = temp;
 			}
 		} else {
-			Number<K> temp = m_staircase->m_ys[m_step->index];
-			m_staircase->m_ys[m_step->index] = to.y();
+			Number<K> temp = m_staircase->m_ys[m_edge->index];
+			m_staircase->m_ys[m_edge->index] = to.y();
 			if (!m_staircase->is_valid()) {
-				m_staircase->m_ys[m_step->index] = temp;
+				m_staircase->m_ys[m_edge->index] = temp;
 			}
 		}
 	}
@@ -308,45 +396,63 @@ Number<K> snap(const Staircase& s, Number<K> value, bool vertical) {
 	return *closest;
 }
 
+std::unique_ptr<Command> move_or_contract(const std::shared_ptr<Staircase>& staircase, Edge m_edge, Number<K> start_pos, Number<K> new_pos) {
+	auto& xs = staircase->m_xs;
+	auto& ys = staircase->m_ys;
+	if (m_edge.vertical) {
+		if (m_edge.index > 0 && xs[m_edge.index - 1] == new_pos) {
+			xs[m_edge.index - 1] = start_pos;
+			auto box = staircase->move(2 * m_edge.index - 1);
+			xs[m_edge.index - 1] = new_pos;
+			return std::make_unique<Contraction>(staircase, box);
+		} else if (m_edge.index + 1 < xs.size() && xs[m_edge.index + 1] == new_pos) {
+			xs[m_edge.index + 1] = start_pos;
+			auto box = staircase->move(2 * m_edge.index);
+			xs[m_edge.index + 1] = new_pos;
+			return std::make_unique<Contraction>(staircase, box);
+		} else {
+			return std::make_unique<EdgeMove>(staircase, m_edge, start_pos, new_pos);
+		}
+	} else {
+		if (m_edge.index > 0 && ys[m_edge.index - 1] == new_pos) {
+			ys[m_edge.index - 1] = start_pos;
+			auto box = staircase->move(2 * m_edge.index - 2);
+			ys[m_edge.index - 1] = new_pos;
+			return std::make_unique<Contraction>(staircase, box);
+		} else if (m_edge.index + 1 < ys.size() && ys[m_edge.index + 1] == new_pos) {
+			ys[m_edge.index + 1] = start_pos;
+			auto box = staircase->move(2 * m_edge.index - 1);
+			ys[m_edge.index + 1] = new_pos;
+			return std::make_unique<Contraction>(staircase, box);
+		} else {
+			return std::make_unique<EdgeMove>(staircase, m_edge, start_pos, new_pos);
+		}
+	}
+}
+
 void StaircaseEditable::endDrag() {
 	QApplication::restoreOverrideCursor();
-	if (m_step.has_value()) {
+	if (m_edge.has_value()) {
 		Number<K> v;
 		auto& xs = m_staircase->m_xs;
 		auto& ys = m_staircase->m_ys;
-		if (m_step->vertical) {
-			v = xs[m_step->index];
+		if (m_edge->vertical) {
+			v = xs[m_edge->index];
 		} else {
-			v = ys[m_step->index];
+			v = ys[m_edge->index];
 		}
-		Number<K> snapped = snap(*m_input, v, m_step->vertical);
-		if (m_step->vertical) {
-			xs[m_step->index] = snapped;
-			if (m_step->index > 0 && xs[m_step->index - 1] == snapped) {
-				xs.erase(std::next(xs.begin(), m_step->index));
-				ys.erase(std::next(ys.begin(), m_step->index));
-			} else if (m_step->index + 1 < xs.size() && xs[m_step->index + 1] == snapped) {
-				xs.erase(std::next(xs.begin(), m_step->index));
-				ys.erase(std::next(ys.begin(), m_step->index + 1));
-			}
-		} else {
-			ys[m_step->index] = snapped;
-			if (m_step->index > 0 && ys[m_step->index - 1] == snapped ) {
-				xs.erase(std::next(xs.begin(), m_step->index - 1));
-				ys.erase(std::next(ys.begin(), m_step->index));
-			} else if (m_step->index + 1 < ys.size() && ys[m_step->index + 1] == snapped) {
-				xs.erase(std::next(xs.begin(), m_step->index));
-				ys.erase(std::next(ys.begin(), m_step->index));
-			}
-		}
+		Number<K> snapped = snap(*m_input, v, m_edge->vertical);
+
+		std::unique_ptr<Command> command = move_or_contract(m_staircase, *m_edge, *m_start_position, snapped);
+		m_update(std::move(command));
 	}
-	m_step = std::nullopt;
-	m_widget->repaint();
+	m_edge = std::nullopt;
+	m_start_position = std::nullopt;
 }
 
-std::optional<Step> StaircaseEditable::closestStep(Point<Inexact> location, Number<K> radius) const {
+std::optional<Edge> StaircaseEditable::closestStep(Point<Inexact> location, Number<K> radius) const {
 	Number<K> min_dist = 100000;//std::numeric_limits<double>::infinity();
-	std::optional<Step> closest;
+	std::optional<Edge> closest;
 	auto steps = m_staircase->steps();
 	for (auto step : steps) {
 		Number<K> dist = squared_distance(approximate(step.segment), location);
@@ -448,42 +554,100 @@ void MovesPainting::paint(GeometryRenderer& renderer) const {
 
 	auto moves = m_staircase->moves();
 	for (const auto& m : moves) {
+		auto& r = m.rectangle;
 		Polygon<K> poly;
-		poly.push_back(m.vertex(0));
-		poly.push_back(m.vertex(1));
-		poly.push_back(m.vertex(2));
-		poly.push_back(m.vertex(3));
+		poly.push_back(r.vertex(0));
+		poly.push_back(r.vertex(1));
+		poly.push_back(r.vertex(2));
+		poly.push_back(r.vertex(3));
 		renderer.draw(poly);
 	}
 }
 
-void do_greedy_step(Staircase& staircase) {
-	auto& xs = staircase.m_xs;
-	auto& ys = staircase.m_ys;
+std::optional<std::unique_ptr<Contraction>> greedy_contraction(std::shared_ptr<Staircase>& staircase) {
+	auto& xs = staircase->m_xs;
+	auto& ys = staircase->m_ys;
 
-	if (xs.size() <= 1) return;
+	if (xs.size() <= 1) return std::nullopt;
 
 	Number<K> min_area = 1000000;//std::numeric_limits<double>::infinity();
 	int min_index = -1;
+	Rectangle<K> min_rect;
 
 	for (int i = 0; i < 2 * xs.size() - 2; i++) {
 		Point<K> bottom_left(xs[floor(i / 2)], ys[floor((i + 1) / 2)]);
 		Point<K> top_right(xs[floor((i / 2) + 1)], ys[floor((i + 1) / 2 + 1)]);
 		Rectangle<K> rect(bottom_left, top_right);
 		auto area = rect.area();
-		if (area < min_area) {
+		if (area < min_area && i % 2 != 0) {
 			min_area = area;
 			min_index = i;
+			min_rect = rect;
 		}
 	}
 
-	bool below = min_index % 2 == 0;
+	MoveBox move(min_index, min_rect);
+
+	return std::make_unique<Contraction>(staircase, move);
+}
+
+Contraction::Contraction(std::shared_ptr<Staircase> staircase, MoveBox box): m_box(box), m_staircase(std::move(staircase))  {}
+
+void Contraction::execute() {
+	int i = m_box.index;
+	auto& xs = m_staircase->m_xs;
+	auto& ys = m_staircase->m_ys;
+
+	bool below = i % 2 == 0;
 
 	if (below) {
-		xs.erase(std::next(xs.begin(), floor(min_index / 2)));
-		ys.erase(std::next(ys.begin(), floor((min_index + 1) / 2 + 1)));
+		auto x_it = std::next(xs.begin(), floor(i / 2));
+		m_erased_x = *x_it;
+		xs.erase(x_it);
+		auto y_it = std::next(ys.begin(), floor((i + 1) / 2 + 1));
+		m_erased_y = *y_it;
+		ys.erase(y_it);
 	} else {
-		xs.erase(std::next(xs.begin(), floor((min_index / 2) + 1)));
-		ys.erase(std::next(ys.begin(), floor((min_index + 1) / 2)));
+		auto x_it = std::next(xs.begin(), floor((i / 2) + 1));
+		m_erased_x = *x_it;
+		xs.erase(x_it);
+		auto y_it = std::next(ys.begin(), floor((i + 1) / 2));
+		m_erased_y = *y_it;
+		ys.erase(y_it);
+	}
+}
+
+void Contraction::undo() {
+	int i = m_box.index;
+	auto& xs = m_staircase->m_xs;
+	auto& ys = m_staircase->m_ys;
+
+	bool below = i % 2 == 0;
+
+	if (below) {
+		xs.insert(std::next(xs.begin(), floor(i / 2)), m_box.rectangle.xmin());
+		ys.insert(std::next(ys.begin(), floor((i + 1) / 2 + 1)), m_box.rectangle.ymax());
+	} else {
+		xs.insert(std::next(xs.begin(), floor((i / 2) + 1)), m_box.rectangle.xmax());
+		ys.insert(std::next(ys.begin(), floor((i + 1) / 2)), m_box.rectangle.ymin());
+	}
+}
+
+EdgeMove::EdgeMove(std::shared_ptr<Staircase> staircase, Edge edge, Number<K> start_pos, Number<K> new_pos) :
+      m_staircase(std::move(staircase)), m_edge(edge), m_start_pos(start_pos), m_new_pos(new_pos) {}
+
+void EdgeMove::execute() {
+	if (m_edge.vertical) {
+		m_staircase->m_xs[m_edge.index] = m_new_pos;
+	} else {
+		m_staircase->m_ys[m_edge.index] = m_new_pos;
+	}
+}
+
+void EdgeMove::undo() {
+	if (m_edge.vertical) {
+		m_staircase->m_xs[m_edge.index] = m_start_pos;
+	} else {
+		m_staircase->m_ys[m_edge.index] = m_start_pos;
 	}
 }
