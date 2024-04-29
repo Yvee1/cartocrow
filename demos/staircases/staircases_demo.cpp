@@ -6,7 +6,23 @@
 #include <QPushButton>
 #include <QSpinBox>
 #include <QLabel>
+#include <QComboBox>
 #include <utility>
+#include <random>
+
+GreedyCost greedy_area = [](const Staircase& s, const Staircase& input, const MoveBox& box) {
+	return box.rectangle.area();
+};
+
+GreedyCost greedy_bracket = [](const Staircase& s, const Staircase& input, const MoveBox& box) {
+	auto bs = brackets(input, s);
+
+    Bracket l = bs[box.index];
+	Bracket m = bs[box.index + 1];
+    Bracket r = bs[box.index + 2];
+
+	return l.complexity() + m.complexity() + r.complexity();
+};
 
 StaircaseDemo::StaircaseDemo() {
 	// =======================================
@@ -137,6 +153,22 @@ StaircaseDemo::StaircaseDemo() {
 	auto* greedySection = new QLabel("<h3>Greedy</h3>");
 	vLayout->addWidget(greedySection);
 
+	auto* greedy_strategy_label = new QLabel("Greedy strategy");
+	auto* greedy_strategy = new QComboBox();
+	vLayout->addWidget(greedy_strategy_label);
+	vLayout->addWidget(greedy_strategy);
+	greedy_strategy->addItem("Top");
+	greedy_strategy->addItem("Bottom");
+	greedy_strategy->addItem("First");
+	greedy_strategy->addItem("Random");
+
+	auto* greedy_cost_label = new QLabel("Greedy cost");
+	auto* greedy_cost = new QComboBox();
+	vLayout->addWidget(greedy_cost_label);
+	vLayout->addWidget(greedy_cost);
+	greedy_cost->addItem("Min. area");
+	greedy_cost->addItem("Min. bracket complexity");
+
 	auto* greedy_step = new QPushButton("Step");
 	vLayout->addWidget(greedy_step);
 
@@ -167,17 +199,34 @@ StaircaseDemo::StaircaseDemo() {
 	});
 	connect(show_bracket_complexity, &QCheckBox::stateChanged, [this]{ m_renderer->repaint(); });
 //	connect(show_bracket_dimensions, &QCheckBox::stateChanged, [this]{ m_renderer->repaint(); });
-	connect(greedy_step, &QPushButton::clicked, [s, this] {
+
+	connect(greedy_strategy, &QComboBox::currentTextChanged, [this] { m_renderer->repaint(); });
+	connect(greedy_cost, &QComboBox::currentTextChanged, [this] { m_renderer->repaint(); });
+	connect(greedy_step, &QPushButton::clicked, [s, input, this, greedy_strategy, greedy_cost] {
 		std::shared_ptr<Staircase> t = s;
-		auto c = greedy_contraction(t);
+		GreedyCost cost;
+		int gci = greedy_cost->currentIndex();
+		if (gci == 0) {
+			cost = greedy_area;
+		} else {
+			cost = greedy_bracket;
+		}
+		auto c = greedy_contraction(t, *input, static_cast<GreedyStrategy>(greedy_strategy->currentIndex()), cost, m_gen);
 		if (c.has_value()) {
 			m_update(std::move(*c));
 		}
 	});
-	connect(greedy_step_100, &QPushButton::clicked, [s, this] {
+	connect(greedy_step_100, &QPushButton::clicked, [s, input, this, greedy_strategy, greedy_cost] {
 		std::shared_ptr<Staircase> t = s;
+		GreedyCost cost;
+		int gci = greedy_cost->currentIndex();
+		if (gci == 0) {
+			cost = greedy_area;
+		} else {
+			cost = greedy_bracket;
+		}
 		for (int i = 0; i < 100; i++) {
-			auto c = greedy_contraction(t);
+			auto c = greedy_contraction(t, *input, static_cast<GreedyStrategy>(greedy_strategy->currentIndex()), cost, m_gen);
 			if (c.has_value()) {
 				(*c)->execute();
 				m_command_stack.push(std::move(*c));
@@ -185,10 +234,17 @@ StaircaseDemo::StaircaseDemo() {
 		}
 		m_update(std::nullopt);
 	});
-	connect(greedy_step_10, &QPushButton::clicked, [s, this] {
+	connect(greedy_step_10, &QPushButton::clicked, [s, input, this, greedy_strategy, greedy_cost] {
 		std::shared_ptr<Staircase> t = s;
+		GreedyCost cost;
+		int gci = greedy_cost->currentIndex();
+		if (gci == 0) {
+			cost = greedy_area;
+		} else {
+			cost = greedy_bracket;
+		}
 		for (int i = 0; i < 10; i++) {
-			auto c = greedy_contraction(t);
+			auto c = greedy_contraction(t, *input, static_cast<GreedyStrategy>(greedy_strategy->currentIndex()), cost, m_gen);
 			if (c.has_value()) {
 				(*c)->execute();
 				m_command_stack.push(std::move(*c));
@@ -202,12 +258,14 @@ StaircaseDemo::StaircaseDemo() {
 	// =======================================
 	auto gridP = std::make_shared<GridPainting>(input);
 	auto bracketP = std::make_shared<BracketPainting>(input, s, show_bracket_complexity, show_bracket_dimensions);
-//	auto movesP = std::make_shared<MovesPainting>(s);
+	auto movesP = std::make_shared<MovesPainting>(s);
+	auto minMovesP = std::make_shared<MinMovesPainting>(s, input, greedy_cost);
 	auto inputP = std::make_shared<StaircasePainting>(input, true);
 	auto sP = std::make_shared<StaircasePainting>(s, false);
 	m_renderer->addPainting(gridP, "Grid");
 	m_renderer->addPainting(bracketP, "Brackets");
-//	m_renderer->addPainting(movesP, "Moves");
+	m_renderer->addPainting(movesP, "Moves");
+	m_renderer->addPainting(minMovesP, "Min. moves");
 	m_renderer->addPainting(inputP, "Input");
 	m_renderer->addPainting(sP, "Simplification");
 
@@ -488,7 +546,6 @@ bool supported_by(Segment<K> segment, Segment<K> other) {
 
 std::vector<Bracket> brackets(const Staircase& input, const Staircase& simplification) {
 	std::vector<Bracket> bs;
-	if (!simplification.supported_by(input)) return bs;
 
 	auto sim_steps = simplification.steps();
 	auto inp_steps = input.steps();
@@ -509,6 +566,10 @@ std::vector<Bracket> brackets(const Staircase& input, const Staircase& simplific
 	return bs;
 }
 
+//Bracket bracket(const Staircase& input, const Staircase& simplification, int i) {
+//	return brackets(input, simp)
+//}
+
 BracketPainting::BracketPainting(const std::shared_ptr<Staircase>& input,
                                  const std::shared_ptr<Staircase>& simplification,
                                  QCheckBox* show_bracket_complexity,
@@ -519,6 +580,7 @@ BracketPainting::BracketPainting(const std::shared_ptr<Staircase>& input,
       m_show_bracket_dimensions(show_bracket_dimensions) {}
 
 void BracketPainting::paint(GeometryRenderer& renderer) const {
+	if (!m_simplification->supported_by(*m_input)) return;
 	auto bs = brackets(*m_input, *m_simplification);
 
 	for (const auto& b : bs) {
@@ -537,7 +599,7 @@ void BracketPainting::paint(GeometryRenderer& renderer) const {
 				} else {
 					text_pos = Point<K>(bb.xmax(), bb.ymin()) + Vector<K>(-0.5, 0.5);
 				}
-				renderer.drawText(text_pos, std::to_string((b.end - b.start - 1) / 2));
+				renderer.drawText(text_pos, std::to_string(b.complexity()));
 			}
 			if (m_show_bracket_dimensions->isChecked()) {
 
@@ -564,31 +626,104 @@ void MovesPainting::paint(GeometryRenderer& renderer) const {
 	}
 }
 
-std::optional<std::unique_ptr<Contraction>> greedy_contraction(std::shared_ptr<Staircase>& staircase) {
-	auto& xs = staircase->m_xs;
-	auto& ys = staircase->m_ys;
+MinMovesPainting::MinMovesPainting(const std::shared_ptr<Staircase>& staircase, const std::shared_ptr<Staircase>& input,
+                                   QComboBox* cost_qt): m_simplification(staircase), m_input(input), m_cost_qt(std::move(cost_qt)) {}
 
-	if (xs.size() <= 1) return std::nullopt;
+void MinMovesPainting::paint(GeometryRenderer& renderer) const {
+	if (!m_simplification->supported_by(*m_input)) return;
 
-	Number<K> min_area = 1000000;//std::numeric_limits<double>::infinity();
-	int min_index = -1;
-	Rectangle<K> min_rect;
+	renderer.setMode(GeometryRenderer::fill);
+	renderer.setFill(Color(100, 255, 100));
 
-	for (int i = 0; i < 2 * xs.size() - 2; i++) {
-		Point<K> bottom_left(xs[floor(i / 2)], ys[floor((i + 1) / 2)]);
-		Point<K> top_right(xs[floor((i / 2) + 1)], ys[floor((i + 1) / 2 + 1)]);
-		Rectangle<K> rect(bottom_left, top_right);
-		auto area = rect.area();
-		if (area < min_area && i % 2 != 0) {
-			min_area = area;
-			min_index = i;
-			min_rect = rect;
+	GreedyCost cost;
+	int gci = m_cost_qt->currentIndex();
+	if (gci == 0) {
+		cost = greedy_area;
+	} else {
+		cost = greedy_bracket;
+	}
+
+	auto min_moves = min_cost_moves(*m_simplification, *m_input, cost);
+	for (const auto& m : min_moves) {
+		auto& r = m.rectangle;
+		Polygon<K> poly;
+		poly.push_back(r.vertex(0));
+		poly.push_back(r.vertex(1));
+		poly.push_back(r.vertex(2));
+		poly.push_back(r.vertex(3));
+		renderer.draw(poly);
+	}
+}
+
+std::vector<MoveBox> min_cost_moves(const Staircase& simp, const Staircase& input, const GreedyCost& cost) {
+	std::vector<MoveBox> moves = simp.moves();
+
+	std::optional<Number<K>> min_cost;
+	for (const auto& m : moves) {
+		auto c = cost(simp, input, m);
+		if (!min_cost.has_value() || c < *min_cost) {
+			min_cost = c;
 		}
 	}
 
-	MoveBox move(min_index, min_rect);
+	if (!min_cost.has_value())
+		return {};
 
-	return std::make_unique<Contraction>(staircase, move);
+	std::vector<MoveBox> minimum;
+	for (const auto& m : moves) {
+		if (cost(simp, input, m) == min_cost) {
+			minimum.push_back(m);
+		}
+	}
+
+	return minimum;
+}
+
+
+std::optional<std::unique_ptr<Contraction>> greedy_contraction(std::shared_ptr<Staircase>& simp,
+                                                               const Staircase& input,
+                                                               GreedyStrategy strategy,
+															   GreedyCost cost,
+                                                               std::mt19937& gen) {
+	auto& xs = simp->m_xs;
+	auto& ys = simp->m_ys;
+
+	if (xs.size() <= 1) return std::nullopt;
+
+	if (strategy != GreedyStrategy::RANDOM) {
+		std::optional<Number<K>> min_cost;
+		std::optional<MoveBox> min_move;
+
+		for (int i = 0; i < 2 * xs.size() - 2; i++) {
+			bool allowed;
+			if (strategy == GreedyStrategy::FIRST) {
+				allowed = true;
+			} else if (strategy == GreedyStrategy::TOP) {
+				allowed = i % 2 != 0;
+			} else if (strategy == GreedyStrategy::BOTTOM) {
+				allowed = i % 2 == 0;
+			}
+			if (!allowed) {
+				continue;
+			}
+
+			auto move = simp->move(i);
+			Number<K> c = cost(*simp, input, move);
+			if (!min_cost.has_value() || c < *min_cost) {
+				min_cost = c;
+				min_move = move;
+			}
+		}
+
+		if (!min_move.has_value()) return std::nullopt;
+		return std::make_unique<Contraction>(simp, *min_move);
+	} else {
+		auto minimum = min_cost_moves(*simp, input, cost);
+		std::uniform_int_distribution<int> dist(0, minimum.size() - 1);
+		auto move = minimum[dist(gen)];
+		return std::make_unique<Contraction>(simp, move);
+	}
+
 }
 
 Contraction::Contraction(std::shared_ptr<Staircase> staircase, MoveBox box): m_box(box), m_staircase(std::move(staircase))  {}

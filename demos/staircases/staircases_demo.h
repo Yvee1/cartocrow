@@ -7,6 +7,7 @@
 #include "cartocrow/renderer/geometry_widget.h"
 #include <QCheckBox>
 #include <QMainWindow>
+#include <random>
 
 
 using namespace cartocrow;
@@ -16,6 +17,7 @@ template <class K> using Rectangle = CGAL::Iso_rectangle_2<K>;
 
 typedef Inexact K;
 
+#include <QComboBox>
 #include <QMainWindow>
 
 class OrthoPolygon {
@@ -106,9 +108,15 @@ struct Bracket {
 
 		return Polygon<K>(pts.begin(), pts.end());
 	}
+
+	int complexity() const {
+		return (end - start - 1) / 2;
+	}
 };
 
 std::vector<Bracket> brackets(const Staircase& input, const Staircase& simplification);
+
+Bracket bracket(const Staircase& input, const Staircase& simplification, int i);
 
 class BracketPainting : public GeometryPainting {
   public:
@@ -133,7 +141,6 @@ class MovesPainting : public GeometryPainting {
 
   private:
 	const std::shared_ptr<Staircase> m_staircase;
-	const std::vector<Polygon<K>> m_polys;
 };
 
 class Command {
@@ -169,9 +176,35 @@ class EdgeMove : public Command {
 	Number<K> m_start_pos;
 };
 
-std::optional<std::unique_ptr<Contraction>> greedy_contraction(std::shared_ptr<Staircase>& staircase);
+enum GreedyStrategy {
+	TOP,
+	BOTTOM,
+	FIRST,
+	RANDOM,
+};
+
+typedef std::function<Number<K>(const Staircase&, const Staircase&, const MoveBox&)> GreedyCost;
+
+std::vector<MoveBox> min_cost_moves(const Staircase& simp, const Staircase& input, const GreedyCost& cost);
+
+std::optional<std::unique_ptr<Contraction>> greedy_contraction(std::shared_ptr<Staircase>& simp,
+                                                               const Staircase& input,
+                                                               GreedyStrategy strategy,
+															   GreedyCost cost,
+                                                               std::mt19937& gen);
 
 std::unique_ptr<Command> move_or_contract(const std::shared_ptr<Staircase>& staircase, Edge edge, Number<K> start_pos, Number<K> new_pos);
+
+class MinMovesPainting : public GeometryPainting {
+  public:
+	MinMovesPainting(const std::shared_ptr<Staircase>& staircase, const std::shared_ptr<Staircase>& input, QComboBox* cost_qt);
+	void paint(GeometryRenderer& renderer) const override;
+
+  private:
+	const std::shared_ptr<Staircase> m_simplification;
+	const std::shared_ptr<Staircase> m_input;
+	QComboBox* m_cost_qt;
+};
 
 class StaircaseEditable : public GeometryWidget::Editable {
   public:
@@ -210,6 +243,7 @@ class StaircaseDemo : public QMainWindow {
 	GeometryWidget* m_renderer;
 	std::function<void(std::optional<std::unique_ptr<Command>>)> m_update;
 	std::stack<std::unique_ptr<Command>> m_command_stack;
+	std::mt19937 m_gen;
 };
 
 #endif //CARTOCROW_STAIRCASES_H
