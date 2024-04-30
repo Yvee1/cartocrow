@@ -177,10 +177,10 @@ class EdgeMove : public Command {
 };
 
 enum GreedyStrategy {
-	TOP,
-	BOTTOM,
 	FIRST,
 	RANDOM,
+	TOP,
+	BOTTOM,
 };
 
 typedef std::function<Number<K>(const Staircase&, const Staircase&, const MoveBox&)> GreedyCost;
@@ -243,6 +243,7 @@ class StaircaseDemo : public QMainWindow {
 	GeometryWidget* m_renderer;
 	std::function<void(std::optional<std::unique_ptr<Command>>)> m_update;
 	std::stack<std::unique_ptr<Command>> m_command_stack;
+	std::stack<std::unique_ptr<Command>> m_redo_stack;
 	std::mt19937 m_gen;
 };
 

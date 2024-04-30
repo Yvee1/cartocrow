@@ -29,12 +29,12 @@ StaircaseDemo::StaircaseDemo() {
 	// ============  STAIRCASES ==============
 	// =======================================
 
-		auto input = std::make_shared<UniformStaircase>(20);
+//		auto input = std::make_shared<UniformStaircase>(20);
 	//	auto input = std::make_shared<Staircase>(std::vector<double>({0, 1, 5, 6, 10}), std::vector<double>({0, 3, 4, 6, 8, 10}));
-//	auto input = std::make_shared<Staircase>(
-//	    std::vector<Number<K>>({0, 1, 5, 6, 10, 11, 20, 21, 26, 30, 33, 35, 37}),
-//	    std::vector<Number<K>>({0, 3, 4, 6, 8,  10, 12, 14, 19, 25, 26, 27, 29, 30})
-//	);
+	auto input = std::make_shared<Staircase>(
+	    std::vector<Number<K>>({0, 1, 5, 6, 10, 11, 20, 21, 26, 30, 33, 35, 37}),
+	    std::vector<Number<K>>({0, 3, 4, 6, 8,  10, 12, 14, 19, 25, 26, 27, 29, 30})
+	);
 	std::shared_ptr<Staircase> s = std::make_shared<Staircase>(*input);
 
 	// =======================================
@@ -66,13 +66,16 @@ StaircaseDemo::StaircaseDemo() {
 	uniformN->setValue(10);
 	uniformN->setMinimum(1);
 	uniformN->setMaximum(10000);
-	auto* uniformNLabel = new QLabel("Uniform n");
+	auto* uniformNLabel = new QLabel("Number of steps");
 	uniformNLabel->setBuddy(uniformN);
 	vLayout->addWidget(uniformNLabel);
 	vLayout->addWidget(uniformN);
 
 	auto* create_uniform = new QPushButton("Create uniform staircase");
 	vLayout->addWidget(create_uniform);
+
+	auto* create_random = new QPushButton("Create random staircase");
+	vLayout->addWidget(create_random);
 
 	auto* reset_button = new QPushButton("Reset");
 	vLayout->addWidget(reset_button);
@@ -82,6 +85,9 @@ StaircaseDemo::StaircaseDemo() {
 
 	auto* undo_button = new QPushButton("Undo");
 	vLayout->addWidget(undo_button);
+
+	auto* redo_button = new QPushButton("Redo");
+	vLayout->addWidget(redo_button);
 
 	auto* infoSection = new QLabel("<h3>Info</h3>");
 	vLayout->addWidget(infoSection);
@@ -139,15 +145,17 @@ StaircaseDemo::StaircaseDemo() {
 	    area_ratio_label->setText(QString::fromStdString("Area ratio: " + std::to_string(area_ratio)));
 	};
 
-	m_update = [this, set_complexity_text, s, input, undo_button](std::optional<std::unique_ptr<Command>> command) {
+	m_update = [this, set_complexity_text, s, input, undo_button, redo_button](std::optional<std::unique_ptr<Command>> command) {
 		if (command.has_value()) {
 			(*command)->execute();
 			m_command_stack.push(std::move(*command));
+			m_redo_stack = {};
 		}
 	    m_renderer->repaint();
 		set_complexity_text();
 
 		undo_button->setEnabled(!m_command_stack.empty());
+	    redo_button->setEnabled(!m_redo_stack.empty());
 	};
 
 	auto* greedySection = new QLabel("<h3>Greedy</h3>");
@@ -157,10 +165,10 @@ StaircaseDemo::StaircaseDemo() {
 	auto* greedy_strategy = new QComboBox();
 	vLayout->addWidget(greedy_strategy_label);
 	vLayout->addWidget(greedy_strategy);
-	greedy_strategy->addItem("Top");
-	greedy_strategy->addItem("Bottom");
 	greedy_strategy->addItem("First");
 	greedy_strategy->addItem("Random");
+	greedy_strategy->addItem("Top");
+	greedy_strategy->addItem("Bottom");
 
 	auto* greedy_cost_label = new QLabel("Greedy cost");
 	auto* greedy_cost = new QComboBox();
@@ -182,6 +190,7 @@ StaircaseDemo::StaircaseDemo() {
 	connect(reset_button, &QPushButton::clicked, [s, input, this] {
 		s->m_xs = input->m_xs;
 		s->m_ys = input->m_ys;
+		m_command_stack = {};
 		m_update(std::nullopt);
 	});
 	connect(create_uniform, &QPushButton::clicked, [uniformN, s, input, this] {
@@ -192,9 +201,38 @@ StaircaseDemo::StaircaseDemo() {
 	    s->m_ys = input->m_ys;
 		m_update(std::nullopt);
 	});
+	connect(create_random, &QPushButton::clicked, [uniformN, s, input, this] {
+	    std::exponential_distribution dist(1.0);
+
+		std::vector<Number<K>> xs;
+	    std::vector<Number<K>> ys;
+		xs.push_back(0);
+	    ys.push_back(0);
+		for (int i = 1; i < uniformN->value(); i++) {
+			xs.push_back(xs.back() + dist(m_gen));
+			ys.push_back(ys.back() + dist(m_gen));
+		}
+	  	ys.push_back(ys.back() + dist(m_gen));
+		auto stairs = Staircase(xs, ys);
+
+		input->m_xs = xs;
+		input->m_ys = ys;
+		s->m_xs = input->m_xs;
+		s->m_ys = input->m_ys;
+		m_update(std::nullopt);
+	});
 	connect(undo_button, &QPushButton::clicked, [this] {
-		m_command_stack.top()->undo();
+		auto cmd = std::move(m_command_stack.top());
+		cmd->undo();
 		m_command_stack.pop();
+		m_redo_stack.push(std::move(cmd));
+		m_update(std::nullopt);
+	});
+	connect(redo_button, &QPushButton::clicked, [this] {
+		auto cmd = std::move(m_redo_stack.top());
+		cmd->execute();
+		m_redo_stack.pop();
+		m_command_stack.push(std::move(cmd));
 		m_update(std::nullopt);
 	});
 	connect(show_bracket_complexity, &QCheckBox::stateChanged, [this]{ m_renderer->repaint(); });
@@ -555,7 +593,7 @@ std::vector<Bracket> brackets(const Staircase& input, const Staircase& simplific
 	for (const auto& step : sim_steps) {
 		int prev_j = j;
 
-		while (j < 0 || !supported_by(step.segment, inp_steps[j].segment) && j < inp_steps.size()) {
+		while (j < 0 || j < inp_steps.size() && !supported_by(step.segment, inp_steps[j].segment)) {
 			++j;
 		}
 
@@ -693,25 +731,24 @@ std::optional<std::unique_ptr<Contraction>> greedy_contraction(std::shared_ptr<S
 	if (strategy != GreedyStrategy::RANDOM) {
 		std::optional<Number<K>> min_cost;
 		std::optional<MoveBox> min_move;
+		bool min_priority = false;
 
 		for (int i = 0; i < 2 * xs.size() - 2; i++) {
-			bool allowed;
+			bool priority;
 			if (strategy == GreedyStrategy::FIRST) {
-				allowed = true;
+				priority = true;
 			} else if (strategy == GreedyStrategy::TOP) {
-				allowed = i % 2 != 0;
+				priority = i % 2 != 0;
 			} else if (strategy == GreedyStrategy::BOTTOM) {
-				allowed = i % 2 == 0;
-			}
-			if (!allowed) {
-				continue;
+				priority = i % 2 == 0;
 			}
 
 			auto move = simp->move(i);
 			Number<K> c = cost(*simp, input, move);
-			if (!min_cost.has_value() || c < *min_cost) {
+			if (!min_cost.has_value() || c < *min_cost || !min_priority && priority && c <= *min_cost) {
 				min_cost = c;
 				min_move = move;
+				min_priority = priority;
 			}
 		}
 
