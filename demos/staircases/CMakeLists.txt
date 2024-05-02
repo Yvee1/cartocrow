@@ -1,5 +1,14 @@
 set(SOURCES
     staircases_demo.cpp
+    staircase.cpp
+    staircase.h
+    types.h
+    brackets.cpp
+    brackets.h
+    move.cpp
+    move.h
+    greedy.cpp
+    greedy.h
 )
 
 add_executable(staircases_demo ${SOURCES})
