@@ -7,8 +7,8 @@ bool supported_by(Segment<K> segment, Segment<K> other) {
 std::vector<Bracket> brackets(const Staircase& input, const Staircase& simplification) {
 	std::vector<Bracket> bs;
 
-	auto sim_steps = simplification.steps();
-	auto inp_steps = input.steps();
+	auto sim_steps = simplification.edges();
+	auto inp_steps = input.edges();
 
 	int j = -1;
 

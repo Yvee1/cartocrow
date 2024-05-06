@@ -39,7 +39,7 @@ std::optional<std::unique_ptr<Contraction>> greedy_contraction(std::shared_ptr<S
 		std::optional<MoveBox> min_move;
 		bool min_priority = false;
 
-		for (int i = 0; i < 2 * xs.size() - 2; i++) {
+		for (int i = 0; i < 2 * xs.size() - 3; i++) {
 			bool priority;
 			if (strategy == GreedyStrategy::FIRST) {
 				priority = true;

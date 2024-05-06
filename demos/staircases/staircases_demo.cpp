@@ -1,4 +1,5 @@
 #include "staircases_demo.h"
+#include "optimal.h"
 #include <QApplication>
 #include <QDockWidget>
 #include <QCheckBox>
@@ -19,7 +20,7 @@ StaircaseDemo::StaircaseDemo() {
 	//	auto input = std::make_shared<Staircase>(std::vector<double>({0, 1, 5, 6, 10}), std::vector<double>({0, 3, 4, 6, 8, 10}));
 	auto input = std::make_shared<Staircase>(
 	    std::vector<Number<K>>({0, 1, 5, 6, 10, 11, 20, 21, 26, 30, 33, 35, 37}),
-	    std::vector<Number<K>>({0, 3, 4, 6, 8,  10, 12, 14, 19, 25, 26, 27, 29, 30})
+	    std::vector<Number<K>>({0, 3, 4, 6, 8,  10, 12, 14, 19, 25, 26, 27, 29})
 	);
 	std::shared_ptr<Staircase> s = std::make_shared<Staircase>(*input);
 
@@ -48,14 +49,14 @@ StaircaseDemo::StaircaseDemo() {
 	auto* constructionSection = new QLabel("<h3>Construction</h3>");
 	vLayout->addWidget(constructionSection);
 
-	auto* uniformN = new QSpinBox();
-	uniformN->setValue(10);
-	uniformN->setMinimum(1);
-	uniformN->setMaximum(10000);
+	auto* numberOfSteps = new QSpinBox();
+	numberOfSteps->setValue(10);
+	numberOfSteps->setMinimum(0);
+	numberOfSteps->setMaximum(10000);
 	auto* uniformNLabel = new QLabel("Number of steps");
-	uniformNLabel->setBuddy(uniformN);
+	uniformNLabel->setBuddy(numberOfSteps);
 	vLayout->addWidget(uniformNLabel);
-	vLayout->addWidget(uniformN);
+	vLayout->addWidget(numberOfSteps);
 
 	auto* create_uniform = new QPushButton("Create uniform staircase");
 	vLayout->addWidget(create_uniform);
@@ -147,6 +148,9 @@ StaircaseDemo::StaircaseDemo() {
 	auto* greedySection = new QLabel("<h3>Greedy</h3>");
 	vLayout->addWidget(greedySection);
 
+	auto* opt_button = new QPushButton("Optimal");
+	vLayout->addWidget(opt_button);
+
 	auto* greedy_strategy_label = new QLabel("Greedy strategy");
 	auto* greedy_strategy = new QComboBox();
 	vLayout->addWidget(greedy_strategy_label);
@@ -179,26 +183,26 @@ StaircaseDemo::StaircaseDemo() {
 		m_command_stack = {};
 		m_update(std::nullopt);
 	});
-	connect(create_uniform, &QPushButton::clicked, [uniformN, s, input, this] {
-		auto uni = UniformStaircase(uniformN->value());
+	connect(create_uniform, &QPushButton::clicked, [numberOfSteps, s, input, this] {
+		auto uni = UniformStaircase(numberOfSteps->value());
 		input->m_xs = uni.m_xs;
 	  	input->m_ys = uni.m_ys;
 	    s->m_xs = input->m_xs;
 	    s->m_ys = input->m_ys;
 		m_update(std::nullopt);
 	});
-	connect(create_random, &QPushButton::clicked, [uniformN, s, input, this] {
+	connect(create_random, &QPushButton::clicked, [numberOfSteps, s, input, this] {
 	    std::exponential_distribution dist(1.0);
 
 		std::vector<Number<K>> xs;
 	    std::vector<Number<K>> ys;
 		xs.push_back(0);
 	    ys.push_back(0);
-		for (int i = 1; i < uniformN->value(); i++) {
+		for (int i = 1; i < numberOfSteps->value(); i++) {
 			xs.push_back(xs.back() + dist(m_gen));
 			ys.push_back(ys.back() + dist(m_gen));
 		}
-	  	ys.push_back(ys.back() + dist(m_gen));
+//	  	ys.push_back(ys.back() + dist(m_gen));
 		auto stairs = Staircase(xs, ys);
 
 		input->m_xs = xs;
@@ -254,6 +258,7 @@ StaircaseDemo::StaircaseDemo() {
 			if (c.has_value()) {
 				(*c)->execute();
 				m_command_stack.push(std::move(*c));
+				m_redo_stack = {};
 			}
 		}
 		m_update(std::nullopt);
@@ -272,8 +277,18 @@ StaircaseDemo::StaircaseDemo() {
 			if (c.has_value()) {
 				(*c)->execute();
 				m_command_stack.push(std::move(*c));
+				m_redo_stack = {};
 			}
 		}
+		m_update(std::nullopt);
+	});
+	connect(opt_button, &QPushButton::clicked, [this, s, input] {
+		OptimalStaircaseSimplification opt_simplifier;
+		auto opt = opt_simplifier.compute(*input, s->num_of_segments());
+		s->m_xs = opt.m_xs;
+	    s->m_ys = opt.m_ys;
+	    m_command_stack = {};
+	    m_redo_stack = {};
 		m_update(std::nullopt);
 	});
 
@@ -320,7 +335,7 @@ bool StaircaseEditable::drawHoverHint(Point<Inexact> location, Number<Inexact> r
 		return false;
 	}
 
-	m_widget->setStroke(Color(0, 0, 200), 3.0);
+	m_widget->setStroke(Color(0, 0, 255), 3.0);
 	m_widget->draw(approximate(closest->segment));
 
 	return true;
@@ -399,7 +414,7 @@ void StaircaseEditable::endDrag() {
 std::optional<Edge> StaircaseEditable::closestStep(Point<Inexact> location, Number<K> radius) const {
 	Number<K> min_dist = 100000;//std::numeric_limits<double>::infinity();
 	std::optional<Edge> closest;
-	auto steps = m_staircase->steps();
+	auto steps = m_staircase->edges();
 	for (auto step : steps) {
 		Number<K> dist = squared_distance(approximate(step.segment), location);
 		if (dist < radius * radius && dist < min_dist) {

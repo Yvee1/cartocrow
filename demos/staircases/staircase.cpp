@@ -2,12 +2,12 @@
 
 Staircase::Staircase(std::vector<Number<K>> xs, std::vector<Number<K>> ys):
       m_xs(std::move(xs)), m_ys(std::move(ys)) {
-	assert(m_xs.size() + 1 == m_ys.size());
+	assert(m_xs.size() == m_ys.size());
 }
 
 bool Staircase::supported_by(const Staircase& other) const {
-	auto these_steps = steps();
-	auto other_steps = other.steps();
+	auto these_steps = edges();
+	auto other_steps = other.edges();
 
 	bool good = true;
 	for (const auto& s1 : these_steps) {
@@ -29,7 +29,7 @@ bool Staircase::supported_by(const Staircase& other) const {
 
 
 bool Staircase::is_valid() const {
-	if (m_xs.size() + 1 != m_ys.size()) return false;
+	if (m_xs.size() != m_ys.size()) return false;
 
 	for (int i = 1; i < m_xs.size(); i++) {
 		if (m_xs[i-1] > m_xs[i]) {
@@ -46,9 +46,9 @@ bool Staircase::is_valid() const {
 	return true;
 }
 
-std::vector<Edge> Staircase::steps() const {
+std::vector<Edge> Staircase::edges() const {
 	std::vector<Edge> result;
-	for (int i = 0; i < 2 * m_xs.size() - 1; i++) {
+	for (int i = 0; i < 2 * m_xs.size() - 2; i++) {
 		Point<K> p1(m_xs[ceil((i)/2)], m_ys[ceil((i+1)/2)]);
 		Point<K> p2(m_xs[ceil((i+1)/2)], m_ys[ceil((i+2)/2)]);
 
@@ -59,7 +59,7 @@ std::vector<Edge> Staircase::steps() const {
 
 std::vector<MoveBox> Staircase::moves() const {
 	std::vector<MoveBox> boxes;
-	for (int i = 0; i < 2 * m_xs.size() - 2; i++) {
+	for (int i = 0; i < 2 * static_cast<int>(m_xs.size()) - 3; i++) {
 		Point<K> top_left(m_xs[floor(i / 2)], m_ys[floor((i + 1) / 2)]);
 		Point<K> bottom_right(m_xs[floor((i / 2) + 1)], m_ys[floor((i + 1) / 2 + 1)]);
 		boxes.emplace_back(i, Rectangle<K>(top_left, bottom_right));
@@ -73,7 +73,7 @@ MoveBox Staircase::move(int i) const {
 	return { i, Rectangle<K>(top_left, bottom_right) };
 }
 
-UniformStaircase::UniformStaircase(int n) : Staircase(std::vector<Number<K>>(n), std::vector<Number<K>>(n+1)) {
+UniformStaircase::UniformStaircase(int n) : Staircase(std::vector<Number<K>>(n+1), std::vector<Number<K>>(n+1)) {
 	std::iota(m_xs.begin(), m_xs.end(), 0);
 	std::iota(m_ys.begin(), m_ys.end(), 0);
 }
@@ -92,14 +92,18 @@ void StaircasePainting::paint(GeometryRenderer& renderer) const {
 
 	Ray<K> left(Point<K>(s.m_xs.front(), s.m_ys.front()), Vector<K>(-1.0, 0.0));
 	renderer.draw(left);
-	for (int i = 0; i < 2 * s.m_xs.size() - 1; i++) {
-		Point<K> p1(s.m_xs[ceil((i)/2)], s.m_ys[ceil((i+1)/2)]);
-		Point<K> p2(s.m_xs[ceil((i+1)/2)], s.m_ys[ceil((i+2)/2)]);
-
-		renderer.draw(Segment<K>(p1, p2));
+//	for (int i = 0; i < 2 * s.m_xs.size() - 1; i++) {
+//		Point<K> p1(s.m_xs[ceil((i)/2)], s.m_ys[ceil((i+1)/2)]);
+//		Point<K> p2(s.m_xs[ceil((i+1)/2)], s.m_ys[ceil((i+2)/2)]);
+//
+//		renderer.draw(Segment<K>(p1, p2));
+//	}
+	auto edges = s.edges();
+	for (const auto& e : edges) {
+		renderer.draw(e.segment);
 	}
-	Ray<K> right(Point<K>(s.m_xs.back(), s.m_ys.back()), Vector<K>(11.0, 0.0));
-	renderer.draw(right);
+	Ray<K> up(Point<K>(s.m_xs.back(), s.m_ys.back()), Vector<K>(0.0, 1.0));
+	renderer.draw(up);
 }
 
 

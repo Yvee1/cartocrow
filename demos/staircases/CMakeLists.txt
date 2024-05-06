@@ -9,6 +9,8 @@ set(SOURCES
     move.h
     greedy.cpp
     greedy.h
+    optimal.cpp
+    optimal.h
 )
 
 add_executable(staircases_demo ${SOURCES})

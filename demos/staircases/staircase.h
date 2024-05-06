@@ -26,16 +26,14 @@ class Staircase {
 	std::vector<Number<K>> m_xs;
 	std::vector<Number<K>> m_ys;
 
-	[[nodiscard]] std::vector<Edge> steps() const;
-
+	[[nodiscard]] Number<K> x(size_t i) const { return m_xs[i]; };
+	[[nodiscard]] Number<K> y(size_t i) const { return m_ys[i];};
+	[[nodiscard]] Number<K> coord(size_t i) const { if (i % 2 == 0) return m_ys.at(i/2); else return m_xs.at(i/2); };
+	[[nodiscard]] std::vector<Edge> edges() const;
 	[[nodiscard]] bool is_valid() const;
-
 	[[nodiscard]] bool supported_by(const Staircase& other) const;
-
 	MoveBox move(int i) const;
-
 	std::vector<MoveBox> moves() const;
-
 	[[nodiscard]] size_t num_of_segments() const {
 		return m_xs.size() + m_ys.size();
 	}
