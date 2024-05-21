@@ -66,4 +66,6 @@ class MovesPainting : public GeometryPainting {
 	const std::shared_ptr<Staircase> m_staircase;
 };
 
+void draw_staircase(GeometryRenderer& renderer, const Staircase& s);
+
 #endif //CARTOCROW_STAIRCASE_H

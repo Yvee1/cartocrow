@@ -1,4 +1,5 @@
 #include "brackets.h"
+#include "colors.h"
 
 bool supported_by(Segment<K> segment, Segment<K> other) {
 	return segment.has_on(other.source()) && segment.has_on(other.target());
@@ -47,7 +48,7 @@ void BracketPainting::paint(GeometryRenderer& renderer) const {
 			renderer.setFill(Color(255, 200, 200));
 			renderer.draw(*maybe_poly);
 			renderer.setMode(GeometryRenderer::stroke);
-			renderer.setStroke(Color(255, 0, 0), 1);
+			renderer.setStroke(CB::red, 1);
 			if (m_show_bracket_complexity->isChecked()) {
 				Point<K> text_pos;
 				auto bb = maybe_poly->bbox();

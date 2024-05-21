@@ -6,6 +6,7 @@
 #include "brackets.h"
 #include "move.h"
 #include "greedy.h"
+#include "optimal.h"
 #include <QCheckBox>
 #include <QMainWindow>
 #include <random>
@@ -67,9 +68,11 @@ class StaircaseDemo : public QMainWindow {
 
   private:
 	GeometryWidget* m_renderer;
+	int m_current_complexity;
 	std::function<void(std::optional<std::unique_ptr<Command>>)> m_update;
 	std::stack<std::unique_ptr<Command>> m_command_stack;
 	std::stack<std::unique_ptr<Command>> m_redo_stack;
+	std::shared_ptr<OptimalPainting> m_optP;
 	std::mt19937 m_gen;
 };
 

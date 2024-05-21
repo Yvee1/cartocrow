@@ -11,6 +11,8 @@ set(SOURCES
     greedy.h
     optimal.cpp
     optimal.h
+    colors.h
+    colors.cpp
 )
 
 add_executable(staircases_demo ${SOURCES})

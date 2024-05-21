@@ -1,4 +1,5 @@
 #include "staircase.h"
+#include "colors.h"
 
 Staircase::Staircase(std::vector<Number<K>> xs, std::vector<Number<K>> ys):
       m_xs(std::move(xs)), m_ys(std::move(ys)) {
@@ -84,34 +85,18 @@ StaircasePainting::StaircasePainting(const std::shared_ptr<Staircase>& staircase
 void StaircasePainting::paint(GeometryRenderer& renderer) const {
 	auto& s = *m_staircase;
 	if (m_light) {
-		renderer.setStroke(Color(255, 0, 0), 1.5);
+		renderer.setStroke(CB::red, 1.5);
 	} else {
-		renderer.setStroke(Color(0, 0, 0), 2.5);
+		renderer.setStroke(CB::blue, 2.5);
 	}
-	renderer.setMode(GeometryRenderer::stroke);
-
-	Ray<K> left(Point<K>(s.m_xs.front(), s.m_ys.front()), Vector<K>(-1.0, 0.0));
-	renderer.draw(left);
-//	for (int i = 0; i < 2 * s.m_xs.size() - 1; i++) {
-//		Point<K> p1(s.m_xs[ceil((i)/2)], s.m_ys[ceil((i+1)/2)]);
-//		Point<K> p2(s.m_xs[ceil((i+1)/2)], s.m_ys[ceil((i+2)/2)]);
-//
-//		renderer.draw(Segment<K>(p1, p2));
-//	}
-	auto edges = s.edges();
-	for (const auto& e : edges) {
-		renderer.draw(e.segment);
-	}
-	Ray<K> up(Point<K>(s.m_xs.back(), s.m_ys.back()), Vector<K>(0.0, 1.0));
-	renderer.draw(up);
+	draw_staircase(renderer, s);
 }
-
 
 MovesPainting::MovesPainting(const std::shared_ptr<Staircase>& staircase): m_staircase(staircase) {}
 
 void MovesPainting::paint(GeometryRenderer& renderer) const {
 	renderer.setMode(GeometryRenderer::fill);
-	renderer.setFill(Color(255, 100, 100));
+	renderer.setFill(CB::light_red);
 
 	auto moves = m_staircase->moves();
 	for (const auto& m : moves) {
@@ -123,4 +108,16 @@ void MovesPainting::paint(GeometryRenderer& renderer) const {
 		poly.push_back(r.vertex(3));
 		renderer.draw(poly);
 	}
+}
+
+void draw_staircase(GeometryRenderer& renderer, const Staircase& s) {
+	renderer.setMode(GeometryRenderer::stroke);
+	Ray<K> left(Point<K>(s.m_xs.front(), s.m_ys.front()), Vector<K>(-1.0, 0.0));
+	renderer.draw(left);
+	auto edges = s.edges();
+	for (const auto& e : edges) {
+		renderer.draw(e.segment);
+	}
+	Ray<K> up(Point<K>(s.m_xs.back(), s.m_ys.back()), Vector<K>(0.0, 1.0));
+	renderer.draw(up);
 }

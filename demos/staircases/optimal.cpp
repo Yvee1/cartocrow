@@ -1,11 +1,11 @@
 #include "optimal.h"
 
-Staircase OptimalStaircaseSimplification::compute(const Staircase& s, int target) {
+#include <utility>
+#include "colors.h"
+
+void OptimalStaircaseSimplification::compute(const Staircase& s) {
 	clear();
 	int n = s.num_of_segments();
-	if (target % 2 != 0 || target > n || target < 0) {
-		throw std::runtime_error("The target complexity should be a non-negative odd number smaller than the input complexity.");
-	}
 
 	prepare(s);
 
@@ -19,20 +19,16 @@ Staircase OptimalStaircaseSimplification::compute(const Staircase& s, int target
 	table[0][0] = std::pair(0, std::nullopt);
 
 	for (int row = 1; row < n; row++) {
-		std::cout << "row " << row << std::endl;
 		bool other_dimension = row % 2;
 		int current_dimension_index = floor(row / 2);
 
 		for (int next_coord_index = current_dimension_index; next_coord_index < corner_count; next_coord_index++) {
-			std::cout << "\tnext coord index " << next_coord_index << std::endl;
 			Cell min_val(std::nullopt, std::nullopt);
 			for (int p_coord = 0; p_coord < next_coord_index + other_dimension; p_coord++) {
-				std::cout << "\t\tp_coord " << p_coord << std::endl;
 				auto area = table[row-1][p_coord].first;
 				if (!area.has_value()) continue;
 				auto added_area = compute_shortcut_area(s, other_dimension, p_coord, next_coord_index);
 				auto new_area = *area + added_area;
-				std::cout << "\t\tnew_area  " << new_area << std::endl;
 				if (!min_val.first.has_value() || new_area < *min_val.first) {
 					min_val = std::pair(new_area, p_coord);
 				}
@@ -40,9 +36,6 @@ Staircase OptimalStaircaseSimplification::compute(const Staircase& s, int target
 			table[row][next_coord_index] = min_val;
 		}
 	}
-
-	std::cout << "AOSD: " << *(table[target - 1].back().first) << std::endl;
-	return reconstruct(s, target);
 }
 
 void OptimalStaircaseSimplification::prepare(const Staircase& s) {
@@ -97,7 +90,7 @@ std::vector<Number<K>> OptimalStaircaseSimplification::compute_cumulative_vertic
 }
 
 Number<K> OptimalStaircaseSimplification::compute_shortcut_area(const Staircase& s, bool for_x, int i, int j) {
-	if (for_x && j - i == 0 || !for_x && j - 1 == 1) return 0;
+	if (for_x && j - i == 0 || !for_x && j - i == 1) return 0;
 	int sc_i = 2 * i + 1 - for_x;
 	int sc_j = 2 * j + for_x;
 
@@ -108,9 +101,10 @@ Number<K> OptimalStaircaseSimplification::compute_shortcut_area(const Staircase&
 
 void OptimalStaircaseSimplification::clear() {
 	table.clear();
+	cum_woven.clear();
 }
 
-Staircase OptimalStaircaseSimplification::reconstruct(const Staircase& s, int target) {
+Staircase OptimalStaircaseSimplification::reconstruct(const Staircase& s, int target) const {
 	auto element = table[target-1].back();
 	std::vector<Number<K>> xs = { s.m_xs.back() };
 	std::vector<Number<K>> ys;
@@ -127,4 +121,19 @@ Staircase OptimalStaircaseSimplification::reconstruct(const Staircase& s, int ta
 	std::reverse(ys.begin(), ys.end());
 
 	return Staircase(xs, ys);
+}
+
+OptimalPainting::OptimalPainting(const std::shared_ptr<Staircase>& staircase, int& target)
+    : m_staircase(staircase), m_target(target) {
+	m_opt_simp.compute(*m_staircase);
+}
+
+void OptimalPainting::paint(cartocrow::renderer::GeometryRenderer& renderer) const {
+	auto s = m_opt_simp.reconstruct(*m_staircase, m_target);
+	renderer.setStroke(CB::green, 2.5);
+	draw_staircase(renderer, s);
+}
+
+void OptimalPainting::reset() {
+	m_opt_simp.compute(*m_staircase);
 }

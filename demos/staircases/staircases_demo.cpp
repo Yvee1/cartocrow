@@ -10,19 +10,21 @@
 #include <QComboBox>
 #include <utility>
 #include <random>
+#include "colors.h"
 
 StaircaseDemo::StaircaseDemo() {
 	// =======================================
 	// ============  STAIRCASES ==============
 	// =======================================
 
-//		auto input = std::make_shared<UniformStaircase>(20);
-	//	auto input = std::make_shared<Staircase>(std::vector<double>({0, 1, 5, 6, 10}), std::vector<double>({0, 3, 4, 6, 8, 10}));
-	auto input = std::make_shared<Staircase>(
-	    std::vector<Number<K>>({0, 1, 5, 6, 10, 11, 20, 21, 26, 30, 33, 35, 37}),
-	    std::vector<Number<K>>({0, 3, 4, 6, 8,  10, 12, 14, 19, 25, 26, 27, 29})
-	);
+		auto input = std::make_shared<UniformStaircase>(3);
+//		auto input = std::make_shared<Staircase>(std::vector<double>({0, 1, 5, 6, 10}), std::vector<double>({0, 3, 4, 6, 8, 10}));
+//	auto input = std::make_shared<Staircase>(
+//	    std::vector<Number<K>>({0, 1, 5, 6, 10, 11, 20, 21, 26, 30, 33, 35, 37}),
+//	    std::vector<Number<K>>({0, 3, 4, 6, 8,  10, 12, 14, 19, 25, 26, 27, 29})
+//	);
 	std::shared_ptr<Staircase> s = std::make_shared<Staircase>(*input);
+	m_current_complexity = input->num_of_segments();
 
 	// =======================================
 	// ========= GEOMETRY WIDGET SETUP =======
@@ -108,13 +110,13 @@ StaircaseDemo::StaircaseDemo() {
 	vLayout->addWidget(area_ratio_label);
 
 	auto set_complexity_text = [input, s, l_label, m_label, total_bracket_complexity_label, num_brackets_label, opt_area_label,
-	                                simp_area_label, area_ratio_label]() {
+	                                simp_area_label, area_ratio_label, this]() {
 		int in = input->num_of_segments();
 		int sn = s->num_of_segments();
 		int distributed = (in - sn) / 2;
 		int num_brackets = (sn - 1);
 	    int l = std::floor(distributed / num_brackets);
-		int m = (((double) distributed) / ((double) num_brackets) - l) * (double (sn - 1));
+		int m = std::round((((double) distributed) / ((double) num_brackets) - l) * (double (sn - 1)));
 		auto f = [](int sl) { return sl * (sl + 1) / 2; };
 		int opt_area = (sn - 1 - m) * f(l) + m * f(l + 1);
 		auto simp_brackets = brackets(*input, *s);
@@ -138,8 +140,9 @@ StaircaseDemo::StaircaseDemo() {
 			m_command_stack.push(std::move(*command));
 			m_redo_stack = {};
 		}
-	    m_renderer->repaint();
 		set_complexity_text();
+	  	m_current_complexity = s->num_of_segments();
+	    m_renderer->repaint();
 
 		undo_button->setEnabled(!m_command_stack.empty());
 	    redo_button->setEnabled(!m_redo_stack.empty());
@@ -181,6 +184,8 @@ StaircaseDemo::StaircaseDemo() {
 		s->m_xs = input->m_xs;
 		s->m_ys = input->m_ys;
 		m_command_stack = {};
+	  m_current_complexity = s->num_of_segments();
+		m_optP->reset();
 		m_update(std::nullopt);
 	});
 	connect(create_uniform, &QPushButton::clicked, [numberOfSteps, s, input, this] {
@@ -189,6 +194,8 @@ StaircaseDemo::StaircaseDemo() {
 	  	input->m_ys = uni.m_ys;
 	    s->m_xs = input->m_xs;
 	    s->m_ys = input->m_ys;
+	  	m_current_complexity = s->num_of_segments();
+	    m_optP->reset();
 		m_update(std::nullopt);
 	});
 	connect(create_random, &QPushButton::clicked, [numberOfSteps, s, input, this] {
@@ -198,7 +205,7 @@ StaircaseDemo::StaircaseDemo() {
 	    std::vector<Number<K>> ys;
 		xs.push_back(0);
 	    ys.push_back(0);
-		for (int i = 1; i < numberOfSteps->value(); i++) {
+		for (int i = 1; i <= numberOfSteps->value(); i++) {
 			xs.push_back(xs.back() + dist(m_gen));
 			ys.push_back(ys.back() + dist(m_gen));
 		}
@@ -209,6 +216,8 @@ StaircaseDemo::StaircaseDemo() {
 		input->m_ys = ys;
 		s->m_xs = input->m_xs;
 		s->m_ys = input->m_ys;
+	    m_current_complexity = s->num_of_segments();
+	    m_optP->reset();
 		m_update(std::nullopt);
 	});
 	connect(undo_button, &QPushButton::clicked, [this] {
@@ -282,15 +291,15 @@ StaircaseDemo::StaircaseDemo() {
 		}
 		m_update(std::nullopt);
 	});
-	connect(opt_button, &QPushButton::clicked, [this, s, input] {
-		OptimalStaircaseSimplification opt_simplifier;
-		auto opt = opt_simplifier.compute(*input, s->num_of_segments());
-		s->m_xs = opt.m_xs;
-	    s->m_ys = opt.m_ys;
-	    m_command_stack = {};
-	    m_redo_stack = {};
-		m_update(std::nullopt);
-	});
+//	connect(opt_button, &QPushButton::clicked, [this, s, input] {
+//		OptimalStaircaseSimplification opt_simplifier;
+//		auto opt = opt_simplifier.compute(*input, s->num_of_segments());
+//		s->m_xs = opt.m_xs;
+//	    s->m_ys = opt.m_ys;
+//	    m_command_stack = {};
+//	    m_redo_stack = {};
+//		m_update(std::nullopt);
+//	});
 
 	// =======================================
 	// ============== PAINTINGS ==============
@@ -301,11 +310,13 @@ StaircaseDemo::StaircaseDemo() {
 	auto minMovesP = std::make_shared<MinMovesPainting>(s, input, greedy_cost);
 	auto inputP = std::make_shared<StaircasePainting>(input, true);
 	auto sP = std::make_shared<StaircasePainting>(s, false);
+	m_optP = std::make_shared<OptimalPainting>(input, m_current_complexity);
 	m_renderer->addPainting(gridP, "Grid");
 	m_renderer->addPainting(bracketP, "Brackets");
 	m_renderer->addPainting(movesP, "Moves");
 	m_renderer->addPainting(minMovesP, "Min. moves");
 	m_renderer->addPainting(inputP, "Input");
+	m_renderer->addPainting(m_optP, "Optimal");
 	m_renderer->addPainting(sP, "Simplification");
 
 	// =======================================
@@ -450,7 +461,7 @@ void MinMovesPainting::paint(GeometryRenderer& renderer) const {
 	if (!m_simplification->supported_by(*m_input)) return;
 
 	renderer.setMode(GeometryRenderer::fill);
-	renderer.setFill(Color(100, 255, 100));
+	renderer.setFill(CB::light_green);
 
 	GreedyCost cost;
 	int gci = m_cost_qt->currentIndex();
