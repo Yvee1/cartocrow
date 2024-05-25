@@ -27,6 +27,17 @@ std::vector<Bracket> brackets(const Staircase& input, const Staircase& simplific
 	return bs;
 }
 
+Number<K> symmetric_difference(const Staircase& input, const Staircase& simplification) {
+	auto simp_brackets = brackets(input, simplification);
+	Number<K> simp_area = 0;
+	for (auto& b : simp_brackets) {
+		auto poly = b.polygon(input);
+		if (poly.has_value()) {
+			simp_area += abs(poly->area());
+		}
+	}
+	return simp_area;
+}
 
 BracketPainting::BracketPainting(const std::shared_ptr<Staircase>& input,
                                  const std::shared_ptr<Staircase>& simplification,

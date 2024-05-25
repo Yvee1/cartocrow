@@ -36,7 +36,7 @@ struct Bracket {
 
 std::vector<Bracket> brackets(const Staircase& input, const Staircase& simplification);
 
-Bracket bracket(const Staircase& input, const Staircase& simplification, int i);
+Number<K> symmetric_difference(const Staircase& input, const Staircase& simplification);
 
 class BracketPainting : public GeometryPainting {
   public:

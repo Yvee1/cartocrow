@@ -643,6 +643,11 @@ void GeometryWidget::addPainting(std::shared_ptr<GeometryPainting> painting, con
 	updateLayerList();
 }
 
+void GeometryWidget::addPainting(std::shared_ptr<GeometryPainting> painting, const std::string& name, bool visible) {
+	m_paintings.push_back(DrawnPainting{painting, name, visible});
+	updateLayerList();
+}
+
 void GeometryWidget::clear() {
 	m_paintings.clear();
 	updateLayerList();

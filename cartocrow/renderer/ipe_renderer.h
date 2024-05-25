@@ -79,6 +79,9 @@ class IpeRenderer : public GeometryRenderer {
 	/// Saves the painting to an Ipe file with the given name.
 	void save(const std::filesystem::path& file);
 
+	std::string get_document_xml();
+	std::string get_content_xml_for_clipboard();
+
 	void draw(const Point<Inexact>& p) override;
 	void draw(const Segment<Inexact>& s) override;
 	void draw(const Polygon<Inexact>& p) override;
@@ -100,6 +103,8 @@ class IpeRenderer : public GeometryRenderer {
 	void addPainting(std::shared_ptr<GeometryPainting> painting);
 
   private:
+	/// Creates an ipe::Document.
+	ipe::Document create_ipe_document();
 	/// Converts a polygon to an Ipe curve.
 	ipe::Curve* convertPolygonToCurve(const Polygon<Inexact>& p) const;
 	/// Converts a polyline to an Ipe curve.

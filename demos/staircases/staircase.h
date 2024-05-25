@@ -30,6 +30,8 @@ class Staircase {
 	[[nodiscard]] Number<K> y(size_t i) const { return m_ys[i];};
 	[[nodiscard]] Number<K> coord(size_t i) const { if (i % 2 == 0) return m_ys.at(i/2); else return m_xs.at(i/2); };
 	[[nodiscard]] std::vector<Edge> edges() const;
+	[[nodiscard]] std::vector<Point<K>> corners() const;
+	[[nodiscard]] Polyline<K> polyline() const;
 	[[nodiscard]] bool is_valid() const;
 	[[nodiscard]] bool supported_by(const Staircase& other) const;
 	MoveBox move(int i) const;

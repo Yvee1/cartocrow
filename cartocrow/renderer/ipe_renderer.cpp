@@ -30,6 +30,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <ipetext.h>
 
 #include <fstream>
+#include <ipeutils.h>
 #include <string>
 
 namespace cartocrow::renderer {
@@ -38,7 +39,7 @@ IpeRenderer::IpeRenderer(const std::shared_ptr<GeometryPainting>& painting) {
 	m_paintings.push_back(painting);
 }
 
-void IpeRenderer::save(const std::filesystem::path& file) {
+ipe::Document IpeRenderer::create_ipe_document() {
 	ipe::Platform::initLib(ipe::IPELIB_VERSION);
 	ipe::Document document;
 	ipe::Layout layout;
@@ -80,7 +81,37 @@ void IpeRenderer::save(const std::filesystem::path& file) {
 	}
 
 	document.push_back(m_page);
+	return document;
+}
+
+void IpeRenderer::save(const std::filesystem::path& file) {
+	auto document = create_ipe_document();
 	document.save(file.string().c_str(), ipe::FileFormat::Xml, 0);
+}
+
+std::string IpeRenderer::get_document_xml() {
+	auto document = create_ipe_document();
+	ipe::String ipe_string;
+	ipe::StringStream stream(ipe_string);
+	document.saveAsXml(stream);
+
+	return ipe_string.z();
+}
+
+std::string IpeRenderer::get_content_xml_for_clipboard() {
+	auto document = create_ipe_document();
+	ipe::String ipe_string;
+	ipe::StringStream stream(ipe_string);
+	auto page = document.page(0);
+	for (int i = 0; i < page->count(); i++) {
+		page->setSelect(i, ipe::TSelect::EPrimarySelected);
+	}
+	page->saveSelection(stream);
+	for (int i = 0; i < page->count(); i++) {
+		page->setSelect(i, ipe::TSelect::ENotSelected);
+	}
+
+	return ipe_string.z();
 }
 
 void IpeRenderer::draw(const Point<Inexact>& p) {

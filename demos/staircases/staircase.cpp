@@ -58,6 +58,24 @@ std::vector<Edge> Staircase::edges() const {
 	return result;
 }
 
+std::vector<Point<K>> Staircase::corners() const {
+	std::vector<Point<K>> result;
+	int n = 2 * m_xs.size() - 2;
+	for (int i = 0; i < n; i++) {
+		Point<K> p1(m_xs[ceil((i)/2)], m_ys[ceil((i+1)/2)]);
+		result.push_back(p1);
+	}
+	Point<K> p1(m_xs[ceil(n/2)], m_ys[ceil((n+1)/2)]);
+	result.push_back(p1);
+
+	return result;
+}
+
+Polyline<K> Staircase::polyline() const {
+	auto pts = corners();
+	return {pts.begin(), pts.end()};
+}
+
 std::vector<MoveBox> Staircase::moves() const {
 	std::vector<MoveBox> boxes;
 	for (int i = 0; i < 2 * static_cast<int>(m_xs.size()) - 3; i++) {
@@ -114,10 +132,8 @@ void draw_staircase(GeometryRenderer& renderer, const Staircase& s) {
 	renderer.setMode(GeometryRenderer::stroke);
 	Ray<K> left(Point<K>(s.m_xs.front(), s.m_ys.front()), Vector<K>(-1.0, 0.0));
 	renderer.draw(left);
-	auto edges = s.edges();
-	for (const auto& e : edges) {
-		renderer.draw(e.segment);
-	}
+	auto polyline = s.polyline();
+	renderer.draw(polyline);
 	Ray<K> up(Point<K>(s.m_xs.back(), s.m_ys.back()), Vector<K>(0.0, 1.0));
 	renderer.draw(up);
 }

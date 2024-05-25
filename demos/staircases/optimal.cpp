@@ -39,54 +39,41 @@ void OptimalStaircaseSimplification::compute(const Staircase& s) {
 }
 
 void OptimalStaircaseSimplification::prepare(const Staircase& s) {
-	auto h_cum = compute_cumulative_horizontal_area(s);
-	auto v_cum = compute_cumulative_vertical_area(s);
+	auto h_c_area = compute_cumulative_horizontal_area(s);
+	auto v_c_area = compute_cumulative_vertical_area(s);
 
-	cum_woven = {};
-	for (int i = 0; i < v_cum.size() * 2; i++) {
+	c_area_woven = {};
+	for (int i = 0; i < v_c_area.size() * 2; i++) {
 		if (i % 2 == 0) {
-			cum_woven.push_back(v_cum[i / 2]);
+			c_area_woven.push_back(v_c_area[i / 2]);
 		} else {
-			cum_woven.push_back(h_cum[i / 2]);
+			c_area_woven.push_back(h_c_area[i / 2]);
 		}
-	}
-	std::cout << h_cum.size() << std::endl;
-	std::cout << v_cum.size() << std::endl;
-	std::cout << s.num_of_segments() / 2 << std::endl;
-
-	std::cout << "Cumulative horizontal area" << std::endl;
-	for (auto h : h_cum) {
-		std::cout << h << std::endl;
-	}
-
-	std::cout << "Cumulative vertical area" << std::endl;
-	for (auto v : v_cum) {
-		std::cout << v << std::endl;
 	}
 }
 
 std::vector<Number<K>> OptimalStaircaseSimplification::compute_cumulative_horizontal_area(const Staircase& s) {
-	std::vector<Number<K>> h_cum = {0};
+	std::vector<Number<K>> h_c_area = {0};
 
 	for (int i = 1; i < s.m_xs.size(); i++) {
 		auto x_diff = s.m_xs[i] - s.m_xs[i-1];
 		auto y = s.m_ys[i];
-		h_cum.push_back(h_cum.back() + x_diff * y);
+		h_c_area.push_back(h_c_area.back() + x_diff * y);
 	}
 
-	return h_cum;
+	return h_c_area;
 }
 
 std::vector<Number<K>> OptimalStaircaseSimplification::compute_cumulative_vertical_area(const Staircase& s) {
-	std::vector<Number<K>> v_cum = {0, 0};
+	std::vector<Number<K>> v_c_area = {0, 0};
 
 	for (int i = 2; i < s.m_ys.size(); i++) {
 		auto y_diff = s.m_ys[i] - s.m_ys[i-1];
 		auto x = s.m_xs[i-1];
-		v_cum.push_back(v_cum.back() + y_diff * x);
+		v_c_area.push_back(v_c_area.back() + y_diff * x);
 	}
 
-	return v_cum;
+	return v_c_area;
 }
 
 Number<K> OptimalStaircaseSimplification::compute_shortcut_area(const Staircase& s, bool for_x, int i, int j) {
@@ -94,14 +81,14 @@ Number<K> OptimalStaircaseSimplification::compute_shortcut_area(const Staircase&
 	int sc_i = 2 * i + 1 - for_x;
 	int sc_j = 2 * j + for_x;
 
-	auto added_area = cum_woven[sc_j] - cum_woven[sc_i+1];
+	auto added_area = c_area_woven[sc_j] - c_area_woven[sc_i+1];
 	added_area -= (s.coord(sc_j) - s.coord(sc_i + 1)) * s.coord(sc_i);
 	return added_area;
 }
 
 void OptimalStaircaseSimplification::clear() {
 	table.clear();
-	cum_woven.clear();
+	c_area_woven.clear();
 }
 
 Staircase OptimalStaircaseSimplification::reconstruct(const Staircase& s, int target) const {

@@ -72,6 +72,8 @@ class StaircaseDemo : public QMainWindow {
 	std::function<void(std::optional<std::unique_ptr<Command>>)> m_update;
 	std::stack<std::unique_ptr<Command>> m_command_stack;
 	std::stack<std::unique_ptr<Command>> m_redo_stack;
+	std::shared_ptr<StaircasePainting> m_inputP;
+	std::shared_ptr<StaircasePainting> m_sP;
 	std::shared_ptr<OptimalPainting> m_optP;
 	std::mt19937 m_gen;
 };

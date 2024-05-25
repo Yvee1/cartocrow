@@ -8,6 +8,8 @@
 #include <QSpinBox>
 #include <QLabel>
 #include <QComboBox>
+#include <QClipboard>
+#include "cartocrow/renderer/ipe_renderer.h"
 #include <utility>
 #include <random>
 #include "colors.h"
@@ -78,81 +80,8 @@ StaircaseDemo::StaircaseDemo() {
 	auto* redo_button = new QPushButton("Redo");
 	vLayout->addWidget(redo_button);
 
-	auto* infoSection = new QLabel("<h3>Info</h3>");
-	vLayout->addWidget(infoSection);
-
-	auto* show_bracket_complexity = new QCheckBox("Show bracket complexity");
-	vLayout->addWidget(show_bracket_complexity);
-	show_bracket_complexity->setCheckState(Qt::CheckState::Checked);
-
-	auto* show_bracket_dimensions = new QCheckBox("Show bracket dimension");
-//	vLayout->addWidget(show_bracket_dimensions);
-
-	auto* total_bracket_complexity_label = new QLabel();
-	vLayout->addWidget(total_bracket_complexity_label);
-
-	auto* num_brackets_label = new QLabel();
-	vLayout->addWidget(num_brackets_label);
-
-	auto* l_label = new QLabel();
-	vLayout->addWidget(l_label);
-
-	auto* m_label = new QLabel();
-	vLayout->addWidget(m_label);
-
-	auto* opt_area_label = new QLabel();
-	vLayout->addWidget(opt_area_label);
-
-	auto* simp_area_label = new QLabel();
-	vLayout->addWidget(simp_area_label);
-
-	auto* area_ratio_label = new QLabel();
-	vLayout->addWidget(area_ratio_label);
-
-	auto set_complexity_text = [input, s, l_label, m_label, total_bracket_complexity_label, num_brackets_label, opt_area_label,
-	                                simp_area_label, area_ratio_label, this]() {
-		int in = input->num_of_segments();
-		int sn = s->num_of_segments();
-		int distributed = (in - sn) / 2;
-		int num_brackets = (sn - 1);
-	    int l = std::floor(distributed / num_brackets);
-		int m = std::round((((double) distributed) / ((double) num_brackets) - l) * (double (sn - 1)));
-		auto f = [](int sl) { return sl * (sl + 1) / 2; };
-		int opt_area = (sn - 1 - m) * f(l) + m * f(l + 1);
-		auto simp_brackets = brackets(*input, *s);
-		int simp_area = 0;
-		for (auto& b : simp_brackets) {
-			simp_area += f((b.end - b.start - 1)/2);
-		}
-		double area_ratio = ((double) simp_area) / ((double) opt_area);
-	    total_bracket_complexity_label->setText(QString::fromStdString("Distributed complexity: " + std::to_string(distributed)));
-	    num_brackets_label->setText(QString::fromStdString("#Brackets: " + std::to_string(num_brackets)));
-	  	l_label->setText(QString::fromStdString("Min. opt. complexity: " + std::to_string(l)));
-		m_label->setText(QString::fromStdString("m: " + std::to_string(m)));
-		opt_area_label->setText(QString::fromStdString("Opt. area: " + std::to_string(opt_area)));
-	    simp_area_label->setText(QString::fromStdString("Simp. area: " + std::to_string(simp_area)));
-	    area_ratio_label->setText(QString::fromStdString("Area ratio: " + std::to_string(area_ratio)));
-	};
-
-	m_update = [this, set_complexity_text, s, input, undo_button, redo_button](std::optional<std::unique_ptr<Command>> command) {
-		if (command.has_value()) {
-			(*command)->execute();
-			m_command_stack.push(std::move(*command));
-			m_redo_stack = {};
-		}
-		set_complexity_text();
-	  	m_current_complexity = s->num_of_segments();
-	    m_renderer->repaint();
-
-		undo_button->setEnabled(!m_command_stack.empty());
-	    redo_button->setEnabled(!m_redo_stack.empty());
-	};
-
 	auto* greedySection = new QLabel("<h3>Greedy</h3>");
 	vLayout->addWidget(greedySection);
-
-	auto* opt_button = new QPushButton("Optimal");
-	vLayout->addWidget(opt_button);
 
 	auto* greedy_strategy_label = new QLabel("Greedy strategy");
 	auto* greedy_strategy = new QComboBox();
@@ -178,6 +107,76 @@ StaircaseDemo::StaircaseDemo() {
 
 	auto* greedy_step_100 = new QPushButton("Step x 100");
 	vLayout->addWidget(greedy_step_100);
+
+	auto* infoSection = new QLabel("<h3>Info</h3>");
+	vLayout->addWidget(infoSection);
+
+	auto* ipe_to_clipboard = new QPushButton("Save to clipboard as ipe");
+	vLayout->addWidget(ipe_to_clipboard);
+
+	auto* show_bracket_complexity = new QCheckBox("Show bracket complexity");
+	vLayout->addWidget(show_bracket_complexity);
+	show_bracket_complexity->setCheckState(Qt::CheckState::Unchecked);
+
+	auto* show_bracket_dimensions = new QCheckBox("Show bracket dimension");
+//	vLayout->addWidget(show_bracket_dimensions);
+
+//	auto* total_bracket_complexity_label = new QLabel();
+//	vLayout->addWidget(total_bracket_complexity_label);
+
+	auto* num_brackets_label = new QLabel();
+	vLayout->addWidget(num_brackets_label);
+
+//	auto* l_label = new QLabel();
+//	vLayout->addWidget(l_label);
+//
+//	auto* m_label = new QLabel();
+//	vLayout->addWidget(m_label);
+
+	auto* opt_area_label = new QLabel();
+	vLayout->addWidget(opt_area_label);
+
+	auto* simp_area_label = new QLabel();
+	vLayout->addWidget(simp_area_label);
+
+	auto* area_ratio_label = new QLabel();
+	vLayout->addWidget(area_ratio_label);
+
+	auto set_complexity_text = [input, s, num_brackets_label, opt_area_label,
+	                                simp_area_label, area_ratio_label, this]() {
+		int in = input->num_of_segments();
+		int sn = s->num_of_segments();
+//		int distributed = (in - sn) / 2;
+		int num_brackets = (sn - 1);
+//	    int l = std::floor(distributed / num_brackets);
+//		int m = std::round((((double) distributed) / ((double) num_brackets) - l) * (double (sn - 1)));
+		auto f = [](int sl) { return sl * (sl + 1) / 2; };
+//		int opt_area = (sn - 1 - m) * f(l) + m * f(l + 1);
+		auto opt_area = symmetric_difference(*input, m_optP->m_opt_simp.reconstruct(*input, sn));
+		auto simp_area = symmetric_difference(*input, *s);
+		double area_ratio = ((double) simp_area) / ((double) opt_area);
+//	    total_bracket_complexity_label->setText(QString::fromStdString("Distributed complexity: " + std::to_string(distributed)));
+	    num_brackets_label->setText(QString::fromStdString("#Brackets: " + std::to_string(num_brackets)));
+//	  	l_label->setText(QString::fromStdString("Min. opt. complexity: " + std::to_string(l)));
+//		m_label->setText(QString::fromStdString("m: " + std::to_string(m)));
+		opt_area_label->setText(QString::fromStdString("Opt. area: " + std::to_string(opt_area)));
+	    simp_area_label->setText(QString::fromStdString("Simp. area: " + std::to_string(simp_area)));
+	    area_ratio_label->setText(QString::fromStdString("Area ratio: " + std::to_string(area_ratio)));
+	};
+
+	m_update = [this, set_complexity_text, s, input, undo_button, redo_button](std::optional<std::unique_ptr<Command>> command) {
+		if (command.has_value()) {
+			(*command)->execute();
+			m_command_stack.push(std::move(*command));
+			m_redo_stack = {};
+		}
+		set_complexity_text();
+	  	m_current_complexity = s->num_of_segments();
+	    m_renderer->repaint();
+
+		undo_button->setEnabled(!m_command_stack.empty());
+	    redo_button->setEnabled(!m_redo_stack.empty());
+	};
 
 	// =========== EVENT HANDLERS ============
 	connect(reset_button, &QPushButton::clicked, [s, input, this] {
@@ -291,15 +290,14 @@ StaircaseDemo::StaircaseDemo() {
 		}
 		m_update(std::nullopt);
 	});
-//	connect(opt_button, &QPushButton::clicked, [this, s, input] {
-//		OptimalStaircaseSimplification opt_simplifier;
-//		auto opt = opt_simplifier.compute(*input, s->num_of_segments());
-//		s->m_xs = opt.m_xs;
-//	    s->m_ys = opt.m_ys;
-//	    m_command_stack = {};
-//	    m_redo_stack = {};
-//		m_update(std::nullopt);
-//	});
+	connect(ipe_to_clipboard, &QPushButton::clicked, [this] {
+		IpeRenderer ipe_renderer;
+		ipe_renderer.addPainting(m_inputP);
+	    ipe_renderer.addPainting(m_optP);
+	    ipe_renderer.addPainting(m_sP);
+		auto cb = QApplication::clipboard();
+		cb->setText(QString(ipe_renderer.get_content_xml_for_clipboard().c_str()));
+	});
 
 	// =======================================
 	// ============== PAINTINGS ==============
@@ -308,16 +306,16 @@ StaircaseDemo::StaircaseDemo() {
 	auto bracketP = std::make_shared<BracketPainting>(input, s, show_bracket_complexity, show_bracket_dimensions);
 	auto movesP = std::make_shared<MovesPainting>(s);
 	auto minMovesP = std::make_shared<MinMovesPainting>(s, input, greedy_cost);
-	auto inputP = std::make_shared<StaircasePainting>(input, true);
-	auto sP = std::make_shared<StaircasePainting>(s, false);
+	m_inputP = std::make_shared<StaircasePainting>(input, true);
+	m_sP = std::make_shared<StaircasePainting>(s, false);
 	m_optP = std::make_shared<OptimalPainting>(input, m_current_complexity);
 	m_renderer->addPainting(gridP, "Grid");
-	m_renderer->addPainting(bracketP, "Brackets");
-	m_renderer->addPainting(movesP, "Moves");
-	m_renderer->addPainting(minMovesP, "Min. moves");
-	m_renderer->addPainting(inputP, "Input");
+	m_renderer->addPainting(bracketP, "Brackets", false);
+	m_renderer->addPainting(movesP, "Moves", false);
+	m_renderer->addPainting(minMovesP, "Min. moves", false);
+	m_renderer->addPainting(m_inputP, "Input");
 	m_renderer->addPainting(m_optP, "Optimal");
-	m_renderer->addPainting(sP, "Simplification");
+	m_renderer->addPainting(m_sP, "Simplification");
 
 	// =======================================
 	// ============== EDITABLES ==============
