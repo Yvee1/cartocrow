@@ -15,7 +15,7 @@ using namespace cartocrow::renderer;
 
 template <class K> using Rectangle = CGAL::Iso_rectangle_2<K>;
 
-typedef Exact K;
+typedef Inexact K;
 
 class TreemapDemo : public QMainWindow {
 	Q_OBJECT
@@ -40,10 +40,26 @@ struct MarkedNPV {
 	NPV marked;
 };
 
+enum Side {
+	Left,
+	Bottom,
+	Right,
+	Top
+};
+
+enum Corner {
+	BL,
+	BR,
+	TR,
+	TL,
+};
+
+Corner opposite(Corner corner);
+
 std::pair<NPV, int> label_tree(const NP<double>& tree, int start = 0);
 
 Arrangement<K> build_treemap(const NPV& tree);
-void recurse_treemap(const NPV& tree, const NPV& marked, Arrangement<K>& arr, Arrangement<K>::Face_handle& face);
+void recurse_treemap(const NPV& tree, const NPV& marked, Arrangement<K>& arr, Arrangement<K>::Face_handle& face, Corner corner);
 
 class TreemapPainting : public GeometryPainting {
   public:
