@@ -189,6 +189,11 @@ class GeometryWidget : public QWidget, GeometryRenderer {
 	/// Adds an editable polygon.
 	void registerEditable(std::shared_ptr<Polygon<Inexact>> polygon);
 
+	/// Converts a point in drawing coordinates to Qt coordinates.
+	QPointF convertPoint(Point<Inexact> p) const;
+	/// Converts a point in Qt coordinates back to drawing coordinates.
+	Point<Inexact> inverseConvertPoint(QPointF p) const;
+
   public slots:
 	/// Determines whether to draw the axes and gridlines in the background.
 	void setDrawAxes(bool drawAxes);
@@ -217,6 +222,10 @@ class GeometryWidget : public QWidget, GeometryRenderer {
 	void dragEnded(Point<Inexact> location);
 	/// Emitted when the user edited an editable.
 	void edited();
+	/// Emitted when the user pans the screen.
+	void panned();
+	/// Emitted when the user zooms the screen.
+	void zoomed();
 
   protected:
 	void resizeEvent(QResizeEvent* e) override;
@@ -228,12 +237,8 @@ class GeometryWidget : public QWidget, GeometryRenderer {
 	void leaveEvent(QEvent* event) override;
 	QSize sizeHint() const override;
 
-	/// Converts a point in drawing coordinates to Qt coordinates.
-	QPointF convertPoint(Point<Inexact> p) const;
 	/// Converts a rectangle in drawing coordinates to Qt coordinates.
 	QRectF convertBox(Box b) const;
-	/// Converts a point in Qt coordinates back to drawing coordinates.
-	Point<Inexact> inverseConvertPoint(QPointF p) const;
 	/// Converts a rectangle in Qt coordinates back to drawing coordinates.
 	Box inverseConvertBox(QRectF r) const;
 

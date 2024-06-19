@@ -15,8 +15,11 @@ add_subdirectory(renderer)
 add_subdirectory(necklace_map)
 add_subdirectory(simplification)
 add_subdirectory(flow_map)
+add_subdirectory(treemap)
 
-add_library(cartocrow_lib INTERFACE)
+add_library(cartocrow_lib INTERFACE
+        treemap/turbo_colormap.cpp
+        treemap/turbo_colormap.h)
 target_link_libraries(
     cartocrow_lib INTERFACE
     core
@@ -24,6 +27,7 @@ target_link_libraries(
     necklace_map
     flow_map
     simplification
+    treemap
 )
 
 install(

@@ -192,6 +192,7 @@ void GeometryWidget::mouseMoveEvent(QMouseEvent* event) {
 		QTransform translation;
 		translation.translate(delta.x(), delta.y());
 		m_transform = m_transform * translation;
+		emit panned();
 	} else if (m_mouseButtonDown) {
 		if (m_dragging) {
 			emit dragMoved(inverseConvertPoint(m_mousePos));
@@ -282,6 +283,7 @@ void GeometryWidget::wheelEvent(QWheelEvent* event) {
 
 	updateZoomSlider();
 	update();
+	emit zoomed();
 }
 
 QPointF GeometryWidget::convertPoint(Point<Inexact> p) const {
@@ -685,6 +687,7 @@ void GeometryWidget::zoomIn() {
 	}
 	updateZoomSlider();
 	update();
+	emit zoomed();
 }
 
 void GeometryWidget::zoomOut() {
@@ -694,6 +697,7 @@ void GeometryWidget::zoomOut() {
 	}
 	updateZoomSlider();
 	update();
+	emit zoomed();
 }
 
 void GeometryWidget::setGridMode(GridMode mode) {
