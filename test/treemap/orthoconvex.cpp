@@ -2,27 +2,32 @@
 
 #include "cartocrow/treemap/orthoconvex.h"
 #include "cartocrow/treemap/parse_tree.h"
+#include "cartocrow/treemap/aspect_ratio.h"
 
 using namespace cartocrow;
 using namespace cartocrow::treemap;
 
-void check_weights(const Treemap& treemap, const NPV& tree) {
+void check_weights(const Treemap<Number<K>>& treemap, const NPV& tree) {
 	auto poly = treemap.node_region(tree);
-	CHECK(abs(poly.area()) / abs(treemap.m_rectangle.area()) == tree->value / treemap.m_tree->value);
+	if (!poly.has_value()) {
+		CHECK(tree->value == 0);
+		return;
+	}
+	CHECK(abs(poly->area()) / abs(treemap.m_rectangle.area()) == tree->value / treemap.m_tree->value);
 	for (const auto& child : tree->children) {
 		check_weights(treemap, child);
 	}
 }
 
-void check_aspect_ratio(const Treemap& treemap, const NPV& tree) {
+void check_aspect_ratio(const Treemap<Number<K>>& treemap, const NPV& tree) {
 	auto poly = treemap.node_region(tree);
-	poly.right_vertex()->x();
-	auto w = poly.bbox().x_span();
-	auto h = poly.bbox().y_span();
-	auto d = std::max(w, h);
-	auto ar = (d * d) / poly.area();
+	if (!poly.has_value()) {
+		CHECK(tree->value == 0);
+		return;
+	}
+	auto ar = aspect_ratio_square_percentage(*poly);
 	if (tree->is_leaf()) {
-		if (poly.size() == 4) {
+		if (poly->size() == 4) {
 			CHECK(ar <= 8);
 		} else {
 			CHECK(ar <= 32);

@@ -1,14 +1,15 @@
 #include "treemap_demo.h"
-#include "cartocrow/treemap/ok_hsv_hsl.h"
+#include "cartocrow/treemap/aspect_ratio.h"
 #include "cartocrow/treemap/parse_tree.h"
+#include "parse_csv_to_tree.h"
 #include <QApplication>
 #include <QDockWidget>
+#include <QFileDialog>
 #include <QLabel>
 #include <QPushButton>
+#include <QSpinBox>
 #include <QToolButton>
-#include <QToolTip>
 #include <QVBoxLayout>
-#include <utility>
 
 TreemapDemo::TreemapDemo() {
 	setWindowTitle("Treemap");
@@ -20,30 +21,28 @@ TreemapDemo::TreemapDemo() {
 	m_renderer->setMinZoom(0.01);
 	m_renderer->setMaxZoom(1000.0);
 
-	//	std::string filename = "/home/steven/Documents/cartocrow/data/test.tree";
-	//	std::fstream fin(filename);
-	//	std::string input;
-	//	if (fin) {
-	//		using Iterator = std::istreambuf_iterator<char>;
-	//		input.assign(Iterator(fin), Iterator());
-	//	}
+	auto* dockWidget = new QDockWidget();
+	addDockWidget(Qt::RightDockWidgetArea, dockWidget);
+	auto* vWidget = new QWidget();
+	auto* vLayout = new QVBoxLayout(vWidget);
+	vLayout->setAlignment(Qt::AlignTop);
+	dockWidget->setWidget(vWidget);
 
-//	auto input = "(((100)(1))((((1)(1))((1)(1)))(((1)(1))(((1)(1))(1)))))";
-	auto input = "(((100)(1))((((10)(1))((1)(120)))(((50)(1))(((1)(1))(1)))))";
-	auto node = parse_tree<Number<K>>(input);
+	auto* basicOptions = new QLabel("<h3>Input</h3>");
+	vLayout->addWidget(basicOptions);
+	auto* fileSelector = new QPushButton("Select file");
+	vLayout->addWidget(fileSelector);
 
-	m_treemap = build_treemap(node);
-	auto tmp = std::make_shared<TreemapPainting>(*m_treemap);
-	m_renderer->addPainting(tmp, "Treemap");
-	auto np = std::make_shared<NodePainting>(*m_treemap, m_selected_node);
-	m_renderer->addPainting(np, "Node highlight");
+	auto* timeStepInput = new QSpinBox();
+	timeStepInput->setValue(0);
+	timeStepInput->setMaximum(100);
+	auto* timeStepLabel = new QLabel("Time step");
+	timeStepLabel->setBuddy(timeStepInput);
+	vLayout->addWidget(timeStepLabel);
+	vLayout->addWidget(timeStepInput);
 
-//	auto* dockWidget = new QDockWidget();
-//	addDockWidget(Qt::RightDockWidgetArea, dockWidget);
-//	auto* vWidget = new QWidget();
-//	auto* vLayout = new QVBoxLayout(vWidget);
-//	vLayout->setAlignment(Qt::AlignTop);
-//	dockWidget->setWidget(vWidget);
+	// Read a csv containing sequences of weights in a hierarchy into a tree
+	load_file("/home/steven/Downloads/test/cartocrow/data/wb-SM.POP.NETM-net-migration.data");
 
 	connect(m_renderer, &GeometryWidget::clicked, [this](Point<Inexact> pt) {
 		Point<K> pt_k(pt.x(), pt.y());
@@ -73,17 +72,82 @@ TreemapDemo::TreemapDemo() {
 	  auto qp = m_renderer->convertPoint(*m_info_box_position);
 	  m_info_box->move({static_cast<int>(qp.x()), static_cast<int>(qp.y())});
 	});
+	connect(timeStepInput, QOverload<int>::of(&QSpinBox::valueChanged), [this, timeStepInput]() {
+	    if (timeStepInput->value() >= m_treemap->m_tree->value.weight.size()) {
+			timeStepInput->setValue(m_timestep);
+		    return;
+	    }
+		m_timestep = timeStepInput->value();
+		m_treemap = build_treemap(m_treemap->m_tree, timestep_weights(m_timestep));
+		updated_treemap();
+	});
+	connect(fileSelector, &QPushButton::clicked, [this, fileSelector]() {
+		QString start_dir;
+//		if (m_dir.has_value() && m_dir != "") {
+//			start_dir = QString::fromStdString(*m_dir);
+//		} else {
+			start_dir = ".";
+//		}
+
+		std::filesystem::path filePath = QFileDialog::getOpenFileName(this, tr("Select directory with input isolines")).toStdString();
+//		                                          start_dir,
+//		                                          QFileDialog::ShowDirsOnly
+//		                                              | QFileDialog::DontResolveSymlinks).toStdString();
+
+		if (filePath == "") return;
+		load_file(filePath);
+		fileSelector->setText(QString::fromStdString(filePath.filename()));
+	});
 }
 
-void TreemapDemo::create_info_box(Point<Inexact> pt, NPV node) {
+void TreemapDemo::clear_info_box() {
 	if (m_info_box != nullptr) {
 		m_info_box->close();
+	}
+	m_info_box = nullptr;
+	m_info_box_position = std::nullopt;
+}
+
+void TreemapDemo::updated_treemap() {
+	m_renderer->clear();
+	m_tmp = std::make_shared<TreemapPainting<Named>>(*m_treemap, m_tmp->m_initial_treemap);
+	m_renderer->addPainting(m_tmp, "Treemap");
+	auto np = std::make_shared<NodePainting<Named>>(*m_treemap, m_selected_node);
+	m_renderer->addPainting(np, "Node highlight");
+	m_renderer->repaint();
+	if (m_info_box != nullptr) {
+		create_info_box(*m_info_box_position, *m_selected_node);
+	}
+}
+
+void TreemapDemo::load_file(const std::filesystem::path& filePath) {
+	m_timestep = 0;
+	m_selected_node = std::nullopt;
+	clear_info_box();
+
+	if (filePath.empty()) return;
+	std::ifstream t(filePath, std::ios_base::in);
+	if (!t.good()) {
+		throw std::runtime_error("Failed to read input file");
+	}
+	std::stringstream buffer;
+	buffer << t.rdbuf();
+	auto multi_tree = parse_csv_to_tree(buffer.str());
+	m_treemap = build_treemap(multi_tree, timestep_weights(m_timestep));
+	m_tmp = std::make_shared<TreemapPainting<Named>>(*m_treemap, *m_treemap);
+	updated_treemap();
+}
+
+void TreemapDemo::create_info_box(Point<Inexact> pt, const NPN& node) {
+	clear_info_box();
+	if (m_treemap->node_region(node) == std::nullopt) {
+		return;
 	}
 	m_info_box = new QFrame(m_renderer);
 	m_info_box_position = pt;
 	auto q_pt = m_renderer->convertPoint(pt);
 	m_info_box->move({static_cast<int>(q_pt.x()), static_cast<int>(q_pt.y())});
-	m_info_box->resize(120, 160);
+	m_info_box->resize(150, 180);
 	QPalette pal;
 	pal.setColor(QPalette::Window, Qt::white);
 	m_info_box->setAutoFillBackground(true);
@@ -97,9 +161,9 @@ void TreemapDemo::create_info_box(Point<Inexact> pt, NPV node) {
 	auto* info = new QLabel("<h3>Info</h3>");
 	vLayout->addWidget(info);
 	std::stringstream weight_s;
-	auto nv = CGAL::to_double(node->value);
+	auto nv = CGAL::to_double(timestep_weights(m_timestep)(node));
 	weight_s.unsetf(std::ios::showpoint);
-	if (node->value < 100000) {
+	if (nv < 1E9) {
 		weight_s.precision(std::ceil(std::log10(nv)) + 1);
 	} else {
 		weight_s.precision(2);
@@ -108,39 +172,42 @@ void TreemapDemo::create_info_box(Point<Inexact> pt, NPV node) {
 	auto* leaf_weight = new QLabel(QString::fromStdString(weight_s.str()));
 	vLayout->addWidget(leaf_weight);
 
+	auto* name_label = new QLabel(QString::fromStdString(node->value.name));
+	vLayout->addWidget(name_label);
+
 	auto* hLayout = new QHBoxLayout();
 	auto* dec_weight = new QToolButton();
 	dec_weight->setText("-");
 	hLayout->addWidget(dec_weight);
 
-	auto rebuild = [node, pt, this]() mutable {
-		update_weights(node);
-		m_treemap = build_treemap(m_treemap->m_tree);
-		auto tmp = std::make_shared<TreemapPainting>(*m_treemap);
-		m_renderer->clear();
-		m_renderer->addPainting(tmp, "Treemap");
-		auto np = std::make_shared<NodePainting>(*m_treemap, m_selected_node);
-		m_renderer->addPainting(np, "Node highlight");
-		m_renderer->repaint();
-		create_info_box(pt, node);
-	};
-
-	connect(dec_weight, &QToolButton::clicked, [node, rebuild]() mutable {
-		if (node->value <= 1) return;
-		node->value -= 1;
-		rebuild();
-	});
-	auto* inc_weight = new QToolButton();
-	inc_weight->setText("+");
-	hLayout->addWidget(inc_weight);
-	connect(inc_weight, &QToolButton::clicked, [node, rebuild]() mutable {
-		node->value += 1;
-		rebuild();
-	});
-	vLayout->addLayout(hLayout);
+//	auto rebuild = [node, pt, this]() mutable {
+//		update_weights(node);
+//		m_treemap = build_treemap(m_treemap->m_tree, weight_getter);
+//		auto tmp = std::make_shared<TreemapPainting>(*m_treemap);
+//		m_renderer->clear();
+//		m_renderer->addPainting(tmp, "Treemap");
+//		auto np = std::make_shared<NodePainting>(*m_treemap, m_selected_node);
+//		m_renderer->addPainting(np, "Node highlight");
+//		m_renderer->repaint();
+//		create_info_box(pt, node);
+//	};
+//
+//	connect(dec_weight, &QToolButton::clicked, [node, rebuild]() mutable {
+//		if (node->value <= 1) return;
+//		node->value -= 1;
+//		rebuild();
+//	});
+//	auto* inc_weight = new QToolButton();
+//	inc_weight->setText("+");
+//	hLayout->addWidget(inc_weight);
+//	connect(inc_weight, &QToolButton::clicked, [node, rebuild]() mutable {
+//		node->value += 1;
+//		rebuild();
+//	});
+//	vLayout->addLayout(hLayout);
 	std::stringstream area_s;
-	auto area = abs(CGAL::to_double(m_treemap->node_region(node).area()));
-	if (area < 100000) {
+	auto area = abs(CGAL::to_double(m_treemap->node_region(node)->area()));
+	if (area < 1E9) {
 		area_s.precision(std::ceil(std::log10(area)) + 1);
 	} else {
 		area_s.precision(2);
@@ -149,9 +216,16 @@ void TreemapDemo::create_info_box(Point<Inexact> pt, NPV node) {
 	area_s << "Area: " << area;
 	auto* region_area = new QLabel(QString::fromStdString(area_s.str()));
 	vLayout->addWidget(region_area);
+	std::stringstream aspect_ratio_s;
+	auto aspect_ratio = aspect_ratio_square_percentage(*(m_treemap->node_region(node)));
+	aspect_ratio_s.precision(2);
+	aspect_ratio_s.unsetf(std::ios::showpoint);
+	aspect_ratio_s << "Aspect ratio: " << aspect_ratio;
+	auto* aspect_ratio_l = new QLabel(QString::fromStdString(aspect_ratio_s.str()));
+	vLayout->addWidget(aspect_ratio_l);
 	auto* close_button = new QPushButton("Close");
 	connect(close_button, &QPushButton::clicked, [this](){
-		m_info_box->close();
+		clear_info_box();
 		m_selected_node = std::nullopt;
 		m_renderer->repaint();
 	});
@@ -199,50 +273,6 @@ void TreemapDemo::resizeEvent(QResizeEvent *event) {
 	if (m_info_box == nullptr) return;
 	auto qp = m_renderer->convertPoint(*m_info_box_position);
 	m_info_box->move({static_cast<int>(qp.x()), static_cast<int>(qp.y())});
-}
-
-NodePainting::NodePainting(const Treemap& treemap, const std::optional<NPV>& node) : m_node(node), m_treemap(treemap) {}
-
-void NodePainting::paint(GeometryRenderer& renderer) const {
-	if (!m_node.has_value()) return;
-	auto n = *m_node;
-	renderer.setMode(GeometryRenderer::stroke);
-	renderer.setStroke({0, 0, 0}, 3.0);
-	renderer.draw(m_treemap.node_region(n));
-}
-
-TreemapPainting::TreemapPainting(Treemap treemap) : m_treemap(std::move(treemap)) {}
-
-void draw_node_in_hue_range(const Treemap& treemap, const NPV& node, GeometryRenderer& renderer, float lower, float upper, float s = 0.75, float v = 0.95, float padding = 0.3, float shift = 0.2) {
-	if (node->is_leaf()) {
-		renderer.setMode(GeometryRenderer::fill);
-		auto h = lower + (upper - lower) / 2;
-		auto rgb = ok_color::okhsv_to_srgb({(h + shift) - static_cast<int>(h + shift), s, v});
-		renderer.setFill(Color{static_cast<int>(rgb.r * 255), static_cast<int>(rgb.g * 255), static_cast<int>(rgb.b * 255)});
-		renderer.draw(treemap.node_region(node));
-		return;
-	}
-
-	int n = node->children.size();
-	for (int i = 0; i < n; i++) {
-		float l = lower + (static_cast<float>(i) + padding) / (static_cast<float>(n) + 2 * padding) * (upper - lower);
-		float u = lower + (static_cast<float>(i) + 1 + padding) / (static_cast<float>(n) + 2 * padding) * (upper - lower);
-		draw_node_in_hue_range(treemap, node->children[i], renderer, l, u, s, v);
-	}
-}
-
-void TreemapPainting::paint(GeometryRenderer& renderer) const {
-	auto arr = *m_treemap.m_arrangement;
-
-	draw_node_in_hue_range(m_treemap, m_treemap.m_tree, renderer, 0.0, 1.0);
-
-	for (auto eit = arr.edges_begin(); eit != arr.edges_end(); eit++) {
-		auto edge = *eit;
-		Segment<K> seg(edge.source()->point(), edge.target()->point());
-		renderer.setStroke(Color{0, 0, 0}, 1.0);
-		renderer.setMode(GeometryRenderer::stroke);
-		renderer.draw(seg);
-	}
 }
 
 int main(int argc, char* argv[]) {

@@ -7,6 +7,8 @@
 
 std::vector<std::string> find_subtrees(const std::string& tree);
 
+/// Parses strings, where nodes are specified by a weight surrounded by parentheses, to a tree.
+/// Example string: (((4)((100)(1)))((4)(5)))
 template <class FT>
 std::shared_ptr<Node<FT>> parse_tree(const std::string& tree) {
 	auto subtrees = find_subtrees(tree);

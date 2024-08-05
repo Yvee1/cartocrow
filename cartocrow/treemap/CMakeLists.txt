@@ -11,6 +11,7 @@ set(SOURCES
 	draw_tree.h
 	turbo_colormap.cpp
 	ok_hsv_hsl.h
+	aspect_ratio.cpp
 )
 set(HEADERS
 	orthoconvex.h
@@ -20,7 +21,7 @@ set(HEADERS
 	treemap_helpers.h
 	treemap.h
 	turbo_colormap.h
-	ok_hsv_hsl.h
+	aspect_ratio.h
 )
 
 add_library(treemap ${SOURCES})

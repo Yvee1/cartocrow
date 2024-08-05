@@ -1,4 +1,5 @@
-#pragma once
+#ifndef CARTOCROW_OK_HSV_HSL_H
+#define CARTOCROW_OK_HSV_HSL_H
 // Copyright(c) 2021 Björn Ottosson
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -682,3 +683,4 @@ HSV srgb_to_okhsv(RGB rgb)
 }
 
 } // namespace ok_color
+#endif //CARTOCROW_OK_HSV_HSL_H
