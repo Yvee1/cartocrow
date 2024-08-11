@@ -46,7 +46,7 @@ TEST_CASE("Orthoconvex case (a).") {
 		for (int i = 0; i < 4; i++) {
 			auto corner = static_cast<Corner>(i);
 			auto root = parse_tree<Number<K>>(input);
-			auto treemap = build_treemap(root, corner);
+			auto treemap = orthoconvex_treemap(root, {{0, 0}, {1, 1}}, corner);
 
 			SECTION("Weights.") {
 				check_weights(treemap, root);
@@ -67,7 +67,7 @@ TEST_CASE("Orthoconvex case (b).") {
 		for (int i = 0; i < 4; i++) {
 			auto corner = static_cast<Corner>(i);
 			auto root = parse_tree<Number<K>>(input);
-			auto treemap = build_treemap(root);
+			auto treemap = orthoconvex_treemap(root, {{0, 0}, {1, 1}});
 
 			SECTION("Weights.") {
 				check_weights(treemap, root);
@@ -94,7 +94,7 @@ TEST_CASE("Orthoconvex case (c).") {
 		for (int i = 0; i < 4; i++) {
 			auto corner = static_cast<Corner>(i);
 			auto root = parse_tree<Number<K>>(input);
-			auto treemap = build_treemap(root);
+			auto treemap = orthoconvex_treemap(root, {{0, 0}, {1, 1}});
 
 			SECTION("Weights.") {
 				check_weights(treemap, root);
@@ -117,7 +117,7 @@ TEST_CASE("Orthoconvex case (d).") {
 				auto corner = static_cast<Corner>(i);
 				SECTION("Corner: " + std::to_string(corner)) {
 					auto root = parse_tree<Number<K>>(input);
-					auto treemap = build_treemap(root);
+					auto treemap = orthoconvex_treemap(root, {{0, 0}, {1, 1}});
 
 					SECTION("Weights.") {
 						check_weights(treemap, root);

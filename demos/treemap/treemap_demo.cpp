@@ -10,6 +10,9 @@
 #include <QSpinBox>
 #include <QToolButton>
 #include <QVBoxLayout>
+#include <QComboBox>
+#include "cartocrow/treemap/orthoconvex.h"
+#include "cartocrow/treemap/convex.h"
 
 TreemapDemo::TreemapDemo() {
 	setWindowTitle("Treemap");
@@ -28,6 +31,24 @@ TreemapDemo::TreemapDemo() {
 	vLayout->setAlignment(Qt::AlignTop);
 	dockWidget->setWidget(vWidget);
 
+	auto* treemapOptions = new QLabel("<h3>Treemap type</h3>");
+	vLayout->addWidget(treemapOptions);
+	auto* treemapTypeLabel = new QLabel("Treemap type");
+	auto* treemapType = new QComboBox();
+	treemapType->addItem("Orthoconvex");
+	treemapType->addItem("Convex");
+	vLayout->addWidget(treemapTypeLabel);
+	vLayout->addWidget(treemapType);
+	m_treemap_builder = [treemapType](NP<Named>& tree, const Rectangle<K>& rect, NodeWeight<Named> w) {
+		if (treemapType->currentText() == "Orthoconvex") {
+			return orthoconvex_treemap(tree, rect, w);
+		} else if (treemapType->currentText() == "Convex") {
+			return convex_treemap(tree, rect, w);
+		} else {
+			throw std::runtime_error("Treemap type " + treemapType->currentText().toStdString() + " has not been implemented.");
+		}
+	};
+
 	auto* basicOptions = new QLabel("<h3>Input</h3>");
 	vLayout->addWidget(basicOptions);
 	auto* fileSelector = new QPushButton("Select file");
@@ -42,7 +63,8 @@ TreemapDemo::TreemapDemo() {
 	vLayout->addWidget(timeStepInput);
 
 	// Read a csv containing sequences of weights in a hierarchy into a tree
-	load_file("/home/steven/Downloads/test/cartocrow/data/wb-SM.POP.NETM-net-migration.data");
+//	load_file("/home/steven/Documents/cartocrow/data/wb-SM.POP.NETM-net-migration.data");
+	load_file("/home/steven/Documents/cartocrow/data/convex_test.data");
 
 	connect(m_renderer, &GeometryWidget::clicked, [this](Point<Inexact> pt) {
 		Point<K> pt_k(pt.x(), pt.y());
@@ -78,7 +100,7 @@ TreemapDemo::TreemapDemo() {
 		    return;
 	    }
 		m_timestep = timeStepInput->value();
-		m_treemap = build_treemap(m_treemap->m_tree, timestep_weights(m_timestep));
+		m_treemap = m_treemap_builder(m_treemap->m_tree, m_rect, timestep_weights(m_timestep));
 		updated_treemap();
 	});
 	connect(fileSelector, &QPushButton::clicked, [this, fileSelector]() {
@@ -97,6 +119,11 @@ TreemapDemo::TreemapDemo() {
 		if (filePath == "") return;
 		load_file(filePath);
 		fileSelector->setText(QString::fromStdString(filePath.filename()));
+	});
+	connect(treemapType, &QComboBox::currentTextChanged, [this, treemapType]() {
+		m_treemap = m_treemap_builder(m_treemap->m_tree, m_rect, timestep_weights(m_timestep));
+		m_tmp = std::make_shared<TreemapPainting<Named>>(*m_treemap, *m_treemap);
+		updated_treemap();
 	});
 }
 
@@ -133,7 +160,7 @@ void TreemapDemo::load_file(const std::filesystem::path& filePath) {
 	std::stringstream buffer;
 	buffer << t.rdbuf();
 	auto multi_tree = parse_csv_to_tree(buffer.str());
-	m_treemap = build_treemap(multi_tree, timestep_weights(m_timestep));
+	m_treemap = m_treemap_builder(multi_tree, m_rect, timestep_weights(m_timestep));
 	m_tmp = std::make_shared<TreemapPainting<Named>>(*m_treemap, *m_treemap);
 	updated_treemap();
 }

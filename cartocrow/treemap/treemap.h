@@ -21,7 +21,7 @@ class Treemap {
 	}
 
   public:
-	Treemap(NP<V> tree, std::shared_ptr<Arrangement<K>> arr, std::unordered_map<NP<V>, FaceH> leaf_to_face, Rectangle<K> rect):
+	Treemap(NP<V> tree, std::shared_ptr<TMArrangement> arr, std::unordered_map<NP<V>, FaceH> leaf_to_face, Rectangle<K> rect):
 	      m_tree(std::move(tree)), m_arrangement(std::move(arr)), m_leaf_to_face(std::move(leaf_to_face)), m_rectangle(std::move(rect)) {
 		for (const auto& [leaf, face] : m_leaf_to_face) {
 			m_face_to_leaf[face] = leaf;
@@ -44,7 +44,7 @@ class Treemap {
 			return faces_to_polygon(faces);
 		}
 	};
-	std::shared_ptr<Arrangement<K>> m_arrangement;
+	std::shared_ptr<TMArrangement> m_arrangement;
 	std::unordered_map<NP<V>, FaceH> m_leaf_to_face;
 	std::unordered_map<FaceH, NP<V>> m_face_to_leaf;
 	NP<V> m_tree;

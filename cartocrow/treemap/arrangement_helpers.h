@@ -4,6 +4,7 @@
 #include "treemap_helpers.h"
 namespace cartocrow::treemap {
 Polygon<K> faces_to_polygon(const std::unordered_set<FaceH>& faces);
+std::pair<std::shared_ptr<TMArrangement>, FaceH> arrangement_rectangle(const Rectangle<K>& rect);
 }
 
 #endif //CARTOCROW_ARRANGEMENT_HELPERS_H

@@ -1,6 +1,9 @@
 #include "treemap_helpers.h"
 
 namespace cartocrow::treemap {
+NodeWeight<Number<K>> npv_w = [](const auto& n) { return n->value; };
+NodeWeight<DepthWeight> npd_w = [](const auto& n) { return n->value.weight; };
+
 void remove_collinear_vertices(Polygon<K>& polygon) {
 	if (polygon.size() <= 3) return;
 
@@ -24,7 +27,7 @@ void remove_collinear_vertices(Polygon<K>& polygon) {
 	}
 }
 
-Polygon<K> face_to_polygon(const Arrangement<K>::Face_const_handle& face) {
+Polygon<K> face_to_polygon(const TMArrangement::Face_const_handle& face) {
 	std::vector<Point<K>> pts;
 	auto circ = face->outer_ccb();
 	auto curr = circ;
@@ -51,84 +54,13 @@ Polygon<K> face_to_polygon(const Arrangement<K>::Face_const_handle& face) {
 //	}
 //}
 
-Rectangle<K> face_to_rectangle(const Arrangement<K>::Face_const_handle& face) {
+Rectangle<K> face_to_rectangle(const TMArrangement::Face_const_handle& face) {
 	auto poly = face_to_polygon(face);
 	Rectangle<K> rect(poly.vertex(0), poly.vertex(2));
 	return rect;
 }
 
-NPV range_search(const NPV& tree, const Number<K>& max) {
-	auto current = tree;
-	while (!current->is_leaf() && current->value > max) {
-		auto it = std::max_element(
-		    current->children.begin(), current->children.end(),
-		    [](const auto& c1, const auto& c2) { return c1->value < c2->value; });
-		current = *it;
-	}
-	return current;
-}
-
-NPV get_other_child(const NPV& tree, const NPV& child) {
-	if (tree->children.size() != 2) {
-		throw std::runtime_error("Precondition violated: tree is not a binary node");
-	}
-
-	if (tree->children[0] == child) {
-		return tree->children[1];
-	} else if (tree->children[1] == child) {
-		return tree->children[0];
-	} else {
-		throw std::runtime_error("Precondition violated: child is not a subtree of tree");
-	}
-}
-
-void update_weights(NPV& tree) {
-	if (!tree->is_leaf()) {
-		Number<K> total_weight(0);
-		for (const auto& child : tree->children) {
-			total_weight += child->value;
-		}
-		tree->value = total_weight;
-	}
-	auto p = tree->parent.lock();
-	if (p != nullptr) {
-		update_weights(p);
-	}
-}
-
-void replace_child(NPV& tree, const NPV& old_child, const NPV& new_child) {
-	int found = -1;
-	for (int i = 0; i < tree->children.size(); i++) {
-		if (tree->children[i] == old_child) {
-			found = i;
-		}
-	}
-	tree->children[found] = new_child;
-
-	update_weights(tree);
-}
-
-MarkedNPV split_off_subtree(const NPV& tree, const NPV& subtree) {
-	// Cut off the subtree
-	auto parent = subtree->parent.lock();
-	subtree->parent = std::weak_ptr<Node<Number<K>>>();
-
-	// Find sibling
-	auto sibling = get_other_child(parent, subtree);
-
-	// Contract
-	auto grandparent = parent->parent.lock();
-	sibling->parent = grandparent;
-
-	if (grandparent != nullptr) {
-		replace_child(grandparent, parent, sibling);
-		return {tree, sibling};
-	} else {
-		return {sibling, sibling};
-	}
-}
-
-std::pair<FaceH, FaceH> slice_rectangle(Arrangement<K>& arr, FaceH& face,
+std::pair<FaceH, FaceH> slice_rectangle(TMArrangement& arr, FaceH& face,
                                         const Number<K>& corner_ratio, Corner corner,
                                         std::optional<bool> force_split_dir) {
 	auto rect = face_to_rectangle(face);
@@ -163,7 +95,7 @@ std::pair<FaceH, FaceH> slice_rectangle(Arrangement<K>& arr, FaceH& face,
 	return {cornerH, oppositeH};
 }
 
-std::pair<FaceH, FaceH> create_notch(Arrangement<K>& arr, const Rectangle<K>& rect,
+std::pair<FaceH, FaceH> create_notch(TMArrangement& arr, const Rectangle<K>& rect,
                                      const Number<K>& notch_ratio, Corner corner) {
 	auto next_corner = static_cast<Corner>((corner + 1) % 4);
 	auto prev_corner = static_cast<Corner>((corner + 3) % 4);
@@ -198,14 +130,14 @@ std::pair<FaceH, FaceH> create_notch(Arrangement<K>& arr, const Rectangle<K>& re
 	return {lH, rectH};
 }
 
-std::pair<FaceH, FaceH> slice_L_rectangle(Arrangement<K>& arr, FaceH& face,
+std::pair<FaceH, FaceH> slice_L_rectangle(TMArrangement& arr, FaceH& face,
                                           const Number<K>& corner_ratio, Corner corner) {
 	auto rect = face_to_rectangle(face);
 	return create_notch(arr, rect, 1 - corner_ratio, opposite(corner));
 }
 
 std::pair<FaceH, std::pair<FaceH, FaceH>>
-slice_S_rectangle(Arrangement<K>& arr, FaceH& face, const Number<K>& corner_ratio,
+slice_S_rectangle(TMArrangement& arr, FaceH& face, const Number<K>& corner_ratio,
                   const Number<K>& opposite_ratio, Corner corner) {
 	auto rect = face_to_rectangle(face);
 	auto [_, cornerH] = create_notch(arr, rect, corner_ratio, corner);
@@ -213,46 +145,4 @@ slice_S_rectangle(Arrangement<K>& arr, FaceH& face, const Number<K>& corner_rati
 	return {sH, {cornerH, oppositeH}};
 }
 
-std::pair<NPV, NPV> ancestor_search(const NPV& node, const Number<K>& max_weight) {
-	NPV mu_hat = node;
-	NPV mu_star = node->parent.lock();
-
-	while (mu_star->value < max_weight) {
-		mu_hat = mu_star;
-		mu_star = mu_hat->parent.lock();
-	}
-
-	return {mu_hat, mu_star};
-}
-
-NPV largest_leaf(NPV node) {
-	if (node->is_leaf())
-		return node;
-	NPV largest;
-	Number<K> max_weight = -1;
-	for (const auto& child : node->children) {
-		auto leaf = largest_leaf(child);
-		if (leaf->value > max_weight) {
-			max_weight = leaf->value;
-			largest = leaf;
-		}
-	}
-	return largest;
-}
-
-NPV copy_tree(const NPV& tree, std::unordered_map<NPV, NPV>& copy_to_tree) {
-	if (tree->is_leaf()) {
-		auto new_node = std::make_shared<Node<Number<K>>>(tree->value);
-		copy_to_tree[new_node] = tree;
-		return new_node;
-	} else {
-		auto node = std::make_shared<Node<Number<K>>>(tree->value);
-		for (const auto& child : tree->children) {
-			auto copy = copy_tree(child, copy_to_tree);
-			node->add_child(copy);
-		}
-		copy_to_tree[node] = tree;
-		return node;
-	}
-}
 }

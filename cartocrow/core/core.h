@@ -72,6 +72,9 @@ template <class K> using PolygonSet = CGAL::Polygon_set_2<K>;
 /// CGAL::Polygon_2.
 using Box = CGAL::Bbox_2;
 
+/// A direction in the plane. See \ref CGAL::Direction_2.
+template <class K> using Direction = CGAL::Direction_2<K>;
+
 /// An arrangement of objects in the plane.
 template <class K> using Arrangement = CGAL::Arrangement_2<CGAL::Arr_segment_traits_2<K>>;
 

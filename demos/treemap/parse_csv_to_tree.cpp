@@ -67,6 +67,6 @@ NPN parse_csv_to_tree(const std::string& csv, bool simplify_name) {
 	return *root_node;
 }
 
-std::function<Number<K>(NPN node)> timestep_weights(int i) {
+NodeWeight<Named> timestep_weights(int i) {
 	return [i](const auto& n) { return n->value.weight[i]; };
 }
