@@ -7,6 +7,10 @@ std::pair<Point<K>, Point<K>> slice_polygon_line_helper(const Polygon<K>& poly, 
 //		auto v = *vit;
 //
 //	}
+	std::cout << ratio << std::endl;
+	if (abs(ratio - 5.0/7) < M_EPSILON) {
+		std::cout << "!" << std::endl;
+	}
     std::vector<Point<K>> sorted;
 	std::copy(poly.vertices_begin(), poly.vertices_end(), std::back_inserter(sorted));
 	std::sort(sorted.begin(), sorted.end(), [line](const Point<K>& v1, const Point<K>& v2) {
@@ -41,9 +45,9 @@ std::pair<Point<K>, Point<K>> slice_polygon_line_helper(const Polygon<K>& poly, 
 	auto proj = [poly, line](const Point<K>& p, int a, int b) {
 	  Segment<K> seg(poly.vertex(a), poly.vertex(b));
 //	  auto supp_line = seg.supporting_line();
-	  if (seg.start() == p || (seg.start() - p).direction() == line.direction() || (p - seg.start()).direction() == line.direction()) {
+	  if (squared_distance(seg.start(), p) < M_EPSILON || (seg.start() - p).direction() == line.direction() || (p - seg.start()).direction() == line.direction()) {
 		  return seg.start();
-	  } else if (seg.end() == p || (seg.end() - p).direction() == line.direction() || (p - seg.end()).direction() == line.direction()) {
+	  } else if (squared_distance(seg.end(), p) < M_EPSILON || (seg.end() - p).direction() == line.direction() || (p - seg.end()).direction() == line.direction()) {
 		  return seg.end();
 	  } {
 //		  return seg.supporting_line().projection(p);
@@ -62,7 +66,6 @@ std::pair<Point<K>, Point<K>> slice_polygon_line_helper(const Polygon<K>& poly, 
 		Point<K> p1 = proj(prev, p, (p + 1) % n);
 		Point<K> p2 = proj(prev, m, (m - 1 + n) % n);
 		prev = v;
-		if (v == p1 || v == p2) continue;
 		Point<K> p3, p4;
 		if (v == poly.vertex((p + 1) % n)) {
 			p4 = v;
@@ -73,6 +76,7 @@ std::pair<Point<K>, Point<K>> slice_polygon_line_helper(const Polygon<K>& poly, 
 			p4 = proj(p3, p, (p + 1) % n);
 			m = (m - 1 + n) % n;
 		}
+		if (v == p1 || v == p2) continue;
 		if (CGAL::collinear(p1, p2, p3) && CGAL::collinear(p2, p3, p4)) {
 			continue;
 		}
@@ -102,7 +106,7 @@ std::pair<Point<K>, Point<K>> slice_polygon_line_helper(const Polygon<K>& poly, 
 			auto side_1 = sqrt(squared_distance(p3, p4));
 			auto height = abs(sqrt((line.projection(p1) - line.projection(p3)).squared_length()));
 			Number<K> d;
-			if (side_1 == side_2) {
+			if (abs(side_1 - side_2) < M_EPSILON) {
 				d = a / side_1;
 			} else {
 				d = height * (sqrt(side_1 * side_1 + (2 * a * (side_2 - side_1)) / height) - side_1) / (side_2 - side_1);
@@ -131,17 +135,26 @@ std::pair<Point<K>, Point<K>> slice_polygon_line_helper(const Polygon<K>& poly, 
 	throw std::runtime_error("Impossible");
 }
 
-TMArrangement::Vertex_handle approx_insert(TMArrangement& arr, const Point<K>& point) {
-	TM_pl pl(arr);
+std::pair<TMArrangement::Vertex_handle, Point<K>> approx_insert(std::shared_ptr<TMArrangement> arr, const Point<K>& point, FaceH& face) {
+	TM_pl pl(*arr);
 	auto loc = pl.locate(point);
 	const TMArrangement::Vertex_const_handle* v;
 	const TMArrangement::Halfedge_const_handle* e;
 	const TMArrangement::Face_const_handle* f;
 	if ((f = boost::get<TMArrangement::Face_const_handle>(&loc))) { // located inside a face
 //		arr.non_const_handle(*f)->outer_ccb();
-		auto poly = face_to_polygon(arr.non_const_handle(*f));
+//		std::cout << ->number_of_outer_ccbs() << std::endl;
+		Polygon<K> poly;
+		auto fh = arr->non_const_handle(*f);
+		if (fh->has_outer_ccb()) {
+			poly = face_to_polygon(fh);
+		} else { // fh points to the outer face
+			poly = ccb_to_polygon(*(fh->inner_ccbs_begin()));
+		}
 		std::optional<Number<K>> min_dist;
 		Point<K> closest;
+
+		// Todo: use arr->split_edge
 		for (auto eit = poly.edges_begin(); eit != poly.edges_end(); eit++) {
 			auto seg = *eit;
 			auto proj = seg.supporting_line().projection(point);
@@ -151,22 +164,39 @@ TMArrangement::Vertex_handle approx_insert(TMArrangement& arr, const Point<K>& p
 				closest = proj;
 			}
 		}
-		return CGAL::insert_point(arr, closest);
+		std::cout << "Inserting point " << point << " at " << closest << " in " << poly << std::endl;
+		auto loc = pl.locate(closest);
+		const TMArrangement::Vertex_const_handle* vc;
+		const TMArrangement::Halfedge_const_handle* ec;
+		const TMArrangement::Face_const_handle* fc;
+		if ((f = boost::get<TMArrangement::Face_const_handle>(&loc))) { // located inside a face
+			std::cerr << "Closest in face" << std::endl; // Big problem
+		}
+		else if ((e = boost::get<TMArrangement::Halfedge_const_handle>(&loc))) { // located on an edge
+			std::cout << "Closest on edge" << ((*e)->face() == face) << std::endl;
+		}
+		else if ((v = boost::get<TMArrangement::Vertex_const_handle>(&loc))) { // located on a vertex
+			std::cout << "Closest on vertex" << std::endl;
+		}
+		return {CGAL::insert_point(*arr, closest), closest};
 	}
 	else if ((e = boost::get<TMArrangement::Halfedge_const_handle>(&loc))) { // located on an edge
 		auto edge = *e;
 		Segment<K> seg(edge->source()->point(), edge->target()->point());
-		return CGAL::insert_point(arr, seg.supporting_line().projection(point));
+		std::cout << "Inserting point " << point << " on " << seg << "  " << ((*e)->face() == face) << std::endl;
+		// More efficient: do split_edge.
+		return {CGAL::insert_point(*arr, point), point};
 	}
 	else if ((v = boost::get<TMArrangement::Vertex_const_handle>(&loc))) { // located on a vertex
-		return arr.non_const_handle(*v);
+		std::cout << "Inserting point " << point << " at " << (*v)->point() << std::endl;
+		return {arr->non_const_handle(*v), point};
 	}
 	else {
 		throw std::runtime_error("Impossible");
 	}
 }
 
-std::pair<FaceH, FaceH> slice_polygon_dir(TMArrangement& arr, FaceH& face, const Number<K>& ratio, const Direction<K>& dir) {
+std::pair<FaceH, FaceH> slice_polygon_dir(std::shared_ptr<TMArrangement> arr, FaceH& face, const Number<K>& ratio, const Direction<K>& dir) {
 	auto poly = face_to_polygon(face);
 
 	auto l1 = Line<K>(CGAL::ORIGIN, dir);
@@ -176,15 +206,20 @@ std::pair<FaceH, FaceH> slice_polygon_dir(TMArrangement& arr, FaceH& face, const
 	// (1) least number of non-axis-parallel edges
 	// (2) lowest aspect ratio
 	auto [q1, q2] = slice_polygon_line_helper(poly, ratio, l1);
-	Segment<K> cut(q1, q2);
 
-
-	auto q1H = approx_insert(arr, q1);
-	auto q2H = approx_insert(arr, q2);
-	auto cutH = arr.insert_at_vertices(cut, q1H, q2H);
+	auto [q1H, q1p] = approx_insert(arr, q1, face);
+	auto [q2H, q2p] = approx_insert(arr, q2, face);
+	Segment<K> cut(q1p, q2p);
+	std::cout << "Cut " << cut << std::endl;
+	auto cutH = arr->insert_at_vertices(cut, q1H, q2H);
 	FaceH h1;
 	FaceH h2;
-	if (abs(face_to_polygon(cutH->face()).area() / poly.area() - ratio) < (face_to_polygon(cutH->twin()->face()).area() / poly.area() - ratio)) {
+
+	auto r1 = abs(face_to_polygon(cutH->face()).area() / poly.area() - ratio);
+	auto r2 = abs(face_to_polygon(cutH->twin()->face()).area() / poly.area() - ratio);
+	std::cout << "r1: " << r1 << " r2: " << r2 << std::endl;
+
+	if (r1 < r2) {
 		h1 = cutH->face();
 		h2 = cutH->twin()->face();
 	} else {
@@ -192,11 +227,21 @@ std::pair<FaceH, FaceH> slice_polygon_dir(TMArrangement& arr, FaceH& face, const
 		h1 = cutH->twin()->face();
 	}
 
-	// todo: return h1 and h2 appropriately
+	std::cout << "h1: " << face_to_polygon(h1) << std::endl;
+	std::cout << "h2: " << face_to_polygon(h2) << std::endl;
+
 	return {h1, h2};
 }
 
-std::pair<FaceH, FaceH> slice_polygon_straight(TMArrangement& arr, FaceH& face, const Number<K>& ratio) {
+std::pair<FaceH, FaceH> slice_polygon_straight(std::shared_ptr<TMArrangement> arr, FaceH& face, const Number<K>& ratio) {
+	std::vector<Point<K>> pts;
+	auto circ = face->outer_ccb();
+	auto curr = circ;
+	do {
+		pts.push_back(curr->source()->point());
+	} while (++curr != circ);
+	Polygon<K> poly_test(pts.begin(), pts.end());
+//	remove_collinear_vertices(poly);
 	auto poly = face_to_polygon(face);
 	auto w = poly.right_vertex()->x() - poly.left_vertex()->x();
 	auto h = poly.top_vertex()->y() - poly.bottom_vertex()->y();
@@ -248,30 +293,39 @@ Direction<K> fresh_direction(const Polygon<K>& poly) {
 	return freshest.direction();
 }
 
-std::pair<FaceH, FaceH> slice_polygon_new_dir(TMArrangement& arr, FaceH& face, const Number<K>& ratio) {
+std::pair<FaceH, FaceH> slice_polygon_new_dir(std::shared_ptr<TMArrangement>& arr, FaceH& face, const Number<K>& ratio) {
 	auto poly = face_to_polygon(face);
 	Direction<K> dir = fresh_direction(poly);
 
 	return slice_polygon_dir(arr, face, ratio, dir);
 }
 
-void recurse_convex(const NPD& tree, TMArrangement& arr, FaceH& face,
-                    std::unordered_map<NPD, FaceH>& leaf_regions) {
+void recurse_convex(const NPD& tree, std::shared_ptr<TMArrangement> arr, FaceH face,
+                    std::unordered_map<NPD, std::pair<VertexH, Direction<K>>>& leaf_regions) {
+	std::cout << "====start====" << std::endl;
+	std::cout << "Tree: " << tree_to_string(tree, npd_w) << std::endl;
+	face_to_polygon(face);
 	if (tree->is_leaf()) {
-		leaf_regions[tree] = face;
+		auto edge = *face->outer_ccb();
+		auto vertex = edge.target();
+		auto dir = (edge.target()->point() - edge.source()->point()).direction();
+		leaf_regions[tree] = {vertex, dir};
+		std::cout << "Leaf saved to " << face_to_polygon(face) << std::endl;
+		std::cout << "====end====" << std::endl;
 		return;
 	} else {
 		auto v1 = *largest_child(tree, npd_w);
 
 		FaceH h1;
 		FaceH h2;
-		// todo: Why not: if (v1->value.weight > tree->value.weight * 2 / 3)?
+//		 todo: Why not: if (v1->value.weight > tree->value.weight * 2 / 3)?
 		if (v1->value.depth == tree->value.depth + 1) {
+//		if (v1->value.weight > tree->value.weight * 2 / 3) {
 			// Case 1
 			// introduce new cutting line
 			std::tie(h1, h2) = slice_polygon_new_dir(arr, face, v1->value.weight / tree->value.weight);
 		} else {
-			assert(v1->value.depth == tree->value.depth);
+//			assert(v1->value.depth == tree->value.depth);
 			// Case 2
 			// do axis parallel cut
 			std::tie(h1, h2) = slice_polygon_straight(arr, face, v1->value.weight / tree->value.weight);
@@ -279,8 +333,36 @@ void recurse_convex(const NPD& tree, TMArrangement& arr, FaceH& face,
 
 		auto v2 = get_other_child(tree, v1);
 
+		auto poly1 = face_to_polygon(h1);
+		auto poly2 = face_to_polygon(h2);
+		std::cout << "Cutting in polygon: " << poly1 << std::endl;
 		recurse_convex(v1, arr, h1, leaf_regions);
-		recurse_convex(v2, arr, h2, leaf_regions);
+//		auto poly3 = face_to_polygon(h1);
+//		auto poly4 = face_to_polygon(h2);
+//		Point<K> centroid((poly2.right_vertex()->x() + poly2.left_vertex()->x()) / 2, (poly2.top_vertex()->y() + poly2.bottom_vertex()->y()) / 2);
+//		std::cout << "Cutting in polygon: " << poly2 << std::endl;
+//		std::cout << centroid << std::endl;
+//		auto h2Safe = arr->non_const_handle(getFaceOf(*arr, centroid));
+		auto edge = *h2->outer_ccb();
+		auto vertex = edge.target();
+		auto dir = (edge.target()->point() - edge.source()->point()).direction();
+		auto cit_start = vertex->incident_halfedges();
+		auto cit = cit_start;
+		HalfedgeH the_he;
+		bool found = false;
+		do {
+			auto he = *cit;
+			if ((he.target()->point() - he.source()->point()).direction() == dir) {
+				the_he = cit;
+				found = true;
+				break;
+			}
+		} while (++cit != cit_start);
+
+		if (!found) {
+			throw std::runtime_error("Could not find face from saved vertex.");
+		}
+		recurse_convex(v2, arr, the_he->face(), leaf_regions);
 		return;
 	}
 }

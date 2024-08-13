@@ -37,6 +37,11 @@ Number<K> height(const Rectangle<K>& rect) {
 }
 
 template <class K>
+Point<K> centroid(const Rectangle<K>& rect) {
+	return {(rect.xmin() + rect.xmax()) / 2, (rect.ymin() + rect.ymax()) / 2};
+}
+
+template <class K>
 auto dimension(const Rectangle<K>& rect, int i) {
 	if (i == 0) {
 		return width(rect);

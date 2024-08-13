@@ -27,14 +27,26 @@ void remove_collinear_vertices(Polygon<K>& polygon) {
 	}
 }
 
+Polygon<K> face_to_polygon_coll(const TMArrangement::Face_const_handle& face) {
+	return ccb_to_polygon_coll(face->outer_ccb());
+}
+
 Polygon<K> face_to_polygon(const TMArrangement::Face_const_handle& face) {
+	return ccb_to_polygon(face->outer_ccb());
+}
+
+Polygon<K> ccb_to_polygon_coll(TMArrangement::Ccb_halfedge_const_circulator circ) {
 	std::vector<Point<K>> pts;
-	auto circ = face->outer_ccb();
 	auto curr = circ;
 	do {
 		pts.push_back(curr->source()->point());
 	} while (++curr != circ);
 	Polygon<K> poly(pts.begin(), pts.end());
+	return poly;
+}
+
+Polygon<K> ccb_to_polygon(TMArrangement::Ccb_halfedge_const_circulator circ) {
+	auto poly = ccb_to_polygon_coll(circ);
 	remove_collinear_vertices(poly);
 	return poly;
 }

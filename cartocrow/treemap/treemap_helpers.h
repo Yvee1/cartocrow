@@ -25,6 +25,23 @@ typedef CNP<Number<K>> CNPV;
 
 template <class V> using NodeWeight = std::function<Number<K>(NP<V>)>;
 
+template <class V>
+std::string tree_to_string(NP<V> node, NodeWeight<V> w) {
+	std::stringstream result;
+	result << "(";
+
+	if (node->is_leaf()) {
+		result << w(node);
+	} else {
+		for (const auto& child : node->children) {
+			result << tree_to_string(child, w);
+		}
+	}
+	result << ")";
+
+	return result.str();
+}
+
 extern NodeWeight<Number<K>> npv_w;
 extern NodeWeight<DepthWeight> npd_w;
 
@@ -36,8 +53,18 @@ struct MarkedNP {
 
 typedef  CGAL::Arrangement_2<CGAL::Arr_segment_traits_2<K>> TMArrangement;
 typedef TMArrangement::Face_handle FaceH;
+typedef TMArrangement::Vertex_handle VertexH;
+typedef TMArrangement::Halfedge_handle HalfedgeH;
+typedef TMArrangement::Face_const_handle FaceConstH;
 
+/// Removes collinear vertices
 Polygon<K> face_to_polygon(const TMArrangement::Face_const_handle& face);
+/// Removes collinear vertices
+Polygon<K> ccb_to_polygon(TMArrangement::Ccb_halfedge_const_circulator circ);
+/// Does not remove collinear vertices
+Polygon<K> face_to_polygon_coll(const TMArrangement::Face_const_handle& face);
+/// Does not remove collinear vertices
+Polygon<K> ccb_to_polygon_coll(TMArrangement::Ccb_halfedge_const_circulator circ);
 Rectangle<K> face_to_rectangle(const TMArrangement::Face_const_handle& face);
 std::pair<FaceH, FaceH> slice_rectangle(TMArrangement& arr, FaceH& face,
 										const Number<K>& corner_ratio, Corner corner,

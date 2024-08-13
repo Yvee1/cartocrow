@@ -59,4 +59,18 @@ std::pair<std::shared_ptr<TMArrangement>, FaceH> arrangement_rectangle(const Rec
 
 	return {arr, face};
 }
+
+FaceConstH getFaceOf(const TMArrangement& arr, Point<K> point) {
+	TM_pl pl(arr);
+	auto loc = pl.locate(point);
+	const TMArrangement::Vertex_const_handle* v;
+	const TMArrangement::Halfedge_const_handle* e;
+	const TMArrangement::Face_const_handle* f;
+	if ((f = boost::get<TMArrangement::Face_const_handle>(&loc))) { // located inside a face
+		return *f;
+	}
+	else {
+		throw std::runtime_error("Point does not lie in the interior of a face.");
+	}
+}
 }
