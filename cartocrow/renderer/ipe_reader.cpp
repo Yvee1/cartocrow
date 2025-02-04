@@ -143,9 +143,9 @@ RenderPath IpeReader::convertShapeToRenderPath(const ipe::Shape& shape, const ip
             throw std::runtime_error("Encountered closed ellipse or B-spline; unimplemented");
         }
         const ipe::Curve* curve = shape.subPath(i)->asCurve();
+        Point<Inexact> last;
         for (int j = 0; j < curve->countSegments(); ++j) {
             ipe::CurveSegment segment = curve->segment(j);
-            Point<Inexact> last;
             if (segment.type() == ipe::CurveSegment::ESegment || segment.type() == ipe::CurveSegment::EArc) {
                 if (j == 0) {
                     ipe::Vector v = matrix * segment.cp(0);
@@ -172,6 +172,30 @@ RenderPath IpeReader::convertShapeToRenderPath(const ipe::Shape& shape, const ip
         renderPath.close();
     }
     return renderPath;
+}
+
+Polyline<Inexact> IpeReader::convertCurveToPolyline(const ipe::Curve& curve, const ipe::Matrix& matrix) {
+    Polyline<Inexact> polyline;
+    Point<Inexact> last;
+    for (int j = 0; j < curve.countSegments(); ++j) {
+        ipe::CurveSegment segment = curve.segment(j);
+        if (segment.type() != ipe::CurveSegment::ESegment) {
+            throw std::runtime_error("Cannot convert curve with non-linear segments to a polyline!");
+        }
+        if (j == 0) {
+            ipe::Vector v = matrix * segment.cp(0);
+            Point<Inexact> pt(v.x, v.y);
+            last = pt;
+            polyline.push_back(pt);
+        }
+        ipe::Vector v = matrix * segment.last();
+        Point<Inexact> pt(v.x, v.y);
+        if (pt != last) {
+            last = pt;
+            polyline.push_back(pt);
+        }
+    }
+    return polyline;
 }
 
 RenderPath IpeReader::loadIpePath(const std::filesystem::path& ipeFile) {

@@ -27,6 +27,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "cartocrow/core/core.h"
 #include "cartocrow/core/bezier.h"
+#include "cartocrow/core/polyline.h"
 
 #include <ipeattributes.h>
 #include <ipedoc.h>
@@ -56,6 +57,7 @@ class IpeReader {
 
     static renderer::RenderPath convertShapeToRenderPath(const ipe::Shape& shape, const ipe::Matrix& matrix);
     static renderer::RenderPath loadIpePath(const std::filesystem::path& ipeFile);
+    static Polyline<Inexact> convertCurveToPolyline(const ipe::Curve& curve, const ipe::Matrix& matrix);
 };
 
 } // namespace cartocrow
