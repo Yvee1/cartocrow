@@ -17,6 +17,7 @@ add_subdirectory(simplification)
 add_subdirectory(flow_map)
 add_subdirectory(isoline_simplification)
 add_subdirectory(simplesets)
+add_subdirectory(kinetic_kelp)
 add_subdirectory(chorematic_map)
 
 add_library(cartocrow_lib INTERFACE)
