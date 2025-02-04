@@ -214,6 +214,8 @@ struct Color {
 	Color(int r, int g, int b);
 	/// Constructs a color from a single integer (useful combined with hexadecimal literals, e.g. 0xFFFFFF).
 	Color(int rgb);
+
+    auto operator<=>(const Color& color) const = default;
 };
 
 /// Wraps the given number \f$n\f$ to the interval \f$[a, b)\f$.
