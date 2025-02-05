@@ -1,4 +1,6 @@
 #include "time_control_widget.h"
+#include <QApplication>
+#include <QStyle>
 
 void TimeControlToolBar::tick() {
     ++m_ticks;
@@ -14,12 +16,14 @@ double TimeControlToolBar::time() const {
 
 TimeControlToolBar::TimeControlToolBar(QWidget* parent, std::optional<double> endTimeSecond, int intervalMs) :
 QToolBar(parent), m_intervalMs(intervalMs), m_endTime(endTimeSecond) {
+	QIcon playIcon = QApplication::style()->standardIcon(QStyle::SP_MediaPlay);
+	QIcon pauseIcon = QApplication::style()->standardIcon(QStyle::SP_MediaPause);
+	QIcon restartIcon = QApplication::style()->standardIcon(QStyle::SP_MediaSkipBackward);
     auto* restartButton = new QToolButton(this);
-    restartButton->setText("↺");
+	restartButton->setIcon(restartIcon);
     addWidget(restartButton);
     auto* playPauseButton = new QToolButton(this);
-    playPauseButton->setText("||");
-    addWidget(playPauseButton);
+	playPauseButton->setIcon(pauseIcon);
 
     restartButton->setMaximumSize(100, 50);
     restartButton->setContentsMargins(0, 0, 0, 0);
@@ -34,20 +38,21 @@ QToolBar(parent), m_intervalMs(intervalMs), m_endTime(endTimeSecond) {
         m_scrubber->setMinimum(0);
         m_scrubber->setMaximum(1000);
     }
+	addWidget(playPauseButton);
 
     m_timer = new QTimer(this);
     connect(m_timer, &QTimer::timeout, [this] { tick(); });
     m_timer->start(intervalMs);
 
-    connect(playPauseButton, &QToolButton::clicked, [this, playPauseButton](){
+    connect(playPauseButton, &QToolButton::clicked, [this, playPauseButton, pauseIcon, playIcon](){
         if (!m_pausedTime.has_value()) {
             m_timer->stop();
             m_pausedTime = m_ticks * m_intervalMs;
-            playPauseButton->setText("▶");
+            playPauseButton->setIcon(playIcon);
         } else {
             m_timer->start();
             m_pausedTime = std::nullopt;
-            playPauseButton->setText("||");
+            playPauseButton->setIcon(pauseIcon);
         }
     });
     connect(restartButton, &QToolButton::clicked, [this](){
