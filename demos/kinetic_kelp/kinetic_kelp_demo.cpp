@@ -8,6 +8,9 @@
 #include <QHBoxLayout>
 #include <QPushButton>
 #include <QIcon>
+#include <QHBoxLayout>
+
+#include "cartocrow/renderer/svg_renderer.h"
 
 #include "cartocrow/kinetic_kelp/parse_input.h"
 #include "cartocrow/kinetic_kelp/moving_cat_point.h"
@@ -121,36 +124,49 @@ KineticKelpDemo::KineticKelpDemo() {
 
     computeMSTs(0);
 
-    m_renderer->addPainting([this](GeometryRenderer& renderer) {
-        computeMSTs(m_timeControl->time());
+	auto drawMSTs = [this](GeometryRenderer& renderer) {
+		computeMSTs(m_timeControl->time());
 
-        renderer.setMode(GeometryRenderer::stroke);
-        renderer.setStroke(Color(0, 0, 0), m_pointRadius / 3.5, true);
+		renderer.setMode(GeometryRenderer::stroke);
+		renderer.setStroke(Color(0, 0, 0), m_pointRadius / 3.5, true);
 
-        for (int k = 0; k < m_input.numCategories(); ++k) {
-            auto& mst = m_msts[k];
-            auto& dt = m_dts[k];
-            for (const TGEdge &ed: mst) {
-                TGVertex svd = CGAL::source(ed, dt);
-                TGVertex tvd = CGAL::target(ed, dt);
-                DT::Vertex_handle sv = svd;
-                DT::Vertex_handle tv = tvd;
-                renderer.draw(Segment<Inexact>(sv->point(), tv->point()));
-            }
-        }
-    }, "MSTs");
+		for (int k = 0; k < m_input.numCategories(); ++k) {
+			auto& mst = m_msts[k];
+			auto& dt = m_dts[k];
+			for (const TGEdge &ed: mst) {
+				TGVertex svd = CGAL::source(ed, dt);
+				TGVertex tvd = CGAL::target(ed, dt);
+				DT::Vertex_handle sv = svd;
+				DT::Vertex_handle tv = tvd;
+				renderer.draw(Segment<Inexact>(sv->point(), tv->point()));
+			}
+		}
+	};
 
-//    m_renderer->addPainting([ds, this](GeometryRenderer& renderer) {
-//        for (const auto& mcp : m_input.movingCatPoints()) {
-//            drawTrajectory(renderer, mcp, ds);
-//        }
-//    }, "CatPoint Trajectories");
+    m_renderer->addPainting(drawMSTs, "MSTs");
 
-    m_renderer->addPainting([ds, this](GeometryRenderer& renderer) {
-        for (const auto& mcp : m_input.movingCatPoints()) {
-            drawMovingCatPoint(renderer, mcp, m_timeControl->time(), ds);
-        }
-    }, "Moving points");
+	auto drawMovingPoints = [ds, this](GeometryRenderer& renderer) {
+		for (const auto& mcp : m_input.movingCatPoints()) {
+			drawMovingCatPoint(renderer, mcp, m_timeControl->time(), ds);
+		}
+	};
+
+    m_renderer->addPainting(drawMovingPoints, "Moving points");
+
+	connect(m_timeControl, &TimeControlToolBar::ticked, [drawMovingPoints, drawMSTs](int tick, double time) {
+		SvgRenderer svgRenderer;
+		svgRenderer.addPainting(
+		    [drawMovingPoints, drawMSTs](GeometryRenderer& renderer) {
+			    drawMSTs(renderer);
+			    drawMovingPoints(renderer);
+		    },
+		    "KineticKelp");
+		std::stringstream filename;
+		filename << "frames/frame-" << std::setfill('0') << std::setw(5) << tick;
+		svgRenderer.save(filename.str() + ".svg");
+		std::string cmd = "inkscape " + filename.str() + ".svg" + " --export-filename=" + filename.str() + ".png" + " --export-area=0:-300:300:-600";
+		system(cmd.c_str());
+	});
 
     for (int k = 0; k < m_input.numCategories(); ++k) {
         auto& mst = m_msts[k];
