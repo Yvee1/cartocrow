@@ -3,11 +3,17 @@
 #include <QStyle>
 
 void TimeControlToolBar::tick() {
-    ++m_ticks;
+	int timeMs = m_ticks * m_intervalMs / *m_endTime;
     if (m_scrubber != nullptr && m_endTime.has_value()) {
-        m_scrubber->setValue(m_ticks * m_intervalMs / *m_endTime);
+        m_scrubber->setValue(timeMs);
     }
+	emit ticked(m_ticks, timeMs / 1000.0);
     parentWidget()->update();
+	if (timeMs / 1000.0 >= m_endTime.has_value()) {
+		done();
+	} else {
+		++m_ticks;
+	}
 }
 
 double TimeControlToolBar::time() const {
@@ -16,19 +22,19 @@ double TimeControlToolBar::time() const {
 
 TimeControlToolBar::TimeControlToolBar(QWidget* parent, std::optional<double> endTimeSecond, int intervalMs) :
 QToolBar(parent), m_intervalMs(intervalMs), m_endTime(endTimeSecond) {
-	QIcon playIcon = QApplication::style()->standardIcon(QStyle::SP_MediaPlay);
-	QIcon pauseIcon = QApplication::style()->standardIcon(QStyle::SP_MediaPause);
+	m_playIcon = QApplication::style()->standardIcon(QStyle::SP_MediaPlay);
+	m_pauseIcon = QApplication::style()->standardIcon(QStyle::SP_MediaPause);
 	QIcon restartIcon = QApplication::style()->standardIcon(QStyle::SP_MediaSkipBackward);
     auto* restartButton = new QToolButton(this);
 	restartButton->setIcon(restartIcon);
     addWidget(restartButton);
-    auto* playPauseButton = new QToolButton(this);
-	playPauseButton->setIcon(pauseIcon);
+    m_playPauseButton = new QToolButton(this);
+	m_playPauseButton->setIcon(m_playIcon);
 
     restartButton->setMaximumSize(100, 50);
     restartButton->setContentsMargins(0, 0, 0, 0);
-    playPauseButton->setMaximumSize(100, 50);
-    playPauseButton->setContentsMargins(0, 0, 0, 0);
+    m_playPauseButton->setMaximumSize(100, 50);
+    m_playPauseButton->setContentsMargins(0, 0, 0, 0);
 
     if (m_endTime.has_value()) {
         m_scrubber = new QSlider();
@@ -38,28 +44,51 @@ QToolBar(parent), m_intervalMs(intervalMs), m_endTime(endTimeSecond) {
         m_scrubber->setMinimum(0);
         m_scrubber->setMaximum(1000);
     }
-	addWidget(playPauseButton);
+	addWidget(m_playPauseButton);
 
     m_timer = new QTimer(this);
     connect(m_timer, &QTimer::timeout, [this] { tick(); });
-    m_timer->start(intervalMs);
+    connect(m_playPauseButton, &QToolButton::clicked, this, &TimeControlToolBar::playOrPause);
+    connect(restartButton, &QToolButton::clicked, this, &TimeControlToolBar::restart);
+}
 
-    connect(playPauseButton, &QToolButton::clicked, [this, playPauseButton, pauseIcon, playIcon](){
-        if (!m_pausedTime.has_value()) {
-            m_timer->stop();
-            m_pausedTime = m_ticks * m_intervalMs;
-            playPauseButton->setIcon(playIcon);
-        } else {
-            m_timer->start();
-            m_pausedTime = std::nullopt;
-            playPauseButton->setIcon(pauseIcon);
-        }
-    });
-    connect(restartButton, &QToolButton::clicked, [this](){
-        m_pausedTime = std::nullopt;
-        m_ticks = 0;
-        m_timer->start();
-    });
+void TimeControlToolBar::restart() {
+	m_ticks = 0;
+	m_timer->stop();
+	m_active = false;
+	if (m_scrubber != nullptr) {
+		m_scrubber->setValue(0);
+	}
+	m_playPauseButton->setIcon(m_playIcon);
+	emit ticked(0, 0);
+	parentWidget()->update();
+}
+
+void TimeControlToolBar::start() {
+	m_ticks = 0;
+	m_timer->start(m_intervalMs);
+}
+
+void TimeControlToolBar::playOrPause() {
+	if (m_active) {
+		m_timer->stop();
+		m_playPauseButton->setIcon(m_playIcon);
+		m_paused = true;
+	} else {
+		if (!m_paused) {
+			m_ticks = 0;
+		}
+		m_timer->start(m_intervalMs);
+		m_playPauseButton->setIcon(m_pauseIcon);
+		m_paused = false;
+	}
+	m_active = !m_active;
+}
+
+void TimeControlToolBar::done() {
+	m_timer->stop();
+	m_playPauseButton->setIcon(m_playIcon);
+	m_active = false;
 }
 
 void TimeControlToolBar::resized() {
