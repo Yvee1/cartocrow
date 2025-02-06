@@ -22,7 +22,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "cartocrow/renderer/ipe_renderer.h"
 #include "cartocrow/renderer/painting_renderer.h"
 #include "cartocrow/simplesets/drawing_algorithm.h"
-#include "cartocrow/core/approximate_convex_hull.h"
 #include "cartocrow/simplesets/parse_input.h"
 #include "cartocrow/simplesets/partition_algorithm.h"
 #include "cartocrow/simplesets/partition_painting.h"
@@ -105,7 +104,7 @@ SimpleSetsDemo::SimpleSetsDemo() {
 	auto* smoothingSlider = new QSlider(Qt::Orientation::Horizontal);
 	vLayout->addWidget(smoothingSlider);
 	smoothingSlider->setMinimum(1);
-	smoothingSlider->setMaximum(100);
+	smoothingSlider->setMaximum(20);
 	smoothingSlider->setValue(20);
 
 	m_renderer = new GeometryWidget();

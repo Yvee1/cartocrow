@@ -1,4 +1,4 @@
-#include "approximate_convex_hull.h"
+#include "approximate_convex_hull_of_disks.h"
 #include "cartocrow/core/cs_curve_helpers.h"
 #include "cartocrow/core/cs_polygon_helpers.h"
 #include "cartocrow/core/circle_tangents.h"
@@ -40,24 +40,32 @@ std::vector<RationalRadiusCircle> circlesOnConvexHull(const std::vector<Rational
 	return hullCircles;
 }
 
-/// Precondition: the circle centers are distinct.
 CSPolygon approximateConvexHull(const std::vector<Circle<Exact>>& circles) {
+    if (circles.size() == 1) {
+        auto circlePolygon = circleToCSPolygon(circles[0]);
+        if (circlePolygon.orientation() == CGAL::CLOCKWISE) {
+            circlePolygon.reverse_orientation();
+        }
+        return circlePolygon;
+    }
+
+    std::vector<RationalRadiusCircle> rrCircles;
+    for (const auto& c : circles) {
+        rrCircles.push_back(approximateRadiusCircle(c));
+    }
+    return approximateConvexHull(rrCircles);
+}
+
+CSPolygon approximateConvexHull(const std::vector<RationalRadiusCircle>& rrCircles) {
 	// todo: approximating circle radii may cause problems when two circles overlap in a single point and one is contained in the other.
 	// solution? filter out any circle that is contained in another, before approximating the radii.
-	if (circles.size() == 1) {
-		return circleToCSPolygon(circles.front());
-	}
-	std::vector<RationalRadiusCircle> rrCircles;
-	for (const auto& c : circles) {
-		rrCircles.push_back(approximateRadiusCircle(c));
-	}
 	auto hullCircles = circlesOnConvexHull(rrCircles);
 	if (hullCircles.size() == 1) {
-		for (const auto& c : circles) {
-			if (c.center() == hullCircles[0].center) {
-				return circleToCSPolygon(c);
-			}
-		}
+        auto circlePolygon = circleToCSPolygon(Circle<Exact>(hullCircles[0].center, hullCircles[0].radius));
+        if (circlePolygon.orientation() == CGAL::CLOCKWISE) {
+            circlePolygon.reverse_orientation();
+        }
+        return circlePolygon;
 	}
 
 	std::vector<std::vector<Segment<Exact>>> tangents;
@@ -77,19 +85,18 @@ CSPolygon approximateConvexHull(const std::vector<Circle<Exact>>& circles) {
 		tangents.push_back(segs);
 	}
 
-	std::vector<X_monotone_curve_2> xm_curves;
+	std::vector<CSXMCurve> xm_curves;
 	for (int i = 0; i < hullCircles.size(); ++i) {
-		auto& c1 = hullCircles[i];
-		auto& c2 = hullCircles[(i + 1) % hullCircles.size()];
+        auto& c2 = hullCircles[(i + 1) % hullCircles.size()];
 		auto& t1 = tangents[i];
 		auto& t2 = tangents[(i + 1) % tangents.size()];
 		for (const auto& piece : t1) {
-			Curve_2 curve(piece);
+			CSCurve curve(piece);
 			curveToXMonotoneCurves(curve, std::back_inserter(xm_curves));
 		}
 		OneRootPoint t1End(t1.back().target().x(), t1.back().target().y());
 		OneRootPoint t2Start(t2.front().source().x(), t2.front().source().y());
-		Curve_2 arc(Circle<Exact>(c2.center, c2.radius * c2.radius), t1End, t2Start);
+		CSCurve arc(Circle<Exact>(c2.center, c2.radius * c2.radius), t1End, t2Start);
 		curveToXMonotoneCurves(arc, std::back_inserter(xm_curves));
 	}
 

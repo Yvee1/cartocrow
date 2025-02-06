@@ -1,26 +1,25 @@
 #include "cs_polygon_helpers.h"
 #include "cs_curve_helpers.h"
 #include <CGAL/approximated_offset_2.h>
+#include <CGAL/Boolean_set_operations_2.h>
 #include <CGAL/Boolean_set_operations_2/Gps_polygon_validation.h>
 #include <CGAL/Surface_sweep_2.h>
 #include <CGAL/Surface_sweep_2/Default_visitor.h>
 
-// Code adapted from a Stack Overflow answer by HEKTO.
+// All area functions in this file are adapted from a Stack Overflow answer by HEKTO.
 // Link: https://stackoverflow.com/questions/69399922/how-does-one-obtain-the-area-of-a-general-polygon-set-in-cgal
 // License info: https://stackoverflow.com/help/licensing
 // The only changes made were changing the auto return type to Number<Inexact> and using the
 // typedefs for circle, point, polygon etc.
 
 namespace cartocrow {
-// ------ return signed area under the linear segment (P1, P2)
-Number<Inexact> area(const CSTraits::Point_2& P1, const CSTraits::Point_2& P2) {
+Number<Inexact> area(const ArrCSTraits::Point_2& P1, const ArrCSTraits::Point_2& P2) {
 	auto const dx = CGAL::to_double(P1.x()) - CGAL::to_double(P2.x());
 	auto const sy = CGAL::to_double(P1.y()) + CGAL::to_double(P2.y());
 	return dx * sy / 2;
 }
 
-// ------ return signed area under the circular segment (P1, P2, C)
-Number<Inexact> area(const CSTraits::Point_2& P1, const CSTraits::Point_2& P2, const CSTraits::Rational_circle_2& C) {
+Number<Inexact> area(const ArrCSTraits::Point_2& P1, const ArrCSTraits::Point_2& P2, const ArrCSTraits::Rational_circle_2& C) {
 	auto const dx = CGAL::to_double(P1.x()) - CGAL::to_double(P2.x());
 	auto const dy = CGAL::to_double(P1.y()) - CGAL::to_double(P2.y());
 	auto const squaredChord = dx * dx + dy * dy;
@@ -42,8 +41,7 @@ Number<Inexact> area(const CSTraits::Point_2& P1, const CSTraits::Point_2& P2, c
 	return area(P1, P2) + sign * areaCircularSegment;
 }
 
-// ------ return signed area under the X-monotone curve
-Number<Inexact> area(const X_monotone_curve_2& XCV) {
+Number<Inexact> area(const CSXMCurve& XCV) {
 	if (XCV.is_linear()) {
 		return area(XCV.source(), XCV.target());
 	} else if (XCV.is_circular()) {
@@ -53,7 +51,6 @@ Number<Inexact> area(const X_monotone_curve_2& XCV) {
 	}
 }
 
-// ------ return area of the simple polygon
 Number<Inexact> area(const CSPolygon& P) {
 	Number<Inexact> res = 0;
 	for (auto it = P.curves_begin(); it != P.curves_end(); ++it) {
@@ -62,7 +59,6 @@ Number<Inexact> area(const CSPolygon& P) {
 	return res;
 }
 
-// ------ return area of the polygon with (optional) holes
 Number<Inexact> area(const CSPolygonWithHoles& P) {
 	auto res = area(P.outer_boundary());
 	for (auto it = P.holes_begin(); it != P.holes_end(); ++it) {
@@ -71,10 +67,8 @@ Number<Inexact> area(const CSPolygonWithHoles& P) {
 	return res;
 }
 
-/// Be careful: circles seem to be clockwise by default, so if you are going to compute
-/// intersections you probably want to reverse its orientation!
 CSPolygon circleToCSPolygon(const Circle<Exact>& circle) {
-	std::vector<X_monotone_curve_2> xm_curves;
+	std::vector<CSXMCurve> xm_curves;
 	curveToXMonotoneCurves(circle, std::back_inserter(xm_curves));
 	return {xm_curves.begin(), xm_curves.end()};
 }
@@ -97,7 +91,7 @@ std::optional<CSPolygon::Curve_const_iterator> liesOn(const OneRootPoint& p, con
 	return std::nullopt;
 }
 
-bool on_or_inside(const CSPolygon& polygon, const Point<Exact>& point) {
+bool onOrInside(const CSPolygon& polygon, const Point<Exact>& point) {
 	Ray<Exact> ray(point, Vector<Exact>(1, 0));
 
 	Rectangle<Exact> bbox = polygon.bbox();
@@ -107,10 +101,10 @@ bool on_or_inside(const CSPolygon& polygon, const Point<Exact>& point) {
 	if (!inter.has_value()) return false;
 	if (inter->type() == typeid(Point<Exact>)) return true;
 	auto seg = boost::get<Segment<Exact>>(*inter);
-	X_monotone_curve_2 seg_xm_curve(seg.source(), seg.target());
+	CSXMCurve seg_xm_curve(seg.source(), seg.target());
 
-	typedef std::pair<CSTraits::Point_2, unsigned int> Intersection_point;
-	typedef boost::variant<Intersection_point, X_monotone_curve_2> Intersection_result;
+	typedef std::pair<ArrCSTraits::Point_2, unsigned int> Intersection_point;
+	typedef boost::variant<Intersection_point, CSXMCurve> Intersection_result;
 	std::vector<Intersection_result> intersection_results;
 
 	for (auto cit = polygon.curves_begin(); cit != polygon.curves_end(); ++cit) {
@@ -141,7 +135,7 @@ bool on_or_inside(const CSPolygon& polygon, const Point<Exact>& point) {
 	return count % 4 != 0;
 }
 
-bool liesOn(const X_monotone_curve_2& c, const CSPolygon& polygon) {
+bool liesOn(const CSXMCurve& c, const CSPolygon& polygon) {
 	auto sc = liesOn(c.source(), polygon);
 	auto tc = liesOn(c.target(), polygon);
 	if (!sc.has_value() || !tc.has_value()) {
@@ -188,48 +182,36 @@ bool liesOn(const X_monotone_curve_2& c, const CSPolygon& polygon) {
 }
 
 bool inside(const CSPolygon& polygon, const Point<Exact>& point) {
-    return on_or_inside(polygon, point) && !liesOn(point, polygon);
+    return onOrInside(polygon, point) && !liesOn(point, polygon);
+}
+
+bool outside(const CSPolygon& polygon, const Point<Exact>& point) {
+    return !onOrInside(polygon, point);
+}
+
+bool onOrOutside(const CSPolygon& polygon, const Point<Exact>& point) {
+    return liesOn(point, polygon) || outside(polygon, point);
+}
+
+CGAL::Bounded_side bounded_side(const CSPolygon& polygon, const Point<Exact>& point) {
+    if (liesOn(point, polygon)) return CGAL::ON_BOUNDARY;
+    return onOrInside(polygon, point) ? CGAL::ON_BOUNDED_SIDE : CGAL::ON_UNBOUNDED_SIDE;
 }
 
 CSPolycurve arrPolycurveFromCSPolygon(const CSPolygon& polygon) {
 	return arrPolycurveFromXMCurves(polygon.curves_begin(), polygon.curves_end());
 }
 
-Polygon<Exact> linearSample(const CSPolygon& polygon, int n) {
-    std::vector<std::pair<double, double>> coords;
-	polygon.approximate(std::back_inserter(coords), n);
-	std::vector<Point<Exact>> points;
-
-	// polygon.approximate returns duplicate points.
-	for (int i = 0; i < coords.size(); ++i) {
-		auto p = coords[i];
-		if (i > 0) {
-			auto prev = coords[i - 1];
-			if (p == prev) continue;
-		}
-		if (i == coords.size() - 1 && p == coords[0]) {
-			continue;
-		}
-		points.emplace_back(p.first, p.second);
-	}
-	return {points.begin(), points.end()};
-}
-
-CSPolygonWithHoles approximateDilate(const CSPolygon& polygon, double r, double eps, int n) {
-	auto poly = linearSample(polygon, n);
-	return CGAL::approximated_offset_2(poly, r, eps);
-}
-
 bool is_simple(const CSPolygon& pgn) {
-	typedef typename CSTraitsBoolean::Curve_const_iterator       Curve_const_iterator;
+	typedef typename GpsCSTraits::Curve_const_iterator       Curve_const_iterator;
 	typedef std::pair<Curve_const_iterator,Curve_const_iterator>
 	    Cci_pair;
 
 	// Sweep the boundary curves and look for intersections.
-	typedef CGAL::Gps_polygon_validation_visitor<CSTraitsBoolean>      Visitor;
+	typedef CGAL::Gps_polygon_validation_visitor<GpsCSTraits>      Visitor;
 	typedef CGAL::Ss2::Surface_sweep_2<Visitor>                 Surface_sweep;
 
-	CSTraitsBoolean traits;
+	GpsCSTraits traits;
 
 	Cci_pair itr_pair = traits.construct_curves_2_object()(pgn);
 	Visitor visitor;
@@ -240,9 +222,9 @@ bool is_simple(const CSPolygon& pgn) {
 }
 
 CSPolygon polygonToCSPolygon(const Polygon<Exact>& polygon) {
-	std::vector<X_monotone_curve_2> xmCurves;
+	std::vector<CSXMCurve> xmCurves;
 	for (auto eit = polygon.edges_begin(); eit != polygon.edges_end(); ++eit) {
-		X_monotone_curve_2 xmCurve(eit->source(), eit->target());
+		CSXMCurve xmCurve(eit->source(), eit->target());
 		xmCurves.push_back(xmCurve);
 	}
 	return {xmCurves.begin(), xmCurves.end()};

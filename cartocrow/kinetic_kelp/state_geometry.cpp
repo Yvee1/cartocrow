@@ -18,7 +18,7 @@ CSPolygon edgeToGeometry(const EdgeTopology& edge, const InputInstance& input, c
 
     auto addTangent = [](auto& csPolygon, const auto& tangent) {
         if (auto* uvs = std::get_if<Segment<Exact>>(&tangent)) {
-            X_monotone_curve_2 uv_xm(uvs->source(), uvs->target());
+            CSXMCurve uv_xm(uvs->source(), uvs->target());
             csPolygon.push_back(uv_xm);
             return uvs->target();
         } else if (auto* uvsp = std::get_if<std::pair<Segment<Exact>, Segment<Exact>>>(&tangent)) {
@@ -102,8 +102,8 @@ CSPolygon edgeToGeometry(const EdgeTopology& edge, const InputInstance& input, c
     auto addArc = [&result](const RationalRadiusCircle& circle, CGAL::Orientation dir, const Point<Exact>& arcSource, const Point<Exact>& arcTarget) {
         OneRootPoint arcSourceORP(arcSource.x(), arcSource.y());
         OneRootPoint arcTargetORP(arcTarget.x(), arcTarget.y());
-        Curve_2 arc(circle.center, circle.radius, dir, arcSourceORP, arcTargetORP);
-        std::vector<X_monotone_curve_2> arc_xms;
+        CSCurve arc(circle.center, circle.radius, dir, arcSourceORP, arcTargetORP);
+        std::vector<CSXMCurve> arc_xms;
         curveToXMonotoneCurves(arc, std::back_inserter(arc_xms));
         result.insert(arc_xms.begin(), arc_xms.end());
     };
