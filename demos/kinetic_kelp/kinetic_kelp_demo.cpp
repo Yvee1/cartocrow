@@ -106,6 +106,8 @@ public:
 };
 
 KineticKelpDemo::KineticKelpDemo() {
+	bool saveToSvg = false;
+
     setWindowTitle("KineticKelp");
     m_renderer = new GeometryWidget();
     m_renderer->setDrawAxes(false);
@@ -153,19 +155,19 @@ KineticKelpDemo::KineticKelpDemo() {
 
     m_renderer->addPainting(drawMovingPoints, "Moving points");
 
-	connect(m_timeControl, &TimeControlToolBar::ticked, [drawMovingPoints, drawMSTs](int tick, double time) {
-		SvgRenderer svgRenderer;
-		svgRenderer.addPainting(
-		    [drawMovingPoints, drawMSTs](GeometryRenderer& renderer) {
-			    drawMSTs(renderer);
-			    drawMovingPoints(renderer);
-		    },
-		    "KineticKelp");
-		std::stringstream filename;
-		filename << "frames/frame-" << std::setfill('0') << std::setw(5) << tick;
-		svgRenderer.save(filename.str() + ".svg");
-		std::string cmd = "inkscape " + filename.str() + ".svg" + " --export-filename=" + filename.str() + ".png" + " --export-area=0:-300:300:-600";
-		system(cmd.c_str());
+	connect(m_timeControl, &TimeControlToolBar::ticked, [drawMovingPoints, drawMSTs, saveToSvg](int tick, double time) {
+		if (saveToSvg) {
+			SvgRenderer svgRenderer;
+			svgRenderer.addPainting(
+				[drawMovingPoints, drawMSTs](GeometryRenderer& renderer) {
+					drawMSTs(renderer);
+					drawMovingPoints(renderer);
+				},
+				"KineticKelp");
+			std::stringstream filename;
+			filename << "frames/frame-" << std::setfill('0') << std::setw(5) << tick;
+			svgRenderer.save(filename.str() + ".svg");
+		}
 	});
 
     for (int k = 0; k < m_input.numCategories(); ++k) {
