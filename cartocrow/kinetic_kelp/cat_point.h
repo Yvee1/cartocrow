@@ -6,9 +6,9 @@
 namespace cartocrow::kinetic_kelp {
 /// Categorical point
 struct CatPoint {
-	unsigned int category;
+	int category;
 	Point<Exact> point;
-	CatPoint(unsigned int category, Point<Exact> point) : category(category), point(std::move(point)) {};
+	CatPoint(int category, Point<Exact> point) : category(category), point(std::move(point)) {};
 	bool operator==(const CatPoint&) const = default;
 };
 

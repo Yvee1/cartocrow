@@ -4,9 +4,10 @@ set(SOURCES
 	trajectory.cpp
 	input.cpp
 	input_instance.cpp
-    state_geometry.cpp
+	state_geometry.cpp
 	state_geometry_painting.cpp
 	kinetic_kelp_painting.cpp
+	kelp.cpp
 )
 
 set(HEADERS
@@ -19,7 +20,9 @@ set(HEADERS
 	input_instance.h
 	state.h
 	state_geometry.h
+	kelp_geometry.h
 	state_geometry_painting.h
+	kelp.h
 )
 
 add_library(kinetic_kelp ${SOURCES})

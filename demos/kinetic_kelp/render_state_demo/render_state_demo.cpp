@@ -29,20 +29,20 @@ RenderStateDemo::RenderStateDemo() {
     }));
 
     Settings settings;
-    settings.pointRadius = 10.0;
+    settings.vertexRadius = 10.0;
     settings.edgeWidth = 5.0;
 
     State state;
     state.msts.push_back({{0, 1}, {1, 2}});
     state.msts.push_back({{3, 4}});
     state.msts.push_back({{5, 6}});
-    state.mstEdgeTopology[{0, 1}] = EdgeTopology(0, 1, {
+    state.edgeTopology[{0, 1}] = EdgeTopology(0, 1, {
         {4, 10.0, 15.0, CGAL::CLOCKWISE},
         {3, 10.0, 15.0, CGAL::COUNTERCLOCKWISE},
     });
-    state.mstEdgeTopology[{1, 2}] = EdgeTopology(1, 2, {});
-    state.mstEdgeTopology[{3, 4}] = EdgeTopology(3, 4, {});
-    state.mstEdgeTopology[{5, 6}] = EdgeTopology(5, 6, {
+    state.edgeTopology[{1, 2}] = EdgeTopology(1, 2, {});
+    state.edgeTopology[{3, 4}] = EdgeTopology(3, 4, {});
+    state.edgeTopology[{5, 6}] = EdgeTopology(5, 6, {
         {0, 10.0, 15.0, CGAL::CLOCKWISE},
         {4, 15.0, 20.0, CGAL::CLOCKWISE},
         {1, 10.0, 15.0, CGAL::CLOCKWISE},
@@ -57,7 +57,11 @@ RenderStateDemo::RenderStateDemo() {
     ds.markRadius = 1.0;
     ds.strokeWidth = 1.0;
     ds.smoothing = 5.0;
-    auto kkPainting = std::make_shared<KineticKelpPainting>(stateGeometry, input, ds);
+
+    auto kelps = std::make_shared<std::vector<Kelp>>();
+    stateGeometrytoKelps(*stateGeometry, *input, ds.smoothing, std::back_inserter(*kelps));
+
+    auto kkPainting = std::make_shared<KineticKelpPainting>(kelps, input, ds);
     renderer->addPainting(kkPainting, "KineticKelp");
 }
 

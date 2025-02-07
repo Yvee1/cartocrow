@@ -6,18 +6,15 @@
 using namespace cartocrow::renderer;
 
 namespace cartocrow::kinetic_kelp {
-KineticKelpPainting::KineticKelpPainting(std::shared_ptr<StateGeometry> stateGeometry, std::shared_ptr<InputInstance> input, DrawSettings ds)
-    : m_stateGeometry(std::move(stateGeometry)), m_input(std::move(input)), m_drawSettings(std::move(ds)) {};
+KineticKelpPainting::KineticKelpPainting(std::shared_ptr<std::vector<Kelp>> kelps, std::shared_ptr<InputInstance> input, DrawSettings ds)
+    : m_kelps(std::move(kelps)), m_input(std::move(input)), m_drawSettings(std::move(ds)) {};
 
 void KineticKelpPainting::paint(renderer::GeometryRenderer &renderer) const {
     renderer.setMode(GeometryRenderer::stroke | GeometryRenderer::fill);
     renderer.setStroke(Color(0, 0, 0), m_drawSettings.strokeWidth, true);
     for (int k = 0; k < m_input->numCategories(); ++k) {
         renderer.setFill(m_drawSettings.colors[k]);
-        auto mst = m_stateGeometry->mstGeometry[k];
-        auto smoothed = approximateClosing(mst, m_drawSettings.smoothing);
-        smoothed.join(mst);
-        renderer.draw(renderPath(smoothed));
+        renderer.draw(renderPath(m_kelps->at(k).polygon()));
     }
     for (const auto& cp : m_input->catPoints()) {
         renderer.setFill(Color(0, 0, 0));

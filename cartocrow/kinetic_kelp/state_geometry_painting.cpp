@@ -11,8 +11,8 @@ StateGeometryPainting::StateGeometryPainting(std::shared_ptr<StateGeometry> stat
 void StateGeometryPainting::paint(GeometryRenderer& renderer) const {
     renderer.setMode(GeometryRenderer::stroke);
     renderer.setStroke(Color(0, 0, 0), 1.0);
-    for (const auto& [edge, csPolygon] : m_stateGeometry->edgeGeometry) {
-        renderer.draw(renderPath(csPolygon));
+    for (const auto& [edge, geom] : m_stateGeometry->edgeGeometry) {
+        renderer.draw(renderPath(geom.csPolygon()));
     }
     for (const auto& [vId, circle] : m_stateGeometry->vertexGeometry) {
         renderer.draw(circle);

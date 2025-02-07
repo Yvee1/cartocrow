@@ -5,6 +5,7 @@
 
 #include "cat_point.h"
 #include "input_instance.h"
+#include "trajectory.h"
 
 namespace cartocrow::kinetic_kelp {
 using MSTEdge = std::pair<VertexId, VertexId>; // first should have the lower id.
@@ -25,11 +26,11 @@ struct EdgeTopology {
 
 struct State {
     std::vector<MST> msts;
-    std::map<MSTEdge, EdgeTopology> mstEdgeTopology;
+    std::map<MSTEdge, EdgeTopology> edgeTopology;
 };
 
 struct Settings {
-    Number<Exact> pointRadius = 1.0;
+    Number<Exact> vertexRadius = 1.0;
     Number<Exact> edgeWidth = 0.3;
 };
 }

@@ -5,7 +5,7 @@
 #include "cartocrow/core/cs_polygon_helpers.h"
 
 namespace cartocrow::kinetic_kelp {
-CSPolygon edgeToGeometry(const EdgeTopology& edge, const InputInstance& input, const Settings& settings) {
+EdgeGeometry::EdgeGeometry(const EdgeTopology& edge, const InputInstance& input, const Settings& settings) {
     auto u = edge.source;
     auto v = edge.target;
 
@@ -33,8 +33,6 @@ CSPolygon edgeToGeometry(const EdgeTopology& edge, const InputInstance& input, c
 
     std::vector<std::pair<RationalTangent, RationalRadiusCircle>> firstHalf;
     std::vector<std::pair<RationalTangent, RationalRadiusCircle>> secondHalf;
-
-    using Pin = std::variant<Orbit, RationalRadiusCircle>;
 
     auto pinToOrientedCircle = [&input](const Pin& pin, bool firstHalf) -> std::pair<RationalRadiusCircle, CGAL::Orientation> {
         if (auto* orbitP = std::get_if<Orbit>(&pin)) {
@@ -118,6 +116,13 @@ CSPolygon edgeToGeometry(const EdgeTopology& edge, const InputInstance& input, c
         }
     };
 
+    // todo
+//    m_straights.clear();
+//    for (int i = 0; i < m_pins.size(); ++i) {
+//        // create connectors using firstHalf and secondHalf
+//        break;
+//    }
+
     if (!firstHalf.empty() && !secondHalf.empty()) {
         for (int i = 0; i < firstHalf.size(); ++i) {
             auto [tangent, circle] = firstHalf[i];
@@ -152,30 +157,23 @@ CSPolygon edgeToGeometry(const EdgeTopology& edge, const InputInstance& input, c
         addArc(uRCircle, CGAL::COUNTERCLOCKWISE, arcuSource, arcuTarget);
     }
 
-    return result;
+    m_csPolygon = result;
 }
 
 StateGeometry stateToGeometry(const State& state, const InputInstance& input, const Settings& settings) {
     StateGeometry stateGeometry;
-    while (stateGeometry.mstGeometry.size() < input.numCategories()) {
-        stateGeometry.mstGeometry.emplace_back();
-    }
-    for (auto [mstEdge, topology] : state.mstEdgeTopology) {
-        auto geom = edgeToGeometry(topology, input, settings);
+    for (auto [mstEdge, topology] : state.edgeTopology) {
+        auto geom = EdgeGeometry(topology, input, settings);
         stateGeometry.edgeGeometry[mstEdge] = geom;
-        int k = input[mstEdge.first].category;
-        CSPolygonSet& mstGeom = stateGeometry.mstGeometry[k];
-        try {
-            mstGeom.join(geom);
-        } catch (...) {
-            std::cerr << "Problems with edge geometry of edge " << mstEdge.first << " -> " << mstEdge.second << std::endl;
-        }
     }
     for (int i = 0; i < input.size(); ++i) {
-        auto circle = Circle<Exact>(input[i].point, CGAL::square(settings.pointRadius));
+        auto circle = Circle<Exact>(input[i].point, CGAL::square(settings.vertexRadius));
         stateGeometry.vertexGeometry[i] = circle;
-        stateGeometry.mstGeometry[input[i].category].join(circleToCSPolygon(circle));
     }
     return stateGeometry;
+}
+
+CSPolygon EdgeGeometry::csPolygon() const {
+    return m_csPolygon;
 }
 }
