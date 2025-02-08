@@ -1,6 +1,8 @@
 #ifndef CARTOCROW_STATE_GEOMETRY_H
 #define CARTOCROW_STATE_GEOMETRY_H
 
+#include <ranges>
+
 #include "../core/cs_types.h"
 
 #include "state.h"
@@ -8,47 +10,105 @@
 #include "cartocrow/core/circle_tangents.h"
 #include "cartocrow/core/cs_polygon_helpers.h"
 
+#include "cartocrow/core/cs_curve_helpers.h"
 #include "kelp.h"
 
 namespace cartocrow::kinetic_kelp {
-class Elbow {
-public:
-    Elbow();
-    CSPolygon csPolygon() const;
-    CSCurve outerArc() const;
-    CSCurve innerArc() const;
-private:
-
-};
-
-class Straight {
-    Straight();
-    CSPolygon csPolygon() const;
-private:
-
-};
-
 using Pin = std::variant<Orbit, RationalRadiusCircle>;
+
+struct Straight;
+
+struct ElbowOrTerminal {
+	virtual CSPolygon csPolygon() const = 0;
+	Pin pin;
+	Straight* prev;
+	Straight* next;
+};
+
+struct Elbow : public ElbowOrTerminal {
+	CSPolygon csPolygon() const override;
+    CSCurve outerArc() const { return orbit().dir == CGAL::CLOCKWISE ? secondHalf : firstHalf; }
+    CSCurve innerArc() const { return orbit().dir == CGAL::CLOCKWISE ? firstHalf : secondHalf; }
+	const Orbit& orbit() const { return std::get<Orbit>(pin); }
+	CSCurve firstHalf;
+	CSCurve secondHalf;
+};
+
+struct Terminal : public ElbowOrTerminal {
+	CSPolygon csPolygon() const override;
+	RationalRadiusCircle circle() const { return std::get<RationalRadiusCircle>(pin); }
+	CSCurve curve;
+	bool start;
+	Straight* straight() const { return start ? next : prev; }
+};
+
+struct Straight {
+    CSPolygon csPolygon() const;
+	RationalTangent firstHalf;
+	RationalTangent secondHalf;
+	ElbowOrTerminal* prev;
+	ElbowOrTerminal* next;
+};
+
+template <class OutputIterator>
+void rtXMCurves(const RationalTangent& tangent, OutputIterator out) {
+	if (auto* uvs = std::get_if<Segment<Exact>>(&tangent)) {
+		*out++ = CSXMCurve(uvs->source(), uvs->target());
+	} else if (auto* uvsp = std::get_if<std::pair<Segment<Exact>, Segment<Exact>>>(&tangent)) {
+		auto [uvs1, uvs2] = *uvsp;
+		*out++ = CSXMCurve(uvs1.source(), uvs1.target());
+		*out++ = CSXMCurve(uvs2.source(), uvs2.target());
+	} else {
+		throw std::runtime_error("Impossible: unexpected type in variant");
+	}
+}
 
 class EdgeGeometry {
 public:
     EdgeGeometry() = default;
     EdgeGeometry(const EdgeTopology& edgeTopology, const InputInstance& input, const Settings& settings);
 
-    CSPolygon csPolygon() const;
-//    Elbow elbow(int i) const;
-//    Connector connector(int i) const;
-//    int size();
-private:
-//    EdgeTopology m_edgeTopology;
-    CSPolygon m_csPolygon;
-    std::vector<Pin> m_pins;
-//    std::vector<Straight> m_straights;
+    CSPolygon csPolygon() const {
+		std::vector<CSXMCurve> xmCurves;
+		auto in = std::back_inserter(xmCurves);
+		curveToXMonotoneCurves(startTerminal.curve, in);
+		for (const auto& elbow : elbows) {
+			const Straight& straight = *(elbow.prev);
+			rtXMCurves(straight.firstHalf, in);
+			curveToXMonotoneCurves(elbow.firstHalf, in);
+		}
+		rtXMCurves(endTerminal.prev->firstHalf, in);
+		curveToXMonotoneCurves(endTerminal.curve, in);
+		for (const auto& elbow : std::ranges::reverse_view(elbows)) {
+			const Straight& straight = *(elbow.next);
+			rtXMCurves(straight.secondHalf, in);
+			curveToXMonotoneCurves(elbow.secondHalf, in);
+		}
+		rtXMCurves(startTerminal.next->secondHalf, in);
+		return {xmCurves.begin(), xmCurves.end()};
+	}
+
+  	std::vector<Elbow> elbows;
+	std::vector<Straight> straights;
+	Terminal startTerminal;
+	Terminal endTerminal;
 };
 
-struct StateGeometry {
-    std::map<MSTEdge, EdgeGeometry> edgeGeometry;
-    std::map<VertexId, Circle<Exact>> vertexGeometry;
+class StateGeometry {
+public:
+	std::map<MSTEdge, EdgeGeometry> edgeGeometry;
+	std::map<VertexId, Circle<Exact>> vertexGeometry;
+
+	Elbow& elbow(ElbowId elbowId) {
+		auto& [edge, i] = elbowId;
+		return edgeGeometry[edge].elbows[i];
+	}
+	Straight& straight(StraightId straightId) {
+		auto& [edge, i] = straightId;
+		return edgeGeometry[edge].straights[i];
+	}
+	const Elbow& elbow(ElbowId elbowId) const { return elbow(elbowId); }
+	const Straight& straight(StraightId straightId) const { return straight(straightId); }
 };
 
 StateGeometry stateToGeometry(const State& state, const InputInstance& input, const Settings& settings);

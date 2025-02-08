@@ -8,6 +8,7 @@ set(SOURCES
 	state_geometry_painting.cpp
 	kinetic_kelp_painting.cpp
 	kelp.cpp
+	state.h
 )
 
 set(HEADERS

@@ -24,6 +24,9 @@ struct EdgeTopology {
     std::vector<Orbit> orbits;
 };
 
+using ElbowId = std::pair<MSTEdge, int>;
+using StraightId = std::pair<MSTEdge, int>;
+
 struct State {
     std::vector<MST> msts;
     std::map<MSTEdge, EdgeTopology> edgeTopology;

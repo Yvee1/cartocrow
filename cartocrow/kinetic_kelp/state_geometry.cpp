@@ -2,37 +2,40 @@
 
 #include "cartocrow/core/circle_tangents.h"
 #include "cartocrow/core/cs_curve_helpers.h"
-#include "cartocrow/core/cs_polygon_helpers.h"
 
 namespace cartocrow::kinetic_kelp {
+Point<Exact> rtSource(const RationalTangent& rt) {
+	if (auto* uvs = std::get_if<Segment<Exact>>(&rt)) {
+		return uvs->source();
+	} else if (auto* uvsp = std::get_if<std::pair<Segment<Exact>, Segment<Exact>>>(&rt)) {
+		return uvsp->first.source();
+	} else {
+		throw std::runtime_error("Impossible: unexpected type in variant.");
+	}
+}
+
+Point<Exact> rtTarget(const RationalTangent& rt) {
+	if (auto* uvs = std::get_if<Segment<Exact>>(&rt)) {
+		return uvs->target();
+	} else if (auto* uvsp = std::get_if<std::pair<Segment<Exact>, Segment<Exact>>>(&rt)) {
+		return uvsp->second.target();
+	} else {
+		throw std::runtime_error("Impossible: unexpected type in variant.");
+	}
+}
+
 EdgeGeometry::EdgeGeometry(const EdgeTopology& edge, const InputInstance& input, const Settings& settings) {
     auto u = edge.source;
     auto v = edge.target;
 
-    Circle<Exact> uCircle(input[u].point, CGAL::square(settings.edgeWidth / 2));
-    Circle<Exact> vCircle(input[v].point, CGAL::square(settings.edgeWidth / 2));
     RationalRadiusCircle uRCircle(input[u].point, settings.edgeWidth / 2);
     RationalRadiusCircle vRCircle(input[v].point, settings.edgeWidth / 2);
 
-    CSPolygon polygon;
-
-    auto addTangent = [](auto& csPolygon, const auto& tangent) {
-        if (auto* uvs = std::get_if<Segment<Exact>>(&tangent)) {
-            CSXMCurve uv_xm(uvs->source(), uvs->target());
-            csPolygon.push_back(uv_xm);
-            return uvs->target();
-        } else if (auto* uvsp = std::get_if<std::pair<Segment<Exact>, Segment<Exact>>>(&tangent)) {
-            auto [uvs1, uvs2] = *uvsp;
-            csPolygon.push_back({uvs1.source(), uvs1.target()});
-            csPolygon.push_back({uvs2.source(), uvs2.target()});
-            return uvs2.target();
-        } else {
-            throw std::runtime_error("Impossible: unexpected type in variant");
-        }
-    };
-
-    std::vector<std::pair<RationalTangent, RationalRadiusCircle>> firstHalf;
-    std::vector<std::pair<RationalTangent, RationalRadiusCircle>> secondHalf;
+	// Initialize terminals
+	startTerminal.pin = uRCircle;
+	startTerminal.start = true;
+	endTerminal.pin = vRCircle;
+	endTerminal.start = false;
 
     auto pinToOrientedCircle = [&input](const Pin& pin, bool firstHalf) -> std::pair<RationalRadiusCircle, CGAL::Orientation> {
         if (auto* orbitP = std::get_if<Orbit>(&pin)) {
@@ -49,7 +52,7 @@ EdgeGeometry::EdgeGeometry(const EdgeTopology& edge, const InputInstance& input,
         }
     };
 
-    auto createTangent = [&input, &pinToOrientedCircle](const Pin& pin1, const Pin& pin2, bool firstHalf) {
+    auto createTangent = [&pinToOrientedCircle](const Pin& pin1, const Pin& pin2, bool firstHalf) -> RationalTangent {
         auto [c1, orient1] = pinToOrientedCircle(pin1, firstHalf);
         auto [c2, orient2] = pinToOrientedCircle(pin2, firstHalf);
         bool inner = orient1 != orient2;
@@ -58,113 +61,86 @@ EdgeGeometry::EdgeGeometry(const EdgeTopology& edge, const InputInstance& input,
         auto tangents = rationalTangents(c1, c2, inner);
         bool one = firstHalf ? orient1 == CGAL::COUNTERCLOCKWISE : orient1 == CGAL::CLOCKWISE;
         auto tangent = one ? tangents->first : tangents->second;
-        return std::pair(tangent, c2);
+        return tangent;
     };
 
-    std::vector<Pin> pins;
-    pins.push_back(uRCircle);
-    for (const auto& orbit : edge.orbits) {
-        pins.push_back(orbit);
-    }
-    pins.push_back(vRCircle);
+	// Initialize elbows
+	std::vector<ElbowOrTerminal*> elbowOrTerminals;
+	elbowOrTerminals.push_back(&startTerminal);
+	elbows.reserve(edge.orbits.size());
+	for (const auto& orbit : edge.orbits) {
+		Elbow& elbow = elbows.emplace_back();
+		elbow.pin = orbit;
+		elbowOrTerminals.push_back(&elbow);
+	}
+	elbowOrTerminals.push_back(&endTerminal);
 
-    for (int i = 0; i < pins.size() - 1; ++i) {
-        firstHalf.push_back(createTangent(pins[i], pins[i+1], true));
-    }
-    for (int i = pins.size() - 1; i >= 1; --i) {
-        secondHalf.push_back(createTangent(pins[i], pins[i - 1], false));
-    }
+	// Compute straights
+	straights.reserve(elbowOrTerminals.size() - 1);
+	for (int i = 0; i < elbowOrTerminals.size() - 1; ++i) {
+		ElbowOrTerminal* prev = elbowOrTerminals[i];
+		ElbowOrTerminal* next = elbowOrTerminals[i+1];
+		auto fh = createTangent(prev->pin, next->pin, true);
+		auto sh = createTangent(next->pin, prev->pin, false);
+		Straight& straight = straights.emplace_back();
+		straight.firstHalf = fh;
+		straight.secondHalf = sh;
+		straight.prev = prev;
+		prev->next = &straight;
+		straight.next = prev;
+		next->prev = &straight;
+	}
 
-    auto rtSource = [](const RationalTangent& rt) {
-        if (auto* uvs = std::get_if<Segment<Exact>>(&rt)) {
-            return uvs->source();
-        } else if (auto* uvsp = std::get_if<std::pair<Segment<Exact>, Segment<Exact>>>(&rt)) {
-            return uvsp->first.source();
-        } else {
-            throw std::runtime_error("Impossible: unexpected type in variant.");
-        }
-    };
-
-    auto rtTarget = [](const RationalTangent& rt) {
-        if (auto* uvs = std::get_if<Segment<Exact>>(&rt)) {
-            return uvs->target();
-        } else if (auto* uvsp = std::get_if<std::pair<Segment<Exact>, Segment<Exact>>>(&rt)) {
-            return uvsp->second.target();
-        } else {
-            throw std::runtime_error("Impossible: unexpected type in variant.");
-        }
-    };
-
-    CSPolygon result;
-
-    auto addArc = [&result](const RationalRadiusCircle& circle, CGAL::Orientation dir, const Point<Exact>& arcSource, const Point<Exact>& arcTarget) {
+    auto createArc = [](const RationalRadiusCircle& circle, CGAL::Orientation dir, const Point<Exact>& arcSource, const Point<Exact>& arcTarget) {
         OneRootPoint arcSourceORP(arcSource.x(), arcSource.y());
         OneRootPoint arcTargetORP(arcTarget.x(), arcTarget.y());
         CSCurve arc(circle.center, circle.radius, dir, arcSourceORP, arcTargetORP);
-        std::vector<CSXMCurve> arc_xms;
-        curveToXMonotoneCurves(arc, std::back_inserter(arc_xms));
-        result.insert(arc_xms.begin(), arc_xms.end());
+		return arc;
     };
 
-    auto oppositeDir = [](CGAL::Orientation dir) {
-        if (dir == CGAL::CLOCKWISE) {
-            return CGAL::COUNTERCLOCKWISE;
-        } else if (dir == CGAL::COUNTERCLOCKWISE) {
-            return CGAL::CLOCKWISE;
-        } else {
-            return CGAL::COLLINEAR;
-        }
-    };
+	auto oppositeDir = [](CGAL::Orientation dir) {
+	  if (dir == CGAL::CLOCKWISE) {
+		  return CGAL::COUNTERCLOCKWISE;
+	  } else if (dir == CGAL::COUNTERCLOCKWISE) {
+		  return CGAL::CLOCKWISE;
+	  } else {
+		  return CGAL::COLLINEAR;
+	  }
+	};
 
-    // todo
-//    m_straights.clear();
-//    for (int i = 0; i < m_pins.size(); ++i) {
-//        // create connectors using firstHalf and secondHalf
-//        break;
-//    }
+	// Compute terminal curves
+	auto& straightF = straights.front();
+	Point<Exact> arcuSource = rtTarget(straightF.secondHalf);
+	Point<Exact> arcuTarget = rtSource(straightF.firstHalf);
+	startTerminal.curve = createArc(uRCircle, CGAL::COUNTERCLOCKWISE, arcuSource, arcuTarget);
 
-    if (!firstHalf.empty() && !secondHalf.empty()) {
-        for (int i = 0; i < firstHalf.size(); ++i) {
-            auto [tangent, circle] = firstHalf[i];
-            addTangent(result, tangent);
-            Point<Exact> arcSource = rtTarget(tangent);
-            if (i + 1 < firstHalf.size()) {
-                Point<Exact> arcTarget = rtSource(firstHalf[i + 1].first);
-                auto pin = pins[i + 1];
-                if (auto *pinP = std::get_if<Orbit>(&pin)) {
-                    addArc(circle, pinP->dir, arcSource, arcTarget);
-                }
-            }
-        }
-        Point<Exact> arcvSource = rtTarget(firstHalf.back().first);
-        Point<Exact> arcvTarget = rtSource(secondHalf.front().first);
-        addArc(vRCircle, CGAL::COUNTERCLOCKWISE, arcvSource, arcvTarget);
-        for (int i = 0; i < secondHalf.size(); ++i) {
-            auto [tangent, circle] = secondHalf[i];
-            addTangent(result, tangent);
-            auto arcSource = rtTarget(tangent);
+	auto& straightB = straights.back();
+	Point<Exact> arcvSource = rtTarget(straightB.firstHalf);
+	Point<Exact> arcvTarget = rtSource(straightB.secondHalf);
+	endTerminal.curve = createArc(vRCircle, CGAL::COUNTERCLOCKWISE, arcvSource, arcvTarget);
 
-            if (i + 1 < secondHalf.size()) {
-                auto arcTarget = rtSource(secondHalf[i + 1].first);
-                auto pin = pins[pins.size() - i - 2];
-                if (auto *pinP = std::get_if<Orbit>(&pin)) {
-                    addArc(circle, oppositeDir(pinP->dir), arcSource, arcTarget);
-                }
-            }
-        }
-        Point<Exact> arcuSource = rtTarget(secondHalf.back().first);
-        Point<Exact> arcuTarget = rtSource(firstHalf.front().first);
-        addArc(uRCircle, CGAL::COUNTERCLOCKWISE, arcuSource, arcuTarget);
-    }
+	// Compute elbow curves
+	for (auto& elbow : elbows) {
+		auto& orbit = elbow.orbit();
 
-    m_csPolygon = result;
+		Point<Exact> arcSourceFH = rtTarget(elbow.prev->firstHalf);
+		Point<Exact> arcTargetFH = rtSource(elbow.next->firstHalf);
+		bool innerFH = orbit.dir == CGAL::CLOCKWISE;
+		RationalRadiusCircle cFH(input[orbit.vertexId].point, innerFH ? orbit.innerRadius : orbit.outerRadius);
+		elbow.firstHalf = createArc(cFH, orbit.dir, arcSourceFH, arcTargetFH);
+
+		Point<Exact> arcSourceSH = rtTarget(elbow.next->secondHalf);
+		Point<Exact> arcTargetSH = rtSource(elbow.prev->secondHalf);
+		bool innerSH = orbit.dir == CGAL::COUNTERCLOCKWISE;
+		RationalRadiusCircle cSH(input[orbit.vertexId].point, innerSH ? orbit.innerRadius : orbit.outerRadius);
+		elbow.secondHalf = createArc(cSH, oppositeDir(orbit.dir), arcSourceSH, arcTargetSH);
+	}
 }
 
 StateGeometry stateToGeometry(const State& state, const InputInstance& input, const Settings& settings) {
     StateGeometry stateGeometry;
     for (auto [mstEdge, topology] : state.edgeTopology) {
-        auto geom = EdgeGeometry(topology, input, settings);
-        stateGeometry.edgeGeometry[mstEdge] = geom;
+        stateGeometry.edgeGeometry[mstEdge] = EdgeGeometry(topology, input, settings);
     }
     for (int i = 0; i < input.size(); ++i) {
         auto circle = Circle<Exact>(input[i].point, CGAL::square(settings.vertexRadius));
@@ -173,7 +149,62 @@ StateGeometry stateToGeometry(const State& state, const InputInstance& input, co
     return stateGeometry;
 }
 
-CSPolygon EdgeGeometry::csPolygon() const {
-    return m_csPolygon;
+CSPolygon Elbow::csPolygon() const {
+	auto p1 = rtSource(next->firstHalf);
+	auto p2 = rtTarget(next->secondHalf);
+	auto p3 = rtSource(prev->secondHalf);
+	auto p4 = rtTarget(prev->firstHalf);
+
+	std::vector<CSXMCurve> xmCurves;
+	auto in = std::back_inserter(xmCurves);
+	curveToXMonotoneCurves(firstHalf, in);
+	*in++ = CSXMCurve(p1, p2);
+	curveToXMonotoneCurves(secondHalf, in);
+	*in++ = CSXMCurve(p3, p4);
+
+	return {xmCurves.begin(), xmCurves.end()};
+}
+
+CSPolygon Straight::csPolygon() const {
+	CSPolygon csPolygon;
+
+	auto addTangent = [&csPolygon](const auto& tangent) {
+		if (auto* uvs = std::get_if<Segment<Exact>>(&tangent)) {
+			CSXMCurve uv_xm(uvs->source(), uvs->target());
+			csPolygon.push_back(uv_xm);
+			return uvs->target();
+		} else if (auto* uvsp = std::get_if<std::pair<Segment<Exact>, Segment<Exact>>>(&tangent)) {
+			auto [uvs1, uvs2] = *uvsp;
+			csPolygon.push_back({uvs1.source(), uvs1.target()});
+			csPolygon.push_back({uvs2.source(), uvs2.target()});
+			return uvs2.target();
+		} else {
+			throw std::runtime_error("Impossible: unexpected type in variant");
+		}
+	};
+
+	auto p1 = rtTarget(firstHalf);
+	auto p2 = rtSource(secondHalf);
+	auto p3 = rtTarget(secondHalf);
+	auto p4 = rtSource(firstHalf);
+	addTangent(firstHalf);
+	csPolygon.push_back({p1, p2});
+	addTangent(secondHalf);
+	csPolygon.push_back({p3, p4});
+
+	return csPolygon;
+}
+
+CSPolygon Terminal::csPolygon() const {
+	std::vector<CSXMCurve> xmCurves;
+	auto in = std::back_inserter(xmCurves);
+	curveToXMonotoneCurves(curve, in);
+	auto s = straight();
+	if (start) {
+		*in++ = {rtSource(s->firstHalf), rtTarget(s->secondHalf)};
+	} else {
+		*in++ = {rtSource(s->secondHalf), rtTarget(s->firstHalf)};
+	}
+	return {xmCurves.begin(), xmCurves.end()};
 }
 }
