@@ -29,6 +29,7 @@ set(HEADERS
 add_library(kinetic_kelp ${SOURCES})
 target_link_libraries(kinetic_kelp
 	PUBLIC core
+		   circle_segment_helpers
 		   renderer
 )
 

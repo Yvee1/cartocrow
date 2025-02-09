@@ -1,6 +1,6 @@
 #include "state_geometry_painting.h"
 
-#include "cartocrow/renderer/cs_render_helpers.h"
+#include "cartocrow/circle_segment_helpers/cs_render_helpers.h"
 
 using namespace cartocrow::renderer;
 

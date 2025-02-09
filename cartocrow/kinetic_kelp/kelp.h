@@ -1,7 +1,7 @@
 #ifndef CARTOCROW_KELP_H
 #define CARTOCROW_KELP_H
 
-#include "../core/cs_types.h"
+#include "../circle_segment_helpers/cs_types.h"
 
 namespace cartocrow::kinetic_kelp {
 class Kelp {

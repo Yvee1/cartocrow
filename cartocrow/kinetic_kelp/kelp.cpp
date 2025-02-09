@@ -1,6 +1,6 @@
 #include "kelp.h"
 
-#include "../core/cavc_helpers.h"
+#include "../circle_segment_helpers/cavc_helpers.h"
 
 namespace cartocrow::kinetic_kelp {
 Kelp::Kelp(CSPolygonWithHoles polygon, double smoothing) {

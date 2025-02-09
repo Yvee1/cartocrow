@@ -1,29 +1,9 @@
 #include "state_geometry.h"
 
-#include "cartocrow/core/circle_tangents.h"
-#include "cartocrow/core/cs_curve_helpers.h"
+#include "cartocrow/circle_segment_helpers/circle_tangents.h"
+#include "cartocrow/circle_segment_helpers/cs_curve_helpers.h"
 
 namespace cartocrow::kinetic_kelp {
-Point<Exact> rtSource(const RationalTangent& rt) {
-	if (auto* uvs = std::get_if<Segment<Exact>>(&rt)) {
-		return uvs->source();
-	} else if (auto* uvsp = std::get_if<std::pair<Segment<Exact>, Segment<Exact>>>(&rt)) {
-		return uvsp->first.source();
-	} else {
-		throw std::runtime_error("Impossible: unexpected type in variant.");
-	}
-}
-
-Point<Exact> rtTarget(const RationalTangent& rt) {
-	if (auto* uvs = std::get_if<Segment<Exact>>(&rt)) {
-		return uvs->target();
-	} else if (auto* uvsp = std::get_if<std::pair<Segment<Exact>, Segment<Exact>>>(&rt)) {
-		return uvsp->second.target();
-	} else {
-		throw std::runtime_error("Impossible: unexpected type in variant.");
-	}
-}
-
 EdgeGeometry::EdgeGeometry(const EdgeTopology& edge, const InputInstance& input, const Settings& settings) {
     auto u = edge.source;
     auto v = edge.target;
@@ -58,7 +38,7 @@ EdgeGeometry::EdgeGeometry(const EdgeTopology& edge, const InputInstance& input,
         bool inner = orient1 != orient2;
 
         // todo: handle overlapping circles => no tangents
-        auto tangents = rationalTangents(c1, c2, inner);
+        auto tangents = rationalBitangents(c1, c2, inner);
         bool one = firstHalf ? orient1 == CGAL::COUNTERCLOCKWISE : orient1 == CGAL::CLOCKWISE;
         auto tangent = one ? tangents->first : tangents->second;
         return tangent;
@@ -110,27 +90,27 @@ EdgeGeometry::EdgeGeometry(const EdgeTopology& edge, const InputInstance& input,
 
 	// Compute terminal curves
 	auto& straightF = straights.front();
-	Point<Exact> arcuSource = rtTarget(straightF.secondHalf);
-	Point<Exact> arcuTarget = rtSource(straightF.firstHalf);
+	Point<Exact> arcuSource = straightF.secondHalf.target();
+	Point<Exact> arcuTarget = straightF.firstHalf.source();
 	startTerminal.curve = createArc(uRCircle, CGAL::COUNTERCLOCKWISE, arcuSource, arcuTarget);
 
 	auto& straightB = straights.back();
-	Point<Exact> arcvSource = rtTarget(straightB.firstHalf);
-	Point<Exact> arcvTarget = rtSource(straightB.secondHalf);
+	Point<Exact> arcvSource = straightB.firstHalf.target();
+	Point<Exact> arcvTarget = straightB.secondHalf.source();
 	endTerminal.curve = createArc(vRCircle, CGAL::COUNTERCLOCKWISE, arcvSource, arcvTarget);
 
 	// Compute elbow curves
 	for (auto& elbow : elbows) {
 		auto& orbit = elbow.orbit();
 
-		Point<Exact> arcSourceFH = rtTarget(elbow.prev->firstHalf);
-		Point<Exact> arcTargetFH = rtSource(elbow.next->firstHalf);
+		Point<Exact> arcSourceFH = elbow.prev->firstHalf.target();
+		Point<Exact> arcTargetFH = elbow.next->firstHalf.source();
 		bool innerFH = orbit.dir == CGAL::CLOCKWISE;
 		RationalRadiusCircle cFH(input[orbit.vertexId].point, innerFH ? orbit.innerRadius : orbit.outerRadius);
 		elbow.firstHalf = createArc(cFH, orbit.dir, arcSourceFH, arcTargetFH);
 
-		Point<Exact> arcSourceSH = rtTarget(elbow.next->secondHalf);
-		Point<Exact> arcTargetSH = rtSource(elbow.prev->secondHalf);
+		Point<Exact> arcSourceSH = elbow.next->secondHalf.target();
+		Point<Exact> arcTargetSH = elbow.prev->secondHalf.source();
 		bool innerSH = orbit.dir == CGAL::COUNTERCLOCKWISE;
 		RationalRadiusCircle cSH(input[orbit.vertexId].point, innerSH ? orbit.innerRadius : orbit.outerRadius);
 		elbow.secondHalf = createArc(cSH, oppositeDir(orbit.dir), arcSourceSH, arcTargetSH);
@@ -150,10 +130,10 @@ StateGeometry stateToGeometry(const State& state, const InputInstance& input, co
 }
 
 CSPolygon Elbow::csPolygon() const {
-	auto p1 = rtSource(next->firstHalf);
-	auto p2 = rtTarget(next->secondHalf);
-	auto p3 = rtSource(prev->secondHalf);
-	auto p4 = rtTarget(prev->firstHalf);
+	auto p1 = next->firstHalf.source();
+	auto p2 = next->secondHalf.target();
+	auto p3 = prev->secondHalf.source();
+	auto p4 = prev->firstHalf.target();
 
 	std::vector<CSXMCurve> xmCurves;
 	auto in = std::back_inserter(xmCurves);
@@ -169,11 +149,11 @@ CSPolygon Straight::csPolygon() const {
 	CSPolygon csPolygon;
 
 	auto addTangent = [&csPolygon](const auto& tangent) {
-		if (auto* uvs = std::get_if<Segment<Exact>>(&tangent)) {
+		if (auto* uvs = std::get_if<Segment<Exact>>(&tangent.variant)) {
 			CSXMCurve uv_xm(uvs->source(), uvs->target());
 			csPolygon.push_back(uv_xm);
 			return uvs->target();
-		} else if (auto* uvsp = std::get_if<std::pair<Segment<Exact>, Segment<Exact>>>(&tangent)) {
+		} else if (auto* uvsp = std::get_if<std::pair<Segment<Exact>, Segment<Exact>>>(&tangent.variant)) {
 			auto [uvs1, uvs2] = *uvsp;
 			csPolygon.push_back({uvs1.source(), uvs1.target()});
 			csPolygon.push_back({uvs2.source(), uvs2.target()});
@@ -183,10 +163,10 @@ CSPolygon Straight::csPolygon() const {
 		}
 	};
 
-	auto p1 = rtTarget(firstHalf);
-	auto p2 = rtSource(secondHalf);
-	auto p3 = rtTarget(secondHalf);
-	auto p4 = rtSource(firstHalf);
+	auto p1 = firstHalf.target();
+	auto p2 = secondHalf.source();
+	auto p3 = secondHalf.target();
+	auto p4 = firstHalf.source();
 	addTangent(firstHalf);
 	csPolygon.push_back({p1, p2});
 	addTangent(secondHalf);
@@ -201,9 +181,9 @@ CSPolygon Terminal::csPolygon() const {
 	curveToXMonotoneCurves(curve, in);
 	auto s = straight();
 	if (start) {
-		*in++ = {rtSource(s->firstHalf), rtTarget(s->secondHalf)};
+		*in++ = {s->firstHalf.source(), s->secondHalf.target()};
 	} else {
-		*in++ = {rtSource(s->secondHalf), rtTarget(s->firstHalf)};
+		*in++ = {s->secondHalf.source(), s->firstHalf.target()};
 	}
 	return {xmCurves.begin(), xmCurves.end()};
 }

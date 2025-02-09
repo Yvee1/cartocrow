@@ -3,14 +3,14 @@
 
 #include <ranges>
 
-#include "../core/cs_types.h"
 
 #include "state.h"
 #include "input_instance.h"
-#include "cartocrow/core/circle_tangents.h"
-#include "cartocrow/core/cs_polygon_helpers.h"
+#include "cartocrow/circle_segment_helpers/circle_tangents.h"
+#include "cartocrow/circle_segment_helpers/cs_types.h"
+#include "cartocrow/circle_segment_helpers/cs_polygon_helpers.h"
 
-#include "cartocrow/core/cs_curve_helpers.h"
+#include "cartocrow/circle_segment_helpers/cs_curve_helpers.h"
 #include "kelp.h"
 
 namespace cartocrow::kinetic_kelp {
@@ -52,9 +52,9 @@ struct Straight {
 
 template <class OutputIterator>
 void rtXMCurves(const RationalTangent& tangent, OutputIterator out) {
-	if (auto* uvs = std::get_if<Segment<Exact>>(&tangent)) {
+	if (auto* uvs = std::get_if<Segment<Exact>>(&tangent.variant)) {
 		*out++ = CSXMCurve(uvs->source(), uvs->target());
-	} else if (auto* uvsp = std::get_if<std::pair<Segment<Exact>, Segment<Exact>>>(&tangent)) {
+	} else if (auto* uvsp = std::get_if<std::pair<Segment<Exact>, Segment<Exact>>>(&tangent.variant)) {
 		auto [uvs1, uvs2] = *uvsp;
 		*out++ = CSXMCurve(uvs1.source(), uvs1.target());
 		*out++ = CSXMCurve(uvs2.source(), uvs2.target());
