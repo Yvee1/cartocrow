@@ -3,8 +3,10 @@
 #include <QApplication>
 
 #include "cartocrow/renderer/geometry_widget.h"
+#include "cartocrow/renderer/painting_renderer.h"
 #include "cartocrow/kinetic_kelp/state_geometry_painting.h"
 #include "cartocrow/kinetic_kelp/kinetic_kelp_painting.h"
+#include "cartocrow/kinetic_kelp/route_edges.h"
 
 #include "../colors/colors.h"
 
@@ -31,6 +33,10 @@ RenderStateDemo::RenderStateDemo() {
     Settings settings;
     settings.vertexRadius = 10.0;
     settings.edgeWidth = 5.0;
+
+	auto pr = std::make_shared<PaintingRenderer>();
+	routeEdges(*input, settings, *pr);
+	renderer->addPainting(pr, "routeEdges");
 
     State state;
     state.msts.push_back({{0, 1}, {1, 2}});
