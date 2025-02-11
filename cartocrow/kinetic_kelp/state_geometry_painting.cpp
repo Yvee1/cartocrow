@@ -12,8 +12,8 @@ void StateGeometryPainting::paint(GeometryRenderer& renderer) const {
     renderer.setMode(GeometryRenderer::stroke);
     renderer.setStroke(Color(0, 0, 0), 1.0);
     for (const auto& [edge, geom] : m_stateGeometry->edgeGeometry) {
-        renderer.draw(renderPath(geom.csPolygon()));
 		renderer.setMode(GeometryRenderer::stroke | GeometryRenderer::fill);
+        renderer.setFillOpacity(150);
 		renderer.setFill(Color(200, 200, 255));
 		for (const auto& elbow : geom.elbows) {
 			renderer.draw(renderPath(elbow.csPolygon()));
@@ -25,6 +25,7 @@ void StateGeometryPainting::paint(GeometryRenderer& renderer) const {
 		renderer.setFill(Color(255, 200, 200));
 		renderer.draw(renderPath(geom.startTerminal.csPolygon()));
 		renderer.draw(renderPath(geom.endTerminal.csPolygon()));
+        renderer.setFillOpacity(255);
     }
 	renderer.setMode(GeometryRenderer::stroke);
     for (const auto& [vId, circle] : m_stateGeometry->vertexGeometry) {
