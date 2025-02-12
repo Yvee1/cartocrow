@@ -164,38 +164,47 @@ RoutingGraph::Path RoutingGraph::computePath(GraphV u, GraphV v) const {
     return {path, weight};
 }
 
+bool RoutingGraph::nonProperlyIntersectedTangent(const RationalTangent& t, const CSPolygon& obstacleEdge) {
+	CSPolygonSet differenceSet;
+	CSPolygonSet intersectionSet;
+	CSPolygon tangentEdge = rationalTangentToCSPolygon(t, m_settings);
+
+	intersectionSet.join(tangentEdge);
+	intersectionSet.intersection(obstacleEdge);
+	std::vector<CSPolygonWithHoles> inters;
+	intersectionSet.polygons_with_holes(std::back_inserter(inters));
+
+	if (inters.empty()) return false;
+
+	differenceSet.join(tangentEdge);
+	differenceSet.difference(obstacleEdge);
+
+	std::vector<CSPolygonWithHoles> pgnWHs;
+	differenceSet.polygons_with_holes(std::back_inserter(pgnWHs));
+	int numberOfLargeDifferences = 0;
+	for (const auto& pgn : pgnWHs) {
+		if (area(pgn) > M_PI * CGAL::square(m_settings.edgeWidth / 2) + M_EPSILON) {
+			++numberOfLargeDifferences;
+		}
+	}
+	if (numberOfLargeDifferences <= inters.size()) {
+		return true;
+	}
+	return false;
+}
+
+
 void RoutingGraph::removeNonProperlyIntersectedTangents(GraphV u, GraphV v, const CSPolygon& obstacleEdge) {
     auto [eStart, eEnd] = boost::edges(m_g);
     std::vector<RoutingGraph::GraphE> nonProperlyIntersected;
     for (auto eit = eStart; eit != eEnd; ++eit) {
-        if (eit->m_source == u || eit->m_source == v || eit->m_target == u || eit->m_target == v) continue;
-        if (auto rtP = std::get_if<RationalTangent>(&(m_g[*eit].geom))) {
-            CSPolygonSet differenceSet;
-            CSPolygonSet intersectionSet;
-            CSPolygon tangentEdge = rationalTangentToCSPolygon(*rtP, m_settings);
-
-            intersectionSet.join(tangentEdge);
-            intersectionSet.intersection(obstacleEdge);
-            std::vector<CSPolygonWithHoles> inters;
-            intersectionSet.polygons_with_holes(std::back_inserter(inters));
-
-            if (inters.empty()) continue;
-
-            differenceSet.join(tangentEdge);
-            differenceSet.difference(obstacleEdge);
-
-            std::vector<CSPolygonWithHoles> pgnWHs;
-            differenceSet.polygons_with_holes(std::back_inserter(pgnWHs));
-            int numberOfLargeDifferences = 0;
-            for (const auto& pgn : pgnWHs) {
-                if (area(pgn) > M_PI * CGAL::square(m_settings.edgeWidth / 2) + M_EPSILON) {
-                    ++numberOfLargeDifferences;
-                }
-            }
-            if (numberOfLargeDifferences <= inters.size()) {
-                nonProperlyIntersected.push_back(*eit);
-            }
-        }
+		auto e = *eit;
+		if (e.m_source == u || e.m_source == v || e.m_target == u || e.m_target == v) continue;
+		if (auto rtP = std::get_if<RationalTangent>(&(m_g[e].geom))) {
+        	if (nonProperlyIntersectedTangent(*rtP, obstacleEdge)) {
+				nonProperlyIntersected.push_back(*eit);
+			}
+		}
     }
     for (auto ed : nonProperlyIntersected) {
         boost::remove_edge(ed, m_g);
@@ -299,29 +308,40 @@ std::pair<State, std::shared_ptr<StateGeometry>> routeEdges(const InputInstance&
             stateGeometry->edgeGeometry[mstE] = EdgeGeometry(topo, input, settings);
             auto& geometry = stateGeometry->edgeGeometry[mstE];
 
-            // probably easier to go over the topology to create the circular arcs
             for (const auto& elbow : geometry.elbows) {
-                auto r = elbow.orbit().outerRadius + settings.edgeWidth / 2;
-                auto vId = elbow.orbit().vertexId;
-
+				auto& orbit = elbow.orbit();
+                auto r = orbit.outerRadius + settings.edgeWidth / 2;
+                auto vId = orbit.vertexId;
                 RationalRadiusCircle circle(input[vId].point, r);
-//                RationalCircularArc arc(circle,)
-                auto newObject = std::make_shared<RoutingGraph::Object>(circle, vId);
+				auto innerS = orbit.dir == CGAL::CLOCKWISE ? elbow.prev->firstHalf.target() : elbow.prev->secondHalf.source();
+				auto innerT = orbit.dir == CGAL::CLOCKWISE ? elbow.next->firstHalf.source() : elbow.next->secondHalf.target();
+				auto sourceV = (innerS - circle.center) / elbow.orbit().innerRadius * r;
+				auto targetV = (innerT - circle.center) / elbow.orbit().innerRadius * r;
+                RationalCircularArc arc(circle, circle.center + sourceV, circle.center + targetV, CGAL::CLOCKWISE);
+                auto newObject = std::make_shared<RoutingGraph::Object>(arc, vId);
                 graph.m_objects.push_back(newObject);
                 std::vector<RoutingGraph::Tangent> newTangents;
                 for (const auto& object : graph.m_objects) {
-                    if (object->vertex == elbow.orbit().vertexId && std::holds_alternative<RationalRadiusCircle>(object->geom)) {
-//                        tangents(newObject, object, std::back_insert(newTangents));
-                    }
+                 	RoutingGraph::tangents(newObject, object, std::back_inserter(newTangents));
                 }
                 for (const auto& t : newTangents) {
-                    auto rev = t.target == newObject;
-                    auto ptOnNewObject = rev ? t.geom.target() : t.geom.source();
-                    // check ptOnNewObject lies on elbow, essentially.
-
-                    auto v = boost::add_vertex(graph.m_g);
+					if (graph.free(t)) {
+						bool good = true;
+						for (const auto& [edge, edgeGeometry] : stateGeometry->edgeGeometry) {
+							if (t.source->vertex == edge.first || t.source->vertex == edge.second || t.target->vertex == edge.first || t.target->vertex == edge.second) continue;
+							if (graph.nonProperlyIntersectedTangent(t.geom, edgeGeometry.csPolygon())) {
+								good = false;
+								break;
+							}
+						}
+						if (good) {
+							graph.addTangentToGraph(t);
+						}
+					}
                 }
             }
+
+			// todo circle vertices...
 
             graph.removeNonProperlyIntersectedTangents(path.front(), path.back(), geometry.csPolygon());
 
@@ -369,5 +389,12 @@ CSPolygon rationalTangentToCSPolygon(const RationalTangent& rt, const Settings& 
     EdgeTopology topo(0, 1, {});
     EdgeGeometry geom(topo, input, settings);
     return geom.csPolygon();
+}
+
+bool circlePointLiesOnArc(const Point<Exact>& point, const RationalCircularArc& arc) {
+	auto sd = (arc.source - arc.circle.center).direction();
+	auto td = (arc.target - arc.circle.center).direction();
+	auto d = (point - arc.circle.center).direction();
+	return arc.orientation == CGAL::COUNTERCLOCKWISE ? d.counterclockwise_in_between(sd, td) : d.counterclockwise_in_between(td, sd);
 }
 }

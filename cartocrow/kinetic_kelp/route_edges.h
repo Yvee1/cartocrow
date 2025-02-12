@@ -28,7 +28,10 @@ struct RationalCircularArc {
     RationalRadiusCircle circle;
     Point<Exact> source;
     Point<Exact> target;
+	CGAL::Orientation orientation;
 };
+
+bool circlePointLiesOnArc(const Point<Exact>& point, const RationalCircularArc& arc);
 
 class RoutingGraph {
   public:
@@ -81,6 +84,7 @@ class RoutingGraph {
 
     EdgeTopology extractTopology(const Path& p, const Settings& settings);
 
+	// TangentType is incorrect but not used? So remove? todo
     template <class OutputIterator>
     static void tangents(const std::shared_ptr<Object> one, const std::shared_ptr<Object>& other, OutputIterator out) {
         if (auto cp1 = std::get_if<RationalRadiusCircle>(&one->geom)) {
@@ -97,7 +101,29 @@ class RoutingGraph {
                     *out++ = Tangent(inner->first, one, other, Inner1);
                     *out++ = Tangent(inner->second, one, other, Inner2);
                 }
-            } else {
+            } else if (auto cap2 = std::get_if<RationalCircularArc>(&other->geom)) {
+				auto ca2 = *cap2;
+				auto outer = rationalBitangents(c1, ca2.circle, false);
+				auto inner = rationalBitangents(c1, ca2.circle, true);
+				if (outer.has_value()) {
+					auto [t1, t2] = *outer;
+					if (circlePointLiesOnArc(t1.target(), ca2)) {
+						*out++ = Tangent(t1, one, other, Outer1);
+					}
+					if (circlePointLiesOnArc(t2.target(), ca2)) {
+						*out++ = Tangent(t2, one, other, Outer2);
+					}
+				}
+				if (inner.has_value()) {
+					auto [t1, t2] = *inner;
+					if (circlePointLiesOnArc(t1.target(), ca2)) {
+						*out++ = Tangent(t1, one, other, Inner1);
+					}
+					if (circlePointLiesOnArc(t2.target(), ca2)) {
+						*out++ = Tangent(t2, one, other, Inner2);
+					}
+				}
+			} else {
                 auto p2 = std::get<Point<Exact>>(other->geom);
                 auto ts = rationalTangents(p2, c1);
                 if (ts.has_value()) {
@@ -105,18 +131,56 @@ class RoutingGraph {
                     *out++ = Tangent(ts->second, other, one, PointCircle2);
                 }
             }
-        } else {
-            auto p1 = std::get<Point<Exact>>(one->geom);
-            if (auto p2p = std::get_if<Point<Exact>>(&other->geom)) {
-                *out++ = Tangent(RationalTangent(Segment<Exact>(p1, *p2p)), one, other, PointPoint);
-            } else {
-                tangents(other, one, out);
-            }
-        }
+        } else if (auto cap1 = std::get_if<RationalCircularArc>(&one->geom)) {
+			auto ca1 = *cap1;
+			if (auto cap2 = std::get_if<RationalCircularArc>(&other->geom)) {
+				auto ca2 = *cap2;
+				auto outer = rationalBitangents(ca1.circle, ca2.circle, false);
+				auto inner = rationalBitangents(ca1.circle, ca2.circle, true);
+				if (outer.has_value()) {
+					auto [t1, t2] = *outer;
+					if (circlePointLiesOnArc(t1.source(), ca1) && circlePointLiesOnArc(t1.target(), ca2)) {
+						*out++ = Tangent(t1, one, other, Outer1);
+					}
+					if (circlePointLiesOnArc(t2.source(), ca1) && circlePointLiesOnArc(t2.target(), ca2)) {
+						*out++ = Tangent(t2, one, other, Outer2);
+					}
+				}
+				if (inner.has_value()) {
+					auto [t1, t2] = *inner;
+					if (circlePointLiesOnArc(t1.source(), ca1) && circlePointLiesOnArc(t1.target(), ca2)) {
+						*out++ = Tangent(t1, one, other, Inner1);
+					}
+					if (circlePointLiesOnArc(t2.source(), ca1) && circlePointLiesOnArc(t2.target(), ca2)) {
+						*out++ = Tangent(t2, one, other, Inner2);
+					}
+				}
+			} else if (auto p2p = std::get_if<Point<Exact>>(&other->geom)) {
+				auto ts = rationalTangents(ca1.circle, *p2p);
+				if (ts.has_value()) {
+					auto [t1, t2] = *ts;
+					if (circlePointLiesOnArc(t1.source(), ca1)) {
+						*out++ = Tangent(t1, one, other, CirclePoint1);
+					}
+					if (circlePointLiesOnArc(t2.source(), ca1)) {
+						*out++ = Tangent(t2, one, other, CirclePoint2);
+					}
+				}
+			} else {
+				tangents(other, one, out);
+			}
+		} else {
+			auto p1 = std::get<Point<Exact>>(one->geom);
+			if (auto p2p = std::get_if<Point<Exact>>(&other->geom)) {
+				*out++ = Tangent(RationalTangent(Segment<Exact>(p1, *p2p)), one, other, PointPoint);
+			} else {
+				tangents(other, one, out);
+			}
+		}
     }
 
     bool free(const Tangent& t);
-    RoutingGraph(InputInstance  input, Settings settings);
+    RoutingGraph(InputInstance input, Settings settings);
 
     template <class OutputIterator>
     void freeTangents(OutputIterator out) {
@@ -143,6 +207,8 @@ class RoutingGraph {
     Graph m_g;
     std::vector<std::shared_ptr<Object>> m_objects;
     void removeNonProperlyIntersectedTangents(GraphV u, GraphV v, const CSPolygon& obstacleEdge);
+	bool nonProperlyIntersectedTangent(const RationalTangent& t, const CSPolygon& obstacleEdge);
+	void addTangentToGraph(const Tangent& t);
   private:
     Settings m_settings;
     InputInstance m_input;
@@ -150,7 +216,6 @@ class RoutingGraph {
     std::vector<std::vector<GraphV>> m_circleVertices;
 
     void makeRoutingObjects();
-    void addTangentToGraph(const Tangent& t);
 };
 
 std::pair<State, std::shared_ptr<StateGeometry>> routeEdges(const InputInstance& input, const Settings& settings, renderer::GeometryRenderer& renderer);
