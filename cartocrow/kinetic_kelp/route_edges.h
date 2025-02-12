@@ -12,8 +12,6 @@
 #include <boost/graph/adjacency_list.hpp>
 
 namespace cartocrow::kinetic_kelp {
-class RoutingObject;
-
 enum TangentType {
     Outer1,
     Outer2,
@@ -26,88 +24,140 @@ enum TangentType {
     PointPoint,
 };
 
-class RoutingTangent {
+struct RationalCircularArc {
+    RationalRadiusCircle circle;
+    Point<Exact> source;
+    Point<Exact> target;
+};
+
+class RoutingGraph {
   public:
-    RoutingTangent(RationalTangent geom, std::shared_ptr<RoutingObject> source, std::shared_ptr<RoutingObject> target, TangentType type) :
-        geom(std::move(geom)), source(std::move(source)), target(std::move(target)), type(type) {}
-    RationalTangent geom;
-    std::shared_ptr<RoutingObject> source;
-    std::shared_ptr<RoutingObject> target;
-    TangentType type;
-};
+    class Object;
 
-class RoutingObject {
-  public:
-    RoutingObject(std::variant<RationalRadiusCircle, Point<Exact>> geom, VertexId vertex) :
-        geom(std::move(geom)), vertex(vertex) {};
-    bool operator==(const RoutingObject& other) const = default;
-    std::variant<RationalRadiusCircle, Point<Exact>> geom;
-    VertexId vertex;
-};
+    class Tangent {
+    public:
+        Tangent(RationalTangent geom, std::shared_ptr<Object> source, std::shared_ptr<Object> target, TangentType type) :
+                geom(std::move(geom)), source(std::move(source)), target(std::move(target)), type(type) {}
+        RationalTangent geom;
+        std::shared_ptr<Object> source;
+        std::shared_ptr<Object> target;
+        TangentType type;
+    };
 
-class RoutingVertex {
-  public:
-    RoutingVertex() = default;
-    RoutingVertex(std::shared_ptr<RoutingObject> object, Point<Exact> point) : object(std::move(object)), point(std::move(point)) {};
-    std::shared_ptr<RoutingObject> object;
-    Point<Exact> point;
-};
+    class Object {
+    public:
+        Object(std::variant<Point<Exact>, RationalRadiusCircle, RationalCircularArc> geom, VertexId vertex) :
+                geom(std::move(geom)), vertex(vertex) {};
+        bool operator==(const Object& other) const = default;
+        std::variant<Point<Exact>, RationalRadiusCircle, RationalCircularArc> geom;
+        VertexId vertex;
+    };
 
-class RoutingEdge {
-  public:
-    RoutingEdge() = default;
-    RoutingEdge(std::variant<RationalTangent, CSCurve> geom, double weight) : geom(std::move(geom)), weight(weight) {};
-    std::variant<RationalTangent, CSCurve> geom;
-    double weight;
-    double length;
-};
+    class Vertex {
+    public:
+        Vertex() = default;
+        Vertex(std::shared_ptr<Object> object, Point<Exact> point) : object(std::move(object)), point(std::move(point)) {};
+        std::shared_ptr<Object> object;
+        Point<Exact> point;
+    };
 
-using RoutingGraph = boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS, RoutingVertex, RoutingEdge>;
+    class Edge {
+    public:
+        Edge() = default;
+        Edge(std::variant<RationalTangent, CSCurve> geom, double weight) : geom(std::move(geom)), weight(weight) {};
+        std::variant<RationalTangent, CSCurve> geom;
+        double weight;
+        double length;
+    };
 
-struct RoutingPath {
-    std::vector<long unsigned int> path;
-    double weight;
-};
+    using Graph = boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS, Vertex, Edge>;
+    using GraphV = Graph::vertex_descriptor;
+    using GraphE = Graph::edge_descriptor;
 
-EdgeTopology extractTopology(const RoutingPath& p, RoutingGraph& g, const Settings& settings);
+    struct Path {
+        std::vector<long unsigned int> path;
+        double weight;
+    };
 
-template <class OutputIterator>
-void tangents(const std::shared_ptr<RoutingObject> one, const std::shared_ptr<RoutingObject>& other, OutputIterator out) {
-    if (auto cp1 = std::get_if<RationalRadiusCircle>(&one->geom)) {
-        auto c1 = *cp1;
-        if (auto cp2 = std::get_if<RationalRadiusCircle>(&other->geom)) {
-            auto c2 = *cp2;
-            auto outer = rationalBitangents(c1, c2, false);
-            auto inner = rationalBitangents(c1, c2, true);
-            if (outer.has_value()) {
-                *out++ = RoutingTangent(outer->first, one, other, Outer1);
-                *out++ = RoutingTangent(outer->second, one, other, Outer2);
-            }
-            if (inner.has_value()) {
-                *out++ = RoutingTangent(inner->first, one, other, Inner1);
-                *out++ = RoutingTangent(inner->second, one, other, Inner2);
+    EdgeTopology extractTopology(const Path& p, const Settings& settings);
+
+    template <class OutputIterator>
+    static void tangents(const std::shared_ptr<Object> one, const std::shared_ptr<Object>& other, OutputIterator out) {
+        if (auto cp1 = std::get_if<RationalRadiusCircle>(&one->geom)) {
+            auto c1 = *cp1;
+            if (auto cp2 = std::get_if<RationalRadiusCircle>(&other->geom)) {
+                auto c2 = *cp2;
+                auto outer = rationalBitangents(c1, c2, false);
+                auto inner = rationalBitangents(c1, c2, true);
+                if (outer.has_value()) {
+                    *out++ = Tangent(outer->first, one, other, Outer1);
+                    *out++ = Tangent(outer->second, one, other, Outer2);
+                }
+                if (inner.has_value()) {
+                    *out++ = Tangent(inner->first, one, other, Inner1);
+                    *out++ = Tangent(inner->second, one, other, Inner2);
+                }
+            } else {
+                auto p2 = std::get<Point<Exact>>(other->geom);
+                auto ts = rationalTangents(p2, c1);
+                if (ts.has_value()) {
+                    *out++ = Tangent(ts->first, other, one, PointCircle1);
+                    *out++ = Tangent(ts->second, other, one, PointCircle2);
+                }
             }
         } else {
-            auto p2 = std::get<Point<Exact>>(other->geom);
-            auto ts = rationalTangents(p2, c1);
-            if (ts.has_value()) {
-                *out++ = RoutingTangent(ts->first, other, one, PointCircle1);
-                *out++ = RoutingTangent(ts->second, other, one, PointCircle2);
+            auto p1 = std::get<Point<Exact>>(one->geom);
+            if (auto p2p = std::get_if<Point<Exact>>(&other->geom)) {
+                *out++ = Tangent(RationalTangent(Segment<Exact>(p1, *p2p)), one, other, PointPoint);
+            } else {
+                tangents(other, one, out);
             }
-        }
-    } else {
-        auto p1 = std::get<Point<Exact>>(one->geom);
-        if (auto p2p = std::get_if<Point<Exact>>(&other->geom)) {
-            *out++ = RoutingTangent(RationalTangent(Segment<Exact>(p1, *p2p)), one, other, PointPoint);
-        } else {
-            tangents(other, one, out);
         }
     }
-}
+
+    bool free(const Tangent& t);
+    RoutingGraph(InputInstance  input, Settings settings);
+
+    template <class OutputIterator>
+    void freeTangents(OutputIterator out) {
+        // Make all tangents between objects
+        std::vector<Tangent> allTangents;
+
+        for (const auto& o1 : m_objects) {
+            for (const auto& o2 : m_objects) {
+                if (o1 == o2) continue;
+                tangents(o1, o2, std::back_inserter(allTangents));
+            }
+        }
+
+        // Determine which tangents are free, that is, intersect no object.
+        for (const auto& t : allTangents) {
+            if (free(t)) {
+                *out++ = t;
+            }
+        }
+    }
+
+    Path computePath(GraphV u, GraphV v) const;
+
+    Graph m_g;
+    std::vector<std::shared_ptr<Object>> m_objects;
+    void removeNonProperlyIntersectedTangents(GraphV u, GraphV v, const CSPolygon& obstacleEdge);
+  private:
+    Settings m_settings;
+    InputInstance m_input;
+    std::map<Point<Exact>, GraphV> m_pointToVertex;
+    std::vector<std::vector<GraphV>> m_circleVertices;
+
+    void makeRoutingObjects();
+    void addTangentToGraph(const Tangent& t);
+};
 
 std::pair<State, std::shared_ptr<StateGeometry>> routeEdges(const InputInstance& input, const Settings& settings, renderer::GeometryRenderer& renderer);
 
 CSPolygon rationalTangentToCSPolygon(const RationalTangent& rt, const Settings& settings);
+
+EdgeTopology extractTopology(const RoutingGraph::Path& path, RoutingGraph::Graph& g, const Settings& settings);
 }
 
 #endif //CARTOCROW_ROUTE_EDGES_H
