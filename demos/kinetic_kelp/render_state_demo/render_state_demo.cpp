@@ -25,11 +25,11 @@ RenderStateDemo::RenderStateDemo() {
         {0, {0, 0}},
         {0, {-50, 71}},
         {1, {-25, -10}},
-        {1, {-75, 0}},
+        {1, {-75, 2}},
         {2, {-125, 0}},
         {2, {25, 0}},
-        {3, {-175, 10}},
-        {3, {75, 10}}
+        {3, {-275, 18}},
+        {3, {175, 18}}
     }));
 
     Settings settings;
@@ -37,7 +37,7 @@ RenderStateDemo::RenderStateDemo() {
     settings.edgeWidth = 5.0;
 
 	auto pr = std::make_shared<PaintingRenderer>();
-	auto state = routeEdges(*input, settings, *pr);
+	auto [stateTopology, stateGeometry] = routeEdges(*input, settings, *pr);
 	renderer->addPainting(pr, "routeEdges");
 
 //    State state;
@@ -56,7 +56,6 @@ RenderStateDemo::RenderStateDemo() {
 //        {1, 10.0, 15.0, CGAL::CLOCKWISE},
 //    });
 
-    auto stateGeometry = std::make_shared<StateGeometry>(stateToGeometry(state, *input, settings));
     auto stateGeometryP = std::make_shared<StateGeometryPainting>(stateGeometry);
     renderer->addPainting(stateGeometryP, "State geometry");
 

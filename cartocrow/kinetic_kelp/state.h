@@ -1,7 +1,9 @@
 #ifndef CARTOCROW_STATE_H
 #define CARTOCROW_STATE_H
 
-#include "../core/core.h"
+#include "cartocrow/core/core.h"
+
+#include "cartocrow/circle_segment_helpers/circle_tangents.h"
 
 #include "cat_point.h"
 #include "input_instance.h"
@@ -16,6 +18,12 @@ struct Orbit {
     Number<Exact> innerRadius;
     Number<Exact> outerRadius;
     CGAL::Orientation dir;
+    RationalRadiusCircle outerCircle(const InputInstance& input) const {
+        return {input[vertexId].point, outerRadius};
+    }
+    RationalRadiusCircle innerCircle(const InputInstance& input) const {
+        return {input[vertexId].point, innerRadius};
+    }
 };
 
 struct EdgeTopology {

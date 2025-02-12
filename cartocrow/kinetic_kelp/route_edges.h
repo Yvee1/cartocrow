@@ -5,8 +5,11 @@
 
 #include "input_instance.h"
 #include "state.h"
+#include "state_geometry.h"
 #include "cartocrow/renderer/geometry_renderer.h"
 #include "cartocrow/circle_segment_helpers/circle_tangents.h"
+
+#include <boost/graph/adjacency_list.hpp>
 
 namespace cartocrow::kinetic_kelp {
 class RoutingObject;
@@ -56,12 +59,17 @@ class RoutingEdge {
     RoutingEdge(std::variant<RationalTangent, CSCurve> geom, double weight) : geom(std::move(geom)), weight(weight) {};
     std::variant<RationalTangent, CSCurve> geom;
     double weight;
+    double length;
 };
+
+using RoutingGraph = boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS, RoutingVertex, RoutingEdge>;
 
 struct RoutingPath {
     std::vector<long unsigned int> path;
     double weight;
 };
+
+EdgeTopology extractTopology(const RoutingPath& p, RoutingGraph& g, const Settings& settings);
 
 template <class OutputIterator>
 void tangents(const std::shared_ptr<RoutingObject> one, const std::shared_ptr<RoutingObject>& other, OutputIterator out) {
@@ -89,13 +97,17 @@ void tangents(const std::shared_ptr<RoutingObject> one, const std::shared_ptr<Ro
         }
     } else {
         auto p1 = std::get<Point<Exact>>(one->geom);
-        if (auto p2p = std::get_if<RationalRadiusCircle>(&other->geom)) {
+        if (auto p2p = std::get_if<Point<Exact>>(&other->geom)) {
+            *out++ = RoutingTangent(RationalTangent(Segment<Exact>(p1, *p2p)), one, other, PointPoint);
+        } else {
             tangents(other, one, out);
         }
     }
 }
 
-State routeEdges(const InputInstance& input, const Settings& settings, renderer::GeometryRenderer& renderer);
+std::pair<State, std::shared_ptr<StateGeometry>> routeEdges(const InputInstance& input, const Settings& settings, renderer::GeometryRenderer& renderer);
+
+CSPolygon rationalTangentToCSPolygon(const RationalTangent& rt, const Settings& settings);
 }
 
 #endif //CARTOCROW_ROUTE_EDGES_H
