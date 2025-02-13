@@ -29,6 +29,8 @@ struct RationalCircularArc {
     Point<Exact> source;
     Point<Exact> target;
 	CGAL::Orientation orientation;
+
+	auto operator<=>(const RationalCircularArc& other) const = default;
 };
 
 bool circlePointLiesOnArc(const Point<Exact>& point, const RationalCircularArc& arc);
@@ -214,6 +216,7 @@ class RoutingGraph {
     InputInstance m_input;
     std::map<Point<Exact>, GraphV> m_pointToVertex;
     std::vector<std::vector<GraphV>> m_circleVertices;
+	std::map<RationalCircularArc, std::vector<GraphV>> m_arcVertices;
 
     void makeRoutingObjects();
 };

@@ -63,10 +63,21 @@ void RoutingGraph::addTangentToGraph(const Tangent& t) {
             ptv[p] = sourceVertex;
         }
         m_circleVertices[t.source->vertex].push_back(sourceVertex);
-    } else {
-        sourceVertex = t.source->vertex;
-        ++vertexEndpoints;
-    }
+    } else if (auto cap = std::get_if<RationalCircularArc>(&(t.source->geom))) {
+		auto p = t.geom.source();
+		if (ptv.contains(p)) {
+			sourceVertex = ptv[p];
+		} else {
+			sourceVertex = boost::add_vertex(m_g);
+			m_g[sourceVertex].point = p;
+			m_g[sourceVertex].object = t.source;
+			ptv[p] = sourceVertex;
+		}
+		m_arcVertices[*cap].push_back(sourceVertex);
+	} else {
+		sourceVertex = t.source->vertex;
+		++vertexEndpoints;
+	}
     GraphV targetVertex;
     if (auto cp = std::get_if<RationalRadiusCircle>(&(t.target->geom))) {
         auto p = t.geom.target();
@@ -80,7 +91,19 @@ void RoutingGraph::addTangentToGraph(const Tangent& t) {
             ptv[p] = targetVertex;
         }
         m_circleVertices[t.target->vertex].push_back(targetVertex);
-    } else {
+    } else if (auto cap = std::get_if<RationalCircularArc>(&(t.target->geom))) {
+		auto p = t.geom.target();
+		if (ptv.contains(p)) return;
+		if (ptv.contains(p)) {
+			targetVertex = ptv[p];
+		} else {
+			targetVertex = boost::add_vertex(m_g);
+			m_g[targetVertex].point = p;
+			m_g[targetVertex].object = t.target;
+			ptv[p] = targetVertex;
+		}
+		m_arcVertices[*cap].push_back(targetVertex);
+	} else {
         targetVertex = t.target->vertex;
         ++vertexEndpoints;
     }
@@ -313,8 +336,8 @@ std::pair<State, std::shared_ptr<StateGeometry>> routeEdges(const InputInstance&
                 auto r = orbit.outerRadius + settings.edgeWidth / 2;
                 auto vId = orbit.vertexId;
                 RationalRadiusCircle circle(input[vId].point, r);
-				auto innerS = orbit.dir == CGAL::CLOCKWISE ? elbow.prev->firstHalf.target() : elbow.prev->secondHalf.source();
-				auto innerT = orbit.dir == CGAL::CLOCKWISE ? elbow.next->firstHalf.source() : elbow.next->secondHalf.target();
+				auto innerS = orbit.dir == CGAL::CLOCKWISE ? elbow.prev->firstHalf.target() : elbow.next->secondHalf.target();
+				auto innerT = orbit.dir == CGAL::CLOCKWISE ? elbow.next->firstHalf.source() : elbow.prev->secondHalf.source();
 				auto sourceV = (innerS - circle.center) / elbow.orbit().innerRadius * r;
 				auto targetV = (innerT - circle.center) / elbow.orbit().innerRadius * r;
                 RationalCircularArc arc(circle, circle.center + sourceV, circle.center + targetV, CGAL::CLOCKWISE);
