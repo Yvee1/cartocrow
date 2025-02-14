@@ -10,6 +10,71 @@
 #include "cartocrow/circle_segment_helpers/circle_tangents.h"
 
 #include <boost/graph/adjacency_list.hpp>
+#include <boost/functional/hash.hpp>
+
+namespace cartocrow::kinetic_kelp {
+struct RationalCircularArc {
+    RationalRadiusCircle circle;
+    Point<Exact> source;
+    Point<Exact> target;
+    CGAL::Orientation orientation;
+    bool operator==(const RationalCircularArc& other) const = default;
+};
+}
+
+namespace std {
+    template <>
+    struct hash<cartocrow::Number<cartocrow::Exact>>
+    {
+        std::size_t operator()(const cartocrow::Number<cartocrow::Exact>& x) const
+        {
+            return hash<double>{}(CGAL::to_double(x));
+        }
+    };
+
+    template <>
+    struct hash<cartocrow::Point<cartocrow::Exact>>
+    {
+        std::size_t operator()(const cartocrow::Point<cartocrow::Exact>& p) const
+        {
+            // Compute individual hash values for first, second and third
+            // http://stackoverflow.com/a/1646913/126995
+            std::size_t res = 17;
+            res = res * 31 + hash<cartocrow::Number<cartocrow::Exact>>{}(p.x());
+            res = res * 31 + hash<cartocrow::Number<cartocrow::Exact>>{}(p.y());
+            return res;
+        }
+    };
+
+    template <>
+    struct hash<cartocrow::RationalRadiusCircle>
+    {
+        std::size_t operator()(const cartocrow::RationalRadiusCircle& c) const
+        {
+            // Compute individual hash values for first, second and third
+            // http://stackoverflow.com/a/1646913/126995
+            std::size_t res = 17;
+            res = res * 31 + hash<cartocrow::Point<cartocrow::Exact>>{}(c.center);
+            res = res * 31 + hash<cartocrow::Number<cartocrow::Exact>>{}(c.radius);
+            return res;
+        }
+    };
+
+    template <>
+    struct hash<cartocrow::kinetic_kelp::RationalCircularArc>
+    {
+        std::size_t operator()(const cartocrow::kinetic_kelp::RationalCircularArc& ca) const
+        {
+            // Compute individual hash values for first, second and third
+            // http://stackoverflow.com/a/1646913/126995
+            std::size_t res = 17;
+            res = res * 31 + hash<cartocrow::RationalRadiusCircle>{}(ca.circle);
+            res = res * 31 + hash<cartocrow::Point<cartocrow::Exact>>{}(ca.source);
+            res = res * 31 + hash<cartocrow::Point<cartocrow::Exact>>{}(ca.target);
+            return res;
+        }
+    };
+}
 
 namespace cartocrow::kinetic_kelp {
 enum TangentType {
@@ -22,15 +87,6 @@ enum TangentType {
     CirclePoint1,
     CirclePoint2,
     PointPoint,
-};
-
-struct RationalCircularArc {
-    RationalRadiusCircle circle;
-    Point<Exact> source;
-    Point<Exact> target;
-	CGAL::Orientation orientation;
-
-	auto operator<=>(const RationalCircularArc& other) const = default;
 };
 
 bool circlePointLiesOnArc(const Point<Exact>& point, const RationalCircularArc& arc);
@@ -214,9 +270,9 @@ class RoutingGraph {
   private:
     Settings m_settings;
     InputInstance m_input;
-    std::map<Point<Exact>, GraphV> m_pointToVertex;
+    std::unordered_map<Point<Exact>, GraphV> m_pointToVertex;
     std::vector<std::vector<GraphV>> m_circleVertices;
-	std::map<RationalCircularArc, std::vector<GraphV>> m_arcVertices;
+	std::unordered_map<RationalCircularArc, std::vector<GraphV>> m_arcVertices;
 
     void makeRoutingObjects();
 };
