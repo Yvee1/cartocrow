@@ -23,57 +23,57 @@ struct RationalCircularArc {
 }
 
 namespace std {
-    template <>
-    struct hash<cartocrow::Number<cartocrow::Exact>>
-    {
-        std::size_t operator()(const cartocrow::Number<cartocrow::Exact>& x) const
-        {
-            return hash<double>{}(CGAL::to_double(x));
-        }
-    };
+template <>
+struct hash<cartocrow::Number<cartocrow::Exact>>
+{
+	std::size_t operator()(const cartocrow::Number<cartocrow::Exact>& x) const
+	{
+		return hash<double>{}(CGAL::to_double(x));
+	}
+};
 
-    template <>
-    struct hash<cartocrow::Point<cartocrow::Exact>>
-    {
-        std::size_t operator()(const cartocrow::Point<cartocrow::Exact>& p) const
-        {
-            // Compute individual hash values for first, second and third
-            // http://stackoverflow.com/a/1646913/126995
-            std::size_t res = 17;
-            res = res * 31 + hash<cartocrow::Number<cartocrow::Exact>>{}(p.x());
-            res = res * 31 + hash<cartocrow::Number<cartocrow::Exact>>{}(p.y());
-            return res;
-        }
-    };
+template <>
+struct hash<cartocrow::Point<cartocrow::Exact>>
+{
+	std::size_t operator()(const cartocrow::Point<cartocrow::Exact>& p) const
+	{
+		// Compute individual hash values for first, second and third
+		// http://stackoverflow.com/a/1646913/126995
+		std::size_t res = 17;
+		res = res * 31 + hash<cartocrow::Number<cartocrow::Exact>>{}(p.x());
+		res = res * 31 + hash<cartocrow::Number<cartocrow::Exact>>{}(p.y());
+		return res;
+	}
+};
 
-    template <>
-    struct hash<cartocrow::RationalRadiusCircle>
-    {
-        std::size_t operator()(const cartocrow::RationalRadiusCircle& c) const
-        {
-            // Compute individual hash values for first, second and third
-            // http://stackoverflow.com/a/1646913/126995
-            std::size_t res = 17;
-            res = res * 31 + hash<cartocrow::Point<cartocrow::Exact>>{}(c.center);
-            res = res * 31 + hash<cartocrow::Number<cartocrow::Exact>>{}(c.radius);
-            return res;
-        }
-    };
+template <>
+struct hash<cartocrow::RationalRadiusCircle>
+{
+	std::size_t operator()(const cartocrow::RationalRadiusCircle& c) const
+	{
+		// Compute individual hash values for first, second and third
+		// http://stackoverflow.com/a/1646913/126995
+		std::size_t res = 17;
+		res = res * 31 + hash<cartocrow::Point<cartocrow::Exact>>{}(c.center);
+		res = res * 31 + hash<cartocrow::Number<cartocrow::Exact>>{}(c.radius);
+		return res;
+	}
+};
 
-    template <>
-    struct hash<cartocrow::kinetic_kelp::RationalCircularArc>
-    {
-        std::size_t operator()(const cartocrow::kinetic_kelp::RationalCircularArc& ca) const
-        {
-            // Compute individual hash values for first, second and third
-            // http://stackoverflow.com/a/1646913/126995
-            std::size_t res = 17;
-            res = res * 31 + hash<cartocrow::RationalRadiusCircle>{}(ca.circle);
-            res = res * 31 + hash<cartocrow::Point<cartocrow::Exact>>{}(ca.source);
-            res = res * 31 + hash<cartocrow::Point<cartocrow::Exact>>{}(ca.target);
-            return res;
-        }
-    };
+template <>
+struct hash<cartocrow::kinetic_kelp::RationalCircularArc>
+{
+	std::size_t operator()(const cartocrow::kinetic_kelp::RationalCircularArc& ca) const
+	{
+		// Compute individual hash values for first, second and third
+		// http://stackoverflow.com/a/1646913/126995
+		std::size_t res = 17;
+		res = res * 31 + hash<cartocrow::RationalRadiusCircle>{}(ca.circle);
+		res = res * 31 + hash<cartocrow::Point<cartocrow::Exact>>{}(ca.source);
+		res = res * 31 + hash<cartocrow::Point<cartocrow::Exact>>{}(ca.target);
+		return res;
+	}
+};
 }
 
 namespace cartocrow::kinetic_kelp {
@@ -107,11 +107,11 @@ class RoutingGraph {
 
     class Object {
     public:
-        Object(std::variant<Point<Exact>, RationalRadiusCircle, RationalCircularArc> geom, VertexId vertex) :
-                geom(std::move(geom)), vertex(vertex) {};
+        Object(std::variant<Point<Exact>, RationalRadiusCircle> geom, PointId pointId) :
+                geom(std::move(geom)), pointId(pointId) {};
         bool operator==(const Object& other) const = default;
-        std::variant<Point<Exact>, RationalRadiusCircle, RationalCircularArc> geom;
-        VertexId vertex;
+        std::variant<Point<Exact>, RationalRadiusCircle> geom;
+		PointId pointId;
     };
 
     class Vertex {
@@ -131,12 +131,12 @@ class RoutingGraph {
         double length;
     };
 
-    using Graph = boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS, Vertex, Edge>;
+    using Graph = boost::adjacency_list<boost::listS, boost::listS, boost::undirectedS, Vertex, Edge>;
     using GraphV = Graph::vertex_descriptor;
     using GraphE = Graph::edge_descriptor;
 
     struct Path {
-        std::vector<long unsigned int> path;
+        std::vector<GraphV> path;
         double weight;
     };
 
@@ -159,29 +159,7 @@ class RoutingGraph {
                     *out++ = Tangent(inner->first, one, other, Inner1);
                     *out++ = Tangent(inner->second, one, other, Inner2);
                 }
-            } else if (auto cap2 = std::get_if<RationalCircularArc>(&other->geom)) {
-				auto ca2 = *cap2;
-				auto outer = rationalBitangents(c1, ca2.circle, false);
-				auto inner = rationalBitangents(c1, ca2.circle, true);
-				if (outer.has_value()) {
-					auto [t1, t2] = *outer;
-					if (circlePointLiesOnArc(t1.target(), ca2)) {
-						*out++ = Tangent(t1, one, other, Outer1);
-					}
-					if (circlePointLiesOnArc(t2.target(), ca2)) {
-						*out++ = Tangent(t2, one, other, Outer2);
-					}
-				}
-				if (inner.has_value()) {
-					auto [t1, t2] = *inner;
-					if (circlePointLiesOnArc(t1.target(), ca2)) {
-						*out++ = Tangent(t1, one, other, Inner1);
-					}
-					if (circlePointLiesOnArc(t2.target(), ca2)) {
-						*out++ = Tangent(t2, one, other, Inner2);
-					}
-				}
-			} else {
+            } else {
                 auto p2 = std::get<Point<Exact>>(other->geom);
                 auto ts = rationalTangents(p2, c1);
                 if (ts.has_value()) {
@@ -189,44 +167,6 @@ class RoutingGraph {
                     *out++ = Tangent(ts->second, other, one, PointCircle2);
                 }
             }
-        } else if (auto cap1 = std::get_if<RationalCircularArc>(&one->geom)) {
-			auto ca1 = *cap1;
-			if (auto cap2 = std::get_if<RationalCircularArc>(&other->geom)) {
-				auto ca2 = *cap2;
-				auto outer = rationalBitangents(ca1.circle, ca2.circle, false);
-				auto inner = rationalBitangents(ca1.circle, ca2.circle, true);
-				if (outer.has_value()) {
-					auto [t1, t2] = *outer;
-					if (circlePointLiesOnArc(t1.source(), ca1) && circlePointLiesOnArc(t1.target(), ca2)) {
-						*out++ = Tangent(t1, one, other, Outer1);
-					}
-					if (circlePointLiesOnArc(t2.source(), ca1) && circlePointLiesOnArc(t2.target(), ca2)) {
-						*out++ = Tangent(t2, one, other, Outer2);
-					}
-				}
-				if (inner.has_value()) {
-					auto [t1, t2] = *inner;
-					if (circlePointLiesOnArc(t1.source(), ca1) && circlePointLiesOnArc(t1.target(), ca2)) {
-						*out++ = Tangent(t1, one, other, Inner1);
-					}
-					if (circlePointLiesOnArc(t2.source(), ca1) && circlePointLiesOnArc(t2.target(), ca2)) {
-						*out++ = Tangent(t2, one, other, Inner2);
-					}
-				}
-			} else if (auto p2p = std::get_if<Point<Exact>>(&other->geom)) {
-				auto ts = rationalTangents(ca1.circle, *p2p);
-				if (ts.has_value()) {
-					auto [t1, t2] = *ts;
-					if (circlePointLiesOnArc(t1.source(), ca1)) {
-						*out++ = Tangent(t1, one, other, CirclePoint1);
-					}
-					if (circlePointLiesOnArc(t2.source(), ca1)) {
-						*out++ = Tangent(t2, one, other, CirclePoint2);
-					}
-				}
-			} else {
-				tangents(other, one, out);
-			}
 		} else {
 			auto p1 = std::get<Point<Exact>>(one->geom);
 			if (auto p2p = std::get_if<Point<Exact>>(&other->geom)) {
@@ -237,6 +177,7 @@ class RoutingGraph {
 		}
     }
 
+	static bool free(const RationalTangent& t, const Object& object);
     bool free(const Tangent& t);
     RoutingGraph(InputInstance input, Settings settings);
 
@@ -245,10 +186,9 @@ class RoutingGraph {
         // Make all tangents between objects
         std::vector<Tangent> allTangents;
 
-        for (const auto& o1 : m_objects) {
-            for (const auto& o2 : m_objects) {
-                if (o1 == o2) continue;
-                tangents(o1, o2, std::back_inserter(allTangents));
+        for (auto objId1 = 0; objId1 < m_objects.size(); ++objId1) {
+			for (auto objId2 = objId1 + 1; objId2 < m_objects.size(); ++objId2) {
+                tangents(m_objects[objId1], m_objects[objId2], std::back_inserter(allTangents));
             }
         }
 
@@ -262,17 +202,19 @@ class RoutingGraph {
 
     Path computePath(GraphV u, GraphV v) const;
 
-    Graph m_g;
-    std::vector<std::shared_ptr<Object>> m_objects;
+    std::unique_ptr<Graph> m_g;
     void removeNonProperlyIntersectedTangents(GraphV u, GraphV v, const CSPolygon& obstacleEdge);
 	bool nonProperlyIntersectedTangent(const RationalTangent& t, const CSPolygon& obstacleEdge);
 	void addTangentToGraph(const Tangent& t);
+	void createCircleEdges(PointId pointId);
+	std::shared_ptr<Object> circleObject(PointId pointId);
+	std::shared_ptr<Object> pointObject(PointId pointId);
+	std::unordered_map<Point<Exact>, GraphV> m_pointToVertex;
+	std::vector<std::vector<GraphV>> m_circleVertices;
+	std::vector<std::shared_ptr<Object>> m_objects;
   private:
     Settings m_settings;
     InputInstance m_input;
-    std::unordered_map<Point<Exact>, GraphV> m_pointToVertex;
-    std::vector<std::vector<GraphV>> m_circleVertices;
-	std::unordered_map<RationalCircularArc, std::vector<GraphV>> m_arcVertices;
 
     void makeRoutingObjects();
 };

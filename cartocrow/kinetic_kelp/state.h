@@ -10,25 +10,25 @@
 #include "trajectory.h"
 
 namespace cartocrow::kinetic_kelp {
-using MSTEdge = std::pair<VertexId, VertexId>; // first should have the lower id.
+using MSTEdge = std::pair<PointId, PointId>; // first should have the lower id.
 using MST = std::vector<MSTEdge>;
 
 struct Orbit {
-    VertexId vertexId;
+	PointId pointId;
     Number<Exact> innerRadius;
     Number<Exact> outerRadius;
     CGAL::Orientation dir;
     RationalRadiusCircle outerCircle(const InputInstance& input) const {
-        return {input[vertexId].point, outerRadius};
+        return {input[pointId].point, outerRadius};
     }
     RationalRadiusCircle innerCircle(const InputInstance& input) const {
-        return {input[vertexId].point, innerRadius};
+        return {input[pointId].point, innerRadius};
     }
 };
 
 struct EdgeTopology {
-    VertexId source;
-    VertexId target;
+	PointId source;
+	PointId target;
     std::vector<Orbit> orbits;
 };
 

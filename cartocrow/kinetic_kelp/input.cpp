@@ -45,7 +45,7 @@ const MovingCatPoint& Input::operator[](int i) const {
     return m_movingCatPoints.at(i);
 }
 
-const std::vector<VertexId>& Input::category(int k) const {
+const std::vector<PointId>& Input::category(int k) const {
     return m_cats[k];
 }
 }

@@ -30,106 +30,137 @@ void RoutingGraph::makeRoutingObjects() {
     }
 }
 
+std::shared_ptr<RoutingGraph::Object> RoutingGraph::pointObject(PointId pointId) {
+	return m_objects[2 * pointId + 1];
+}
+
+std::shared_ptr<RoutingGraph::Object> RoutingGraph::circleObject(PointId pointId) {
+	return m_objects[2 * pointId];
+}
+
+bool RoutingGraph::free(const RationalTangent& t, const Object& object) {
+	if (auto rrcP = std::get_if<RationalRadiusCircle>(&object.geom)) {
+		auto rrc = *rrcP;
+		auto pl = polylineToCSPolyline(t.polyline());
+		auto pgn = circleToCSPolygon(rrc.circle());
+		auto plBbox = CGAL::bbox_2(pl.curves_begin(), pl.curves_end());
+		auto pgnBbox = CGAL::bbox_2(pgn.curves_begin(), pgn.curves_end());
+		plBbox.dilate(100);
+		pgnBbox.dilate(100);
+		bool overlap = do_overlap(plBbox, pgnBbox);
+		if (overlap && !intersection(pl, pgn, true).empty()) {
+			return false;
+		}
+	}
+	return true;
+}
+
 bool RoutingGraph::free(const Tangent& t) {
     bool free = true;
     for (const auto& obj : m_objects) {
-        if (obj->vertex == t.source->vertex || obj->vertex == t.target->vertex) continue;
-        if (auto rrcP = std::get_if<RationalRadiusCircle>(&obj->geom)) {
-            auto rrc = *rrcP;
-            auto pl = polylineToCSPolyline(t.geom.polyline());
-            auto pgn = circleToCSPolygon(rrc.circle());
-            if (!intersection(pl, pgn, true).empty()) {
-                free = false;
-                break;
-            }
-        }
+        if (obj->pointId == t.source->pointId || obj->pointId == t.target->pointId) continue;
+        if (!RoutingGraph::free(t.geom, *obj)) {
+			free = false;
+			break;
+		}
     }
     return free;
 }
 
 void RoutingGraph::addTangentToGraph(const Tangent& t) {
-    m_circleVertices.resize(m_input.size());
+	auto& g = *m_g;
     int vertexEndpoints = 0;
     GraphV sourceVertex;
     auto& ptv = m_pointToVertex;
-    if (auto cp = std::get_if<RationalRadiusCircle>(&(t.source->geom))) {
+    if (std::holds_alternative<RationalRadiusCircle>(t.source->geom)) {
         auto p = t.geom.source();
         if (ptv.contains(p)) {
             sourceVertex = ptv[p];
         } else {
-            sourceVertex = boost::add_vertex(m_g);
-            m_g[sourceVertex].point = p;
-            m_g[sourceVertex].object = t.source;
+            sourceVertex = boost::add_vertex(g);
+            g[sourceVertex].point = p;
+            g[sourceVertex].object = t.source;
             ptv[p] = sourceVertex;
+			m_circleVertices[t.source->pointId].push_back(sourceVertex);
         }
-        m_circleVertices[t.source->vertex].push_back(sourceVertex);
-    } else if (auto cap = std::get_if<RationalCircularArc>(&(t.source->geom))) {
-		auto p = t.geom.source();
-		if (ptv.contains(p)) {
-			sourceVertex = ptv[p];
-		} else {
-			sourceVertex = boost::add_vertex(m_g);
-			m_g[sourceVertex].point = p;
-			m_g[sourceVertex].object = t.source;
-			ptv[p] = sourceVertex;
-		}
-		m_arcVertices[*cap].push_back(sourceVertex);
-	} else {
-		sourceVertex = t.source->vertex;
+    } else {
+		auto pt = std::get<Point<Exact>>(t.source->geom);
+		sourceVertex = ptv[pt];
 		++vertexEndpoints;
 	}
     GraphV targetVertex;
-    if (auto cp = std::get_if<RationalRadiusCircle>(&(t.target->geom))) {
+    if (std::holds_alternative<RationalRadiusCircle>(t.target->geom)) {
         auto p = t.geom.target();
-        if (ptv.contains(p)) return;
         if (ptv.contains(p)) {
             targetVertex = ptv[p];
         } else {
-            targetVertex = boost::add_vertex(m_g);
-            m_g[targetVertex].point = p;
-            m_g[targetVertex].object = t.target;
+            targetVertex = boost::add_vertex(g);
+            g[targetVertex].point = p;
+            g[targetVertex].object = t.target;
             ptv[p] = targetVertex;
+			m_circleVertices[t.target->pointId].push_back(targetVertex);
         }
-        m_circleVertices[t.target->vertex].push_back(targetVertex);
-    } else if (auto cap = std::get_if<RationalCircularArc>(&(t.target->geom))) {
-		auto p = t.geom.target();
-		if (ptv.contains(p)) return;
-		if (ptv.contains(p)) {
-			targetVertex = ptv[p];
-		} else {
-			targetVertex = boost::add_vertex(m_g);
-			m_g[targetVertex].point = p;
-			m_g[targetVertex].object = t.target;
-			ptv[p] = targetVertex;
-		}
-		m_arcVertices[*cap].push_back(targetVertex);
-	} else {
-        targetVertex = t.target->vertex;
+    } else {
+		auto pt = std::get<Point<Exact>>(t.target->geom);
+		targetVertex = ptv[pt];
         ++vertexEndpoints;
     }
-    auto e = boost::add_edge(sourceVertex, targetVertex, m_g);
-    m_g[e.first].geom = t.geom;
-    m_g[e.first].length = CGAL::sqrt(CGAL::squared_distance(approximate(t.geom.source()), approximate(t.geom.target())));
+    auto [e, added] = boost::add_edge(sourceVertex, targetVertex, g);
+	if (!added) {
+		std::cout << "Edge already in graph!" << std::endl;
+	}
+    g[e].geom = t.geom;
+    g[e].length = CGAL::sqrt(CGAL::squared_distance(approximate(t.geom.source()), approximate(t.geom.target())));
     if (vertexEndpoints == 0) {
-        m_g[e.first].weight = m_g[e.first].length;
+        g[e].weight = g[e].length;
     } else if (vertexEndpoints == 1) {
-        m_g[e.first].weight = 1000000 + m_g[e.first].length;
+        g[e].weight = 1000000 + g[e].length;
     } else {
-        m_g[e.first].weight = 2000000 + m_g[e.first].length;
+        g[e].weight = 2000000 + g[e].length;
     }
 }
 
-RoutingGraph::RoutingGraph(InputInstance  input, Settings settings) : m_input(std::move(input)), m_settings(std::move(settings)) {
+void RoutingGraph::createCircleEdges(PointId pointId) {
+	auto& g = *m_g;
+	std::vector<GraphV>& vs = m_circleVertices[pointId];
+	auto& c = m_input[pointId].point;
+	std::sort(vs.begin(), vs.end(), [&c, &g](const auto& v1, const auto& v2) {
+		auto p1 = g[v1].point;
+		auto p2 = g[v2].point;
+		return (p1-c).direction() < (p2-c).direction();
+	});
+
+	for (int j = 0; j < vs.size(); ++j) {
+		auto v1 = vs[j];
+		auto v2 = vs[(j + 1) % m_circleVertices[pointId].size()];
+		auto p1 = g[v1].point;
+		auto p2 = g[v2].point;
+		OneRootPoint p1A(p1.x(), p1.y());
+		OneRootPoint p2A(p2.x(), p2.y());
+		auto c = std::get<RationalRadiusCircle>(circleObject(pointId)->geom);
+		CSCurve curve(c.center, c.radius, CGAL::COUNTERCLOCKWISE, p1A, p2A);
+		auto e = boost::add_edge(v1, v2, g);
+		g[e.first].length = approximateLength(curve);
+		g[e.first].weight = g[e.first].length;
+		g[e.first].geom = curve;
+	}
+}
+
+RoutingGraph::RoutingGraph(InputInstance input, Settings settings) : m_input(std::move(input)), m_settings(std::move(settings)) {
+	m_g = std::make_unique<Graph>();
+	auto& g = *m_g;
+	m_circleVertices.resize(m_input.size());
+
     makeRoutingObjects();
     std::vector<Tangent> ts;
     freeTangents(std::back_inserter(ts));
 
     // Add vertices corresponding to points in the input
-    for (int i = 0; i < m_input.size(); ++i) {
-        auto v = boost::add_vertex(m_g);
-        m_g[v].point = m_input[i].point;
-        m_g[v].object = m_objects[2 * i + 1];
-        m_pointToVertex[m_input[i].point] = v;
+    for (int pointId = 0; pointId < m_input.size(); ++pointId) {
+        auto v = boost::add_vertex(g);
+        g[v].point = m_input[pointId].point;
+        g[v].object = pointObject(pointId);
+        m_pointToVertex[m_input[pointId].point] = v;
     }
 
     // Create edges for tangents and vertices on circles
@@ -138,39 +169,28 @@ RoutingGraph::RoutingGraph(InputInstance  input, Settings settings) : m_input(st
     }
 
     // Sort vertices on circles
-    for (int i = 0; i < m_circleVertices.size(); ++i) {
-        auto& vs = m_circleVertices[i];
-        auto& c = m_input[i].point;
-        std::sort(vs.begin(), vs.end(), [&c, this](const auto& v1, const auto& v2) {
-            auto p1 = m_g[v1].point;
-            auto p2 = m_g[v2].point;
-            return (p1-c).direction() < (p2-c).direction();
-        });
-    }
-
-    // Create edges on circles
-    for (int i = 0; i < m_circleVertices.size(); ++i) {
-        for (int j = 0; j < m_circleVertices[i].size(); ++j) {
-            auto v1 = m_circleVertices[i][j];
-            auto v2 = m_circleVertices[i][(j + 1) % m_circleVertices[i].size()];
-            auto p1 = m_g[v1].point;
-            auto p2 = m_g[v2].point;
-            OneRootPoint p1A(p1.x(), p1.y());
-            OneRootPoint p2A(p2.x(), p2.y());
-            auto c = std::get<RationalRadiusCircle>(m_objects[2 * i]->geom);
-            CSCurve curve(c.center, c.radius, CGAL::COUNTERCLOCKWISE, p1A, p2A);
-            auto e = boost::add_edge(v1, v2, m_g);
-            m_g[e.first].length = approximateLength(curve);
-            m_g[e.first].weight = m_g[e.first].length;
-            m_g[e.first].geom = curve;
-        }
+    for (int pointId = 0; pointId < m_circleVertices.size(); ++pointId) {
+		createCircleEdges(pointId);
     }
 }
 
 RoutingGraph::Path RoutingGraph::computePath(GraphV u, GraphV v) const {
-    std::vector<GraphV> predecessors(num_vertices(m_g));
-    boost::dijkstra_shortest_paths(m_g, u, boost::weight_map(boost::get(&Edge::weight, m_g))
-            .predecessor_map(&predecessors[0]));
+	auto& g = *m_g;
+
+	typedef std::unordered_map<GraphV,GraphV> VertexPredecessorMap;
+	typedef boost::associative_property_map<VertexPredecessorMap> VertexPredecessorPropertyMap;
+    VertexPredecessorMap predecessors;
+	VertexPredecessorPropertyMap predecessorsPMap(predecessors);
+
+	typedef std::unordered_map<GraphV,int> VertexIndexMap;
+	typedef boost::associative_property_map<VertexIndexMap> VertexIndexPropertyMap;
+	VertexIndexMap vertexToIndex;
+	VertexIndexPropertyMap vertexToIndexPMap(vertexToIndex);
+	int index = 0;
+	for (GraphV vd : g.vertex_set())
+		vertexToIndex[vd] = index++;
+    boost::dijkstra_shortest_paths(g, u, boost::weight_map(boost::get(&Edge::weight, g))
+            .predecessor_map(predecessorsPMap).vertex_index_map(vertexToIndexPMap));
 
     std::vector<GraphV> path;
     GraphV current = v;
@@ -179,7 +199,7 @@ RoutingGraph::Path RoutingGraph::computePath(GraphV u, GraphV v) const {
         path.push_back(current);
         auto pre = predecessors[current];
         if (pre == current) break;
-        weight += m_g[boost::edge(current, pre, m_g).first].weight;
+        weight += g[boost::edge(current, pre, g).first].weight;
         current = pre;
     } while (current != u);
     path.push_back(current);
@@ -192,45 +212,43 @@ bool RoutingGraph::nonProperlyIntersectedTangent(const RationalTangent& t, const
 	CSPolygonSet intersectionSet;
 	CSPolygon tangentEdge = rationalTangentToCSPolygon(t, m_settings);
 
-	intersectionSet.join(tangentEdge);
-	intersectionSet.intersection(obstacleEdge);
-	std::vector<CSPolygonWithHoles> inters;
-	intersectionSet.polygons_with_holes(std::back_inserter(inters));
+	auto b1 = CGAL::bbox_2(tangentEdge.curves_begin(), tangentEdge.curves_end());
+	auto b2 = CGAL::bbox_2(obstacleEdge.curves_begin(), obstacleEdge.curves_end());
+	b1.dilate(100);
+	b2.dilate(100);
+	if (!do_overlap(b1, b2)) return false;
 
-	if (inters.empty()) return false;
+	auto dir = t.target() - t.source();
+	auto norm = dir.perpendicular(CGAL::POSITIVE);
+	norm = norm / CGAL::sqrt(CGAL::to_double(norm.squared_length()));
+	auto p1 = t.source() + norm * m_settings.edgeWidth / 2;
+	auto p2 = t.source() - norm * m_settings.edgeWidth / 2;
+	auto p3 = t.target() + norm * m_settings.edgeWidth / 2;
+	auto p4 = t.target() - norm * m_settings.edgeWidth / 2;
 
-	differenceSet.join(tangentEdge);
-	differenceSet.difference(obstacleEdge);
+	std::vector<CSXMCurve> sourceSegCurves({{p1, p2}});
+	std::vector<CSXMCurve> targetSegCurves({{p3, p4}});
+	CSPolyline sourceSeg(sourceSegCurves.begin(), sourceSegCurves.end());
+	CSPolyline targetSeg(targetSegCurves.begin(), targetSegCurves.end());
 
-	std::vector<CSPolygonWithHoles> pgnWHs;
-	differenceSet.polygons_with_holes(std::back_inserter(pgnWHs));
-	int numberOfLargeDifferences = 0;
-	for (const auto& pgn : pgnWHs) {
-		if (area(pgn) > M_PI * CGAL::square(m_settings.edgeWidth / 2) + M_EPSILON) {
-			++numberOfLargeDifferences;
-		}
-	}
-	if (numberOfLargeDifferences <= inters.size()) {
-		return true;
-	}
-	return false;
+	return !intersection(sourceSeg, obstacleEdge, true).empty() && !intersection(targetSeg, obstacleEdge, true).empty();
 }
 
-
 void RoutingGraph::removeNonProperlyIntersectedTangents(GraphV u, GraphV v, const CSPolygon& obstacleEdge) {
-    auto [eStart, eEnd] = boost::edges(m_g);
+	auto& g = *m_g;
+    auto [eStart, eEnd] = boost::edges(g);
     std::vector<RoutingGraph::GraphE> nonProperlyIntersected;
     for (auto eit = eStart; eit != eEnd; ++eit) {
 		auto e = *eit;
 		if (e.m_source == u || e.m_source == v || e.m_target == u || e.m_target == v) continue;
-		if (auto rtP = std::get_if<RationalTangent>(&(m_g[e].geom))) {
+		if (auto rtP = std::get_if<RationalTangent>(&(g[e].geom))) {
         	if (nonProperlyIntersectedTangent(*rtP, obstacleEdge)) {
 				nonProperlyIntersected.push_back(*eit);
 			}
 		}
     }
     for (auto ed : nonProperlyIntersected) {
-        boost::remove_edge(ed, m_g);
+        boost::remove_edge(ed, g);
     }
 }
 
@@ -238,9 +256,11 @@ std::pair<State, std::shared_ptr<StateGeometry>> routeEdges(const InputInstance&
     // Initial graph is now done, we start routing
     RoutingGraph graph(input, settings);
 
+	auto& g = *graph.m_g;
+
     // Helper function for drawing edges
-    auto drawEdge = [&renderer, &graph](RoutingGraph::GraphE e) {
-        auto geom = graph.m_g[e].geom;
+    auto drawEdge = [&renderer, &g](RoutingGraph::GraphE e) {
+        auto geom = g[e].geom;
         if (auto rtP = std::get_if<RationalTangent>(&geom)) {
             renderer.draw(rtP->polyline());
         }
@@ -292,13 +312,13 @@ std::pair<State, std::shared_ptr<StateGeometry>> routeEdges(const InputInstance&
             if (msts[k] >= pts.size() - 1) continue;
 
             for (int idIndex1 = 0; idIndex1 < pts.size(); ++idIndex1) {
-                auto id1 = pts[idIndex1];
+                PointId id1 = pts[idIndex1];
                 auto set1 = dSetsK.find_set(idIndex1);
                 for (int idIndex2 = idIndex1; idIndex2 < pts.size(); ++idIndex2) {
                     auto set2 = dSetsK.find_set(idIndex2);
                     if (set1 == set2) continue;
-                    auto id2 = pts[idIndex2];
-                    auto path = graph.computePath(id1, id2);
+                    PointId id2 = pts[idIndex2];
+                    auto path = graph.computePath(graph.m_pointToVertex[input[id1].point], graph.m_pointToVertex[input[id2].point]);
                     if (path.path.front() == path.path.back()) {
                         continue;
                     }
@@ -317,54 +337,66 @@ std::pair<State, std::shared_ptr<StateGeometry>> routeEdges(const InputInstance&
             const auto& path = cheapestPath.path;
             for (int i = 0; i < path.size() - 1; ++i) {
                 renderer.setStroke(Color{100, 100, 255}, 3.0);
-                auto [ed, exists] = boost::edge(path[i], path[i + 1], graph.m_g);
+                auto [ed, exists] = boost::edge(path[i], path[i + 1], g);
                 if (exists) {
                     drawEdge(ed);
                 } else {
-                    renderer.draw(Segment<Exact>(input[path[i]].point, input[path[i + 1]].point));
+                    renderer.draw(Segment<Exact>(g[path[i]].point, g[path[i + 1]].point));
                 }
             }
 
-            auto topo = extractTopology(cheapestPath, graph.m_g, settings);
+            auto topo = extractTopology(cheapestPath, g, settings);
             auto& mstE = state.msts[cheapestK].emplace_back(topo.source, topo.target);
             state.edgeTopology[mstE] = topo;
             stateGeometry->edgeGeometry[mstE] = EdgeGeometry(topo, input, settings);
             auto& geometry = stateGeometry->edgeGeometry[mstE];
 
-            for (const auto& elbow : geometry.elbows) {
-				auto& orbit = elbow.orbit();
-                auto r = orbit.outerRadius + settings.edgeWidth / 2;
-                auto vId = orbit.vertexId;
-                RationalRadiusCircle circle(input[vId].point, r);
-				auto innerS = orbit.dir == CGAL::CLOCKWISE ? elbow.prev->firstHalf.target() : elbow.next->secondHalf.target();
-				auto innerT = orbit.dir == CGAL::CLOCKWISE ? elbow.next->firstHalf.source() : elbow.prev->secondHalf.source();
-				auto sourceV = (innerS - circle.center) / elbow.orbit().innerRadius * r;
-				auto targetV = (innerT - circle.center) / elbow.orbit().innerRadius * r;
-                RationalCircularArc arc(circle, circle.center + sourceV, circle.center + targetV, CGAL::CLOCKWISE);
-                auto newObject = std::make_shared<RoutingGraph::Object>(arc, vId);
-                graph.m_objects.push_back(newObject);
-                std::vector<RoutingGraph::Tangent> newTangents;
-                for (const auto& object : graph.m_objects) {
-                 	RoutingGraph::tangents(newObject, object, std::back_inserter(newTangents));
-                }
-                for (const auto& t : newTangents) {
-					if (graph.free(t)) {
-						bool good = true;
-						for (const auto& [edge, edgeGeometry] : stateGeometry->edgeGeometry) {
-							if (t.source->vertex == edge.first || t.source->vertex == edge.second || t.target->vertex == edge.first || t.target->vertex == edge.second) continue;
-							if (graph.nonProperlyIntersectedTangent(t.geom, edgeGeometry.csPolygon())) {
-								good = false;
-								break;
-							}
-						}
-						if (good) {
-							graph.addTangentToGraph(t);
+			for (const auto& orbit : topo.orbits) {
+				auto pId = orbit.pointId;
+				// Remove all edges and vertices on the orbit
+				for (const auto& v : graph.m_circleVertices[pId]) {
+					graph.m_pointToVertex.erase(g[v].point);
+					boost::clear_vertex(v, g);
+					boost::remove_vertex(v, g);
+				}
+				graph.m_circleVertices[pId].clear();
+				graph.m_circleVertices[pId].resize(0);
+
+				// Update object to new radius
+				auto changedObject = graph.circleObject(pId);
+				changedObject->geom = RationalRadiusCircle(input[pId].point, orbit.outerRadius + settings.edgeWidth / 2);
+
+				auto [eit, eEnd] = boost::edges(g);
+				RoutingGraph::Graph::edge_iterator next;
+				for (next = eit; eit != eEnd; eit = next) {
+					++next;
+					if (g[eit->m_source].object->pointId == changedObject->pointId || g[eit->m_target].object->pointId == changedObject->pointId) continue;
+					if (auto* rtp = std::get_if<RationalTangent>(&(g[*eit].geom))) {
+						if (!RoutingGraph::free(*rtp, *changedObject)) {
+							// Remove edge *eit
+							boost::remove_edge(*eit, g); // this invalidates edges
 						}
 					}
-                }
-            }
+				}
 
-			// todo circle vertices...
+				// Add new tangents
+				std::vector<RoutingGraph::Tangent> newTangents;
+				for (const auto& obj : graph.m_objects) {
+					if (obj == changedObject) continue;
+					RoutingGraph::tangents(changedObject, obj, std::back_inserter(newTangents));
+				}
+				for (const auto& t : newTangents) {
+					if (graph.free(t)) {
+						graph.addTangentToGraph(t);
+					}
+				}
+			}
+
+			// todo: remove edges first?
+			// todo: do not add edges that go through overlap another object
+			for (int pId = 0; pId < input.size(); ++pId) {
+				graph.createCircleEdges(pId);
+			}
 
             graph.removeNonProperlyIntersectedTangents(path.front(), path.back(), geometry.csPolygon());
 
@@ -373,7 +405,7 @@ std::pair<State, std::shared_ptr<StateGeometry>> routeEdges(const InputInstance&
         }
     } while (found);
 
-    auto [eStart, eEnd] = boost::edges(graph.m_g);
+    auto [eStart, eEnd] = boost::edges(g);
     for (auto eit = eStart; eit != eEnd; ++eit) {
         renderer.setStroke(Color{0, 0, 0}, 1.0);
         drawEdge(*eit);
@@ -392,7 +424,7 @@ EdgeTopology extractTopology(const RoutingGraph::Path& path, RoutingGraph::Graph
         if (!exists) continue;
         if (auto curveP = std::get_if<CSCurve>(&g[ed].geom)) {
             auto obj = *(g[p[i]].object);
-            auto v = obj.vertex;
+            auto v = obj.pointId;
             if (lastOrbit != v && curveP->is_circular()) {
                 lastOrbit = v;
                 auto reversed = curveP->source() != pretendOneRootPoint(g[p[i]].point);
@@ -404,7 +436,7 @@ EdgeTopology extractTopology(const RoutingGraph::Path& path, RoutingGraph::Graph
         boost::remove_edge(ed, g);
     }
 
-    return EdgeTopology(p.front(), p.back(), orbits);
+    return EdgeTopology(g[p.front()].object->pointId, g[p.back()].object->pointId, orbits);
 }
 
 CSPolygon rationalTangentToCSPolygon(const RationalTangent& rt, const Settings& settings) {

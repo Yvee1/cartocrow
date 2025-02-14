@@ -4,7 +4,7 @@
 #include "cat_point.h"
 
 namespace cartocrow::kinetic_kelp {
-using VertexId = int;
+using PointId = int;
 
 class InputInstance {
 public:
@@ -16,10 +16,10 @@ public:
     const CatPoint& operator[](int i) const;
     const std::vector<CatPoint>& catPoints() const;
 
-    const std::vector<VertexId>& category(int k) const;
+    const std::vector<PointId>& category(int k) const;
 private:
     std::vector<CatPoint> m_catPoints;
-    std::vector<std::vector<VertexId>> m_cats;
+    std::vector<std::vector<PointId>> m_cats;
     int m_numCats;
 };
 }

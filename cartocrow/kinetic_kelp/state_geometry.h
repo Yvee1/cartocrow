@@ -97,7 +97,7 @@ public:
 class StateGeometry {
 public:
 	std::map<MSTEdge, EdgeGeometry> edgeGeometry;
-	std::map<VertexId, Circle<Exact>> vertexGeometry;
+	std::map<PointId, Circle<Exact>> vertexGeometry;
 
 	Elbow& elbow(ElbowId elbowId) {
 		auto& [edge, i] = elbowId;

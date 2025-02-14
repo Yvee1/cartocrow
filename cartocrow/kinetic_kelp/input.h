@@ -18,11 +18,11 @@ public:
     const MovingCatPoint& operator[](int i) const;
     const std::vector<MovingCatPoint>& movingCatPoints() const;
 
-    const std::vector<VertexId>& category(int k) const;
+    const std::vector<PointId>& category(int k) const;
     InputInstance instance(double time) const;
 private:
     std::vector<MovingCatPoint> m_movingCatPoints;
-    std::vector<std::vector<VertexId>> m_cats;
+    std::vector<std::vector<PointId>> m_cats;
     int m_numCats;
     double m_tStart;
     double m_tEnd;

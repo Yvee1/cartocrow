@@ -21,7 +21,7 @@ EdgeGeometry::EdgeGeometry(const EdgeTopology& edge, const InputInstance& input,
         if (auto* orbitP = std::get_if<Orbit>(&pin)) {
             auto orient = orbitP->dir;
             bool innerR = firstHalf ? orient == CGAL::CLOCKWISE : orient == CGAL::COUNTERCLOCKWISE;
-            auto c = RationalRadiusCircle(input[orbitP->vertexId].point, innerR ? orbitP->innerRadius : orbitP->outerRadius);
+            auto c = RationalRadiusCircle(input[orbitP->pointId].point, innerR ? orbitP->innerRadius : orbitP->outerRadius);
             return std::pair(c, orient);
         } else if (auto* circleP = std::get_if<RationalRadiusCircle>(&pin)) {
             auto c = *circleP;
@@ -106,13 +106,13 @@ EdgeGeometry::EdgeGeometry(const EdgeTopology& edge, const InputInstance& input,
 		Point<Exact> arcSourceFH = elbow.prev->firstHalf.target();
 		Point<Exact> arcTargetFH = elbow.next->firstHalf.source();
 		bool innerFH = orbit.dir == CGAL::CLOCKWISE;
-		RationalRadiusCircle cFH(input[orbit.vertexId].point, innerFH ? orbit.innerRadius : orbit.outerRadius);
+		RationalRadiusCircle cFH(input[orbit.pointId].point, innerFH ? orbit.innerRadius : orbit.outerRadius);
 		elbow.firstHalf = createArc(cFH, orbit.dir, arcSourceFH, arcTargetFH);
 
 		Point<Exact> arcSourceSH = elbow.next->secondHalf.target();
 		Point<Exact> arcTargetSH = elbow.prev->secondHalf.source();
 		bool innerSH = orbit.dir == CGAL::COUNTERCLOCKWISE;
-		RationalRadiusCircle cSH(input[orbit.vertexId].point, innerSH ? orbit.innerRadius : orbit.outerRadius);
+		RationalRadiusCircle cSH(input[orbit.pointId].point, innerSH ? orbit.innerRadius : orbit.outerRadius);
 		elbow.secondHalf = createArc(cSH, oppositeDir(orbit.dir), arcSourceSH, arcTargetSH);
 	}
 }
