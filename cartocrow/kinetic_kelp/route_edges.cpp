@@ -55,6 +55,25 @@ bool RoutingGraph::free(const RationalTangent& t, const Object& object) {
 	return true;
 }
 
+bool RoutingGraph::free(const CSCurve& curve, const Object& object) {
+	if (auto rrcP = std::get_if<RationalRadiusCircle>(&object.geom)) {
+		auto rrc = *rrcP;
+		std::vector<CSXMCurve> xmCurves;
+		curveToXMonotoneCurves(curve, std::back_inserter(xmCurves));
+		auto pl = CSPolyline(xmCurves.begin(), xmCurves.end());
+		auto pgn = circleToCSPolygon(rrc.circle());
+		auto plBbox = CGAL::bbox_2(pl.curves_begin(), pl.curves_end());
+		auto pgnBbox = CGAL::bbox_2(pgn.curves_begin(), pgn.curves_end());
+		plBbox.dilate(100);
+		pgnBbox.dilate(100);
+		bool overlap = do_overlap(plBbox, pgnBbox);
+		if (overlap && !intersection(pl, pgn, true).empty()) {
+			return false;
+		}
+	}
+	return true;
+}
+
 bool RoutingGraph::free(const Tangent& t) {
     bool free = true;
     for (const auto& obj : m_objects) {
@@ -122,6 +141,19 @@ void RoutingGraph::addTangentToGraph(const Tangent& t) {
 
 void RoutingGraph::createCircleEdges(PointId pointId) {
 	auto& g = *m_g;
+
+	auto [eit, eEnd] = boost::edges(g);
+	Graph::edge_iterator next;
+	for (next = eit; eit != eEnd; eit = next) {
+		++next;
+		auto sv = g[eit->m_source];
+		auto tv = g[eit->m_target];
+		if (sv.object->pointId == pointId && std::holds_alternative<RationalRadiusCircle>(sv.object->geom) &&
+		    tv.object->pointId == pointId && std::holds_alternative<RationalRadiusCircle>(tv.object->geom)) {
+			boost::remove_edge(*eit, g);
+		}
+	}
+
 	std::vector<GraphV>& vs = m_circleVertices[pointId];
 	auto& c = m_input[pointId].point;
 	std::sort(vs.begin(), vs.end(), [&c, &g](const auto& v1, const auto& v2) {
@@ -130,6 +162,7 @@ void RoutingGraph::createCircleEdges(PointId pointId) {
 		return (p1-c).direction() < (p2-c).direction();
 	});
 
+	auto obj = circleObject(pointId);
 	for (int j = 0; j < vs.size(); ++j) {
 		auto v1 = vs[j];
 		auto v2 = vs[(j + 1) % m_circleVertices[pointId].size()];
@@ -137,12 +170,22 @@ void RoutingGraph::createCircleEdges(PointId pointId) {
 		auto p2 = g[v2].point;
 		OneRootPoint p1A(p1.x(), p1.y());
 		OneRootPoint p2A(p2.x(), p2.y());
-		auto c = std::get<RationalRadiusCircle>(circleObject(pointId)->geom);
+		auto c = std::get<RationalRadiusCircle>(obj->geom);
 		CSCurve curve(c.center, c.radius, CGAL::COUNTERCLOCKWISE, p1A, p2A);
-		auto e = boost::add_edge(v1, v2, g);
-		g[e.first].length = approximateLength(curve);
-		g[e.first].weight = g[e.first].length;
-		g[e.first].geom = curve;
+		// check intersection with objects
+		bool free = true;
+		for (const auto& objP : m_objects) {
+			if (objP->pointId != pointId && !RoutingGraph::free(curve, *objP)) {
+				free = false;
+				break;
+			}
+		}
+		if (free) {
+			auto e = boost::add_edge(v1, v2, g);
+			g[e.first].length = approximateLength(curve);
+			g[e.first].weight = g[e.first].length;
+			g[e.first].geom = curve;
+		}
 	}
 }
 
@@ -293,7 +336,7 @@ std::pair<State, std::shared_ptr<StateGeometry>> routeEdges(const InputInstance&
     state.msts = std::vector<MST>(input.numCategories());
 
     for (int i = 0; i < input.size(); ++i) {
-        stateGeometry->vertexGeometry[i] = Circle<Exact>(input[i].point, settings.vertexRadius * settings.vertexRadius);
+        stateGeometry->vertexGeometry[i] = RationalRadiusCircle(input[i].point, settings.vertexRadius);
     }
 
     // Iteratively find the cheapest edge
@@ -392,8 +435,6 @@ std::pair<State, std::shared_ptr<StateGeometry>> routeEdges(const InputInstance&
 				}
 			}
 
-			// todo: remove edges first?
-			// todo: do not add edges that go through overlap another object
 			for (int pId = 0; pId < input.size(); ++pId) {
 				graph.createCircleEdges(pId);
 			}
@@ -444,12 +485,5 @@ CSPolygon rationalTangentToCSPolygon(const RationalTangent& rt, const Settings& 
     EdgeTopology topo(0, 1, {});
     EdgeGeometry geom(topo, input, settings);
     return geom.csPolygon();
-}
-
-bool circlePointLiesOnArc(const Point<Exact>& point, const RationalCircularArc& arc) {
-	auto sd = (arc.source - arc.circle.center).direction();
-	auto td = (arc.target - arc.circle.center).direction();
-	auto d = (point - arc.circle.center).direction();
-	return arc.orientation == CGAL::COUNTERCLOCKWISE ? d.counterclockwise_in_between(sd, td) : d.counterclockwise_in_between(td, sd);
 }
 }

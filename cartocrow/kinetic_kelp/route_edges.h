@@ -12,16 +12,6 @@
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/functional/hash.hpp>
 
-namespace cartocrow::kinetic_kelp {
-struct RationalCircularArc {
-    RationalRadiusCircle circle;
-    Point<Exact> source;
-    Point<Exact> target;
-    CGAL::Orientation orientation;
-    bool operator==(const RationalCircularArc& other) const = default;
-};
-}
-
 namespace std {
 template <>
 struct hash<cartocrow::Number<cartocrow::Exact>>
@@ -59,50 +49,20 @@ struct hash<cartocrow::RationalRadiusCircle>
 		return res;
 	}
 };
-
-template <>
-struct hash<cartocrow::kinetic_kelp::RationalCircularArc>
-{
-	std::size_t operator()(const cartocrow::kinetic_kelp::RationalCircularArc& ca) const
-	{
-		// Compute individual hash values for first, second and third
-		// http://stackoverflow.com/a/1646913/126995
-		std::size_t res = 17;
-		res = res * 31 + hash<cartocrow::RationalRadiusCircle>{}(ca.circle);
-		res = res * 31 + hash<cartocrow::Point<cartocrow::Exact>>{}(ca.source);
-		res = res * 31 + hash<cartocrow::Point<cartocrow::Exact>>{}(ca.target);
-		return res;
-	}
-};
 }
 
 namespace cartocrow::kinetic_kelp {
-enum TangentType {
-    Outer1,
-    Outer2,
-    Inner1,
-    Inner2,
-    PointCircle1,
-    PointCircle2,
-    CirclePoint1,
-    CirclePoint2,
-    PointPoint,
-};
-
-bool circlePointLiesOnArc(const Point<Exact>& point, const RationalCircularArc& arc);
-
 class RoutingGraph {
   public:
     class Object;
 
     class Tangent {
     public:
-        Tangent(RationalTangent geom, std::shared_ptr<Object> source, std::shared_ptr<Object> target, TangentType type) :
-                geom(std::move(geom)), source(std::move(source)), target(std::move(target)), type(type) {}
+        Tangent(RationalTangent geom, std::shared_ptr<Object> source, std::shared_ptr<Object> target) :
+                geom(std::move(geom)), source(std::move(source)), target(std::move(target)) {}
         RationalTangent geom;
         std::shared_ptr<Object> source;
         std::shared_ptr<Object> target;
-        TangentType type;
     };
 
     class Object {
@@ -152,25 +112,25 @@ class RoutingGraph {
                 auto outer = rationalBitangents(c1, c2, false);
                 auto inner = rationalBitangents(c1, c2, true);
                 if (outer.has_value()) {
-                    *out++ = Tangent(outer->first, one, other, Outer1);
-                    *out++ = Tangent(outer->second, one, other, Outer2);
+                    *out++ = Tangent(outer->first, one, other);
+                    *out++ = Tangent(outer->second, one, other);
                 }
                 if (inner.has_value()) {
-                    *out++ = Tangent(inner->first, one, other, Inner1);
-                    *out++ = Tangent(inner->second, one, other, Inner2);
+                    *out++ = Tangent(inner->first, one, other);
+                    *out++ = Tangent(inner->second, one, other);
                 }
             } else {
                 auto p2 = std::get<Point<Exact>>(other->geom);
                 auto ts = rationalTangents(p2, c1);
                 if (ts.has_value()) {
-                    *out++ = Tangent(ts->first, other, one, PointCircle1);
-                    *out++ = Tangent(ts->second, other, one, PointCircle2);
+                    *out++ = Tangent(ts->first, other, one);
+                    *out++ = Tangent(ts->second, other, one);
                 }
             }
 		} else {
 			auto p1 = std::get<Point<Exact>>(one->geom);
 			if (auto p2p = std::get_if<Point<Exact>>(&other->geom)) {
-				*out++ = Tangent(RationalTangent(Segment<Exact>(p1, *p2p)), one, other, PointPoint);
+				*out++ = Tangent(RationalTangent(Segment<Exact>(p1, *p2p)), one, other);
 			} else {
 				tangents(other, one, out);
 			}
@@ -178,6 +138,7 @@ class RoutingGraph {
     }
 
 	static bool free(const RationalTangent& t, const Object& object);
+	static bool free(const CSCurve& curve, const Object& object);
     bool free(const Tangent& t);
     RoutingGraph(InputInstance input, Settings settings);
 
