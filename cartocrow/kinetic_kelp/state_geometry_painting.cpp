@@ -29,7 +29,7 @@ void StateGeometryPainting::paint(GeometryRenderer& renderer) const {
     }
 	renderer.setMode(GeometryRenderer::stroke);
     for (const auto& [vId, circle] : m_stateGeometry->vertexGeometry) {
-        renderer.draw(circle);
+        renderer.draw(circle.circle());
     }
 }
 }

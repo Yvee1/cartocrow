@@ -8,36 +8,13 @@
 #include "cat_point.h"
 #include "input_instance.h"
 #include "trajectory.h"
+#include "types.h"
 
 namespace cartocrow::kinetic_kelp {
-using MSTEdge = std::pair<PointId, PointId>; // first should have the lower id.
-using MST = std::vector<MSTEdge>;
-
-struct Orbit {
-	PointId pointId;
-    Number<Exact> innerRadius;
-    Number<Exact> outerRadius;
-    CGAL::Orientation dir;
-    RationalRadiusCircle outerCircle(const InputInstance& input) const {
-        return {input[pointId].point, outerRadius};
-    }
-    RationalRadiusCircle innerCircle(const InputInstance& input) const {
-        return {input[pointId].point, innerRadius};
-    }
-};
-
-struct EdgeTopology {
-	PointId source;
-	PointId target;
-    std::vector<Orbit> orbits;
-};
-
-using ElbowId = std::pair<MSTEdge, int>;
-using StraightId = std::pair<MSTEdge, int>;
-
 struct State {
     std::vector<MST> msts;
     std::map<MSTEdge, EdgeTopology> edgeTopology;
+	std::vector<std::list<ElbowId>> pointIdToElbows;
 };
 
 struct Settings {

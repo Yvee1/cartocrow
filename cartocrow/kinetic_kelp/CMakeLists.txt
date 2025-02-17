@@ -10,6 +10,7 @@ set(SOURCES
 	kelp.cpp
 	state.h
 	route_edges.cpp
+	pseudotriangulation.cpp
 )
 
 set(HEADERS
@@ -26,6 +27,8 @@ set(HEADERS
 	state_geometry_painting.h
 	kelp.h
 	route_edges.h
+	pseudotriangulation.h
+	types.h
 )
 
 add_library(kinetic_kelp ${SOURCES})

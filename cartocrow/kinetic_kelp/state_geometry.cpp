@@ -123,7 +123,7 @@ StateGeometry stateToGeometry(const State& state, const InputInstance& input, co
         stateGeometry.edgeGeometry[mstEdge] = EdgeGeometry(topology, input, settings);
     }
     for (int i = 0; i < input.size(); ++i) {
-        auto circle = Circle<Exact>(input[i].point, CGAL::square(settings.vertexRadius));
+        auto circle = RationalRadiusCircle(input[i].point, settings.vertexRadius);
         stateGeometry.vertexGeometry[i] = circle;
     }
     return stateGeometry;

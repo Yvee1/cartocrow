@@ -97,7 +97,7 @@ public:
 class StateGeometry {
 public:
 	std::map<MSTEdge, EdgeGeometry> edgeGeometry;
-	std::map<PointId, Circle<Exact>> vertexGeometry;
+	std::map<PointId, RationalRadiusCircle> vertexGeometry;
 
 	Elbow& elbow(ElbowId elbowId) {
 		auto& [edge, i] = elbowId;
@@ -131,7 +131,7 @@ void stateGeometrytoKelps(const StateGeometry& stateGeometry, const InputInstanc
     for (const auto& [vertex, circle] : stateGeometry.vertexGeometry) {
         int k = input[vertex].category;
         CSPolygonSet& roughKelp = roughKelps[k];
-        roughKelp.join(circleToCSPolygon(circle));
+        roughKelp.join(circleToCSPolygon(circle.circle()));
     }
     for (const auto& roughKelp : roughKelps) {
         std::vector<CSPolygonWithHoles> polygons;

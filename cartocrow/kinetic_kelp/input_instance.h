@@ -2,10 +2,9 @@
 #define CARTOCROW_INPUT_INSTANCE_H
 
 #include "cat_point.h"
+#include "types.h"
 
 namespace cartocrow::kinetic_kelp {
-using PointId = int;
-
 class InputInstance {
 public:
     InputInstance() = default;
