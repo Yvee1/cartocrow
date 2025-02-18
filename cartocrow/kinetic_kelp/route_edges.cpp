@@ -423,7 +423,7 @@ std::pair<State, std::shared_ptr<StateGeometry>> routeEdges(const InputInstance&
 					if (auto* rtp = std::get_if<RationalTangent>(&(g[*eit].geom))) {
 						if (!RoutingGraph::free(*rtp, *changedObject)) {
 							// Remove edge *eit
-							boost::remove_edge(*eit, g); // this invalidates edges
+							boost::remove_edge(*eit, g);
 						}
 					}
 				}

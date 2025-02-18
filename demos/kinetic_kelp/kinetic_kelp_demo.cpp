@@ -4,17 +4,19 @@
 #include <QTimer>
 #include <QElapsedTimer>
 #include <QDockWidget>
-#include <QToolBar>
-#include <QHBoxLayout>
-#include <QPushButton>
-#include <QIcon>
 #include <QHBoxLayout>
 
 #include "cartocrow/renderer/svg_renderer.h"
 
 #include "cartocrow/kinetic_kelp/parse_input.h"
 #include "cartocrow/kinetic_kelp/moving_cat_point.h"
+#include "cartocrow/kinetic_kelp/route_edges.h"
+#include "cartocrow/kinetic_kelp/pseudotriangulation.h"
+#include "cartocrow/kinetic_kelp/pseudotriangulation_painting.h"
+#include "cartocrow/kinetic_kelp/kinetic_kelp_painting.h"
+#include "cartocrow/kinetic_kelp/state_geometry_painting.h"
 
+#include "cartocrow/renderer/painting_renderer.h"
 #include "colors/colors.h"
 
 #include <fstream>
@@ -57,54 +59,6 @@ void drawMovingCatPoint(GeometryRenderer& renderer, const MovingCatPoint& mcp, d
     renderer.draw(mcp.trajectory.posAtTime(time));
 }
 
-class KelpPainting : public GeometryPainting {
-private:
-    Color m_color;
-    std::vector<Point<Inexact>> m_points;
-    std::vector<Segment<Inexact>> m_links;
-    double m_radius;
-
-public:
-    KelpPainting(Color color, std::vector<Point<Inexact>> points, std::vector<Segment<Inexact>> links, double radius) :
-        m_color(color), m_points(std::move(points)), m_links(std::move(links)), m_radius(radius) {}
-
-    Polygon<Inexact> segmentToRectangle(const Segment<Inexact>& s, const Number<Inexact>& w) const {
-        auto p = s.source();
-        auto q = s.target();
-        Vector<Inexact> d = q - p;
-        auto dl = sqrt(CGAL::to_double(d.squared_length()));
-        Vector<Inexact> normalized = d / dl;
-        auto perp = normalized.perpendicular(CGAL::COUNTERCLOCKWISE) * w / 2;
-
-        Polygon<Inexact> poly;
-        Point<Inexact> p1 = p - perp;
-        Point<Inexact> p2 = q + normalized * w / 10 - perp;
-        Point<Inexact> p3 = q + normalized * w / 10 + perp;
-        Point<Inexact> p4 = p + perp;
-
-        poly.push_back(p1);
-        poly.push_back(p2);
-        poly.push_back(p3);
-        poly.push_back(p4);
-
-        return poly;
-    }
-
-    void paint(GeometryRenderer &renderer) const override {
-        renderer.setMode(GeometryRenderer::fill);
-        renderer.setFill(m_color);
-        for (const auto& l : m_links) {
-            renderer.draw(segmentToRectangle(l, m_radius / 2));
-        }
-        for (const auto& p : m_points) {
-            renderer.setFill(m_color);
-            renderer.draw(Circle<Inexact>(p, m_radius * m_radius));
-            renderer.setFill(Color(0, 0, 0));
-            renderer.draw(Circle<Inexact>(p, m_radius * m_radius / 50));
-        }
-    }
-};
-
 KineticKelpDemo::KineticKelpDemo() {
 	bool saveToSvg = false;
 
@@ -118,50 +72,59 @@ KineticKelpDemo::KineticKelpDemo() {
 
     m_timeControl = new TimeControlToolBar(m_renderer, m_input.timespan().second);
 
-    std::vector colors({CB::light_blue, CB::light_red, CB::light_green, CB::light_purple, CB::light_orange});
-    DrawSettings ds;
-    ds.colors = colors;
+	Settings settings;
+	settings.vertexRadius = 10.0;
+	settings.edgeWidth = 5.0;
+
+	auto input = std::make_shared<InputInstance>(m_input.instance(m_timeControl->time()));
+	auto pr = std::make_shared<PaintingRenderer>();
+	auto [stateTopology, stateGeometry] = routeEdges(*input, settings, *pr);
+
+	auto stateGeometryP = std::make_shared<StateGeometryPainting>(stateGeometry);
+	m_renderer->addPainting(stateGeometryP, "State geometry");
+
+	auto pr1 = std::make_shared<PaintingRenderer>();
+	auto [pt, ptg] = PseudotriangulationGeometry::pseudotriangulationTangents(stateTopology, *stateGeometry);
+	auto ptP = std::make_shared<Pseudotriangulation>(pt);
+	auto ptgP = std::make_shared<PseudotriangulationGeometry>(ptg);
+	auto ptPainting = std::make_shared<PseudotriangulationPainting>(ptP, ptgP);
+	m_renderer->addPainting(ptPainting, "Pseudotriangulation");
+
+	KineticKelpPainting::DrawSettings ds;
+	ds.colors = {CB::light_blue, CB::light_red, CB::light_green, CB::light_purple, CB::light_orange};
+	ds.markRadius = 1.0;
+	ds.strokeWidth = 1.0;
+	ds.smoothing = 5.0;
+
+	auto kelps = std::make_shared<std::vector<Kelp>>();
+	try {
+		stateGeometrytoKelps(*stateGeometry, *input, ds.smoothing, std::back_inserter(*kelps));
+	} catch (...) {}
+	auto kkPainting = std::make_shared<KineticKelpPainting>(kelps, input, ds);
+	m_renderer->addPainting(kkPainting, "KineticKelp");
 
     m_renderer->fitInView(bounds(m_input.movingCatPoints()));
 
-    computeMSTs(0);
+	connect(m_timeControl, &TimeControlToolBar::ticked, [saveToSvg, input, settings, stateGeometry, kelps, ds, ptP, ptgP, kkPainting, this](int tick, double time) {
+		*input = m_input.instance(time);
+		PaintingRenderer trash;
+		auto [newStateTopology, newStateGeometry] = routeEdges(*input, settings, trash);
+		*stateGeometry = std::move(*newStateGeometry);
 
-	auto drawMSTs = [this](GeometryRenderer& renderer) {
-		computeMSTs(m_timeControl->time());
+	  	auto [pt, ptg] = PseudotriangulationGeometry::pseudotriangulationTangents(newStateTopology, *stateGeometry);
+		*ptP = pt;
+	  	*ptgP = ptg;
 
-		renderer.setMode(GeometryRenderer::stroke);
-		renderer.setStroke(Color(0, 0, 0), m_pointRadius / 3.5, true);
+		kelps->clear();
+		try {
+			stateGeometrytoKelps(*stateGeometry, *input, ds.smoothing, std::back_inserter(*kelps));
+		} catch(...) {}
 
-		for (int k = 0; k < m_input.numCategories(); ++k) {
-			auto& mst = m_msts[k];
-			auto& dt = m_dts[k];
-			for (const TGEdge &ed: mst) {
-				TGVertex svd = CGAL::source(ed, dt);
-				TGVertex tvd = CGAL::target(ed, dt);
-				DT::Vertex_handle sv = svd;
-				DT::Vertex_handle tv = tvd;
-				renderer.draw(Segment<Inexact>(sv->point(), tv->point()));
-			}
-		}
-	};
-
-    m_renderer->addPainting(drawMSTs, "MSTs");
-
-	auto drawMovingPoints = [ds, this](GeometryRenderer& renderer) {
-		for (const auto& mcp : m_input.movingCatPoints()) {
-			drawMovingCatPoint(renderer, mcp, m_timeControl->time(), ds);
-		}
-	};
-
-    m_renderer->addPainting(drawMovingPoints, "Moving points");
-
-	connect(m_timeControl, &TimeControlToolBar::ticked, [drawMovingPoints, drawMSTs, saveToSvg](int tick, double time) {
 		if (saveToSvg) {
 			SvgRenderer svgRenderer;
 			svgRenderer.addPainting(
-				[drawMovingPoints, drawMSTs](GeometryRenderer& renderer) {
-					drawMSTs(renderer);
-					drawMovingPoints(renderer);
+				[kkPainting](GeometryRenderer& renderer) {
+				    kkPainting->paint(renderer);
 				},
 				"KineticKelp");
 			std::stringstream filename;
@@ -169,25 +132,6 @@ KineticKelpDemo::KineticKelpDemo() {
 			svgRenderer.save(filename.str() + ".svg");
 		}
 	});
-
-    for (int k = 0; k < m_input.numCategories(); ++k) {
-        auto& mst = m_msts[k];
-        auto& dt = m_dts[k];
-
-        std::vector<Segment<Inexact>> links;
-        for (const TGEdge &ed: mst) {
-            TGVertex svd = CGAL::source(ed, dt);
-            TGVertex tvd = CGAL::target(ed, dt);
-            DT::Vertex_handle sv = svd;
-            DT::Vertex_handle tv = tvd;
-            links.emplace_back(sv->point(), tv->point());
-        }
-
-        std::vector<Point<Inexact>> points;
-        std::copy(dt.points_begin(), dt.points_end(), std::back_inserter(points));
-
-        auto kelpPainting = std::make_shared<KelpPainting>(colors[k], std::move(points), std::move(links), 4 * m_pointRadius);
-    }
 }
 
 void KineticKelpDemo::fitToScreen() {
@@ -200,33 +144,6 @@ void KineticKelpDemo::fitToScreen() {
 void KineticKelpDemo::resizeEvent(QResizeEvent *event) {
     fitToScreen();
     m_timeControl->resized();
-}
-
-void KineticKelpDemo::computeMSTs(double time) {
-    m_dts.clear();
-    m_msts.clear();
-
-    for (int k = 0; k < m_input.numCategories(); ++k) {
-        DT& dt = m_dts.emplace_back();
-
-        for (const auto &[c, t]: m_input.movingCatPoints()) {
-            if (c == k) {
-                dt.insert(t.posAtTime(time));
-            }
-        }
-
-        // Associate indices to the vertices
-        VertexIndexMap vertex_id_map;
-        VertexIdPropertyMap vertex_index_pmap(vertex_id_map);
-        int index = 0;
-
-        for (TGVertex vd: vertices(dt))
-            vertex_id_map[vd] = index++;
-
-        std::list<TGEdge>& mst = m_msts.emplace_back();
-        boost::kruskal_minimum_spanning_tree(dt, std::back_inserter(mst),
-                                             vertex_index_map(vertex_index_pmap));
-    }
 }
 
 int main(int argc, char* argv[]) {

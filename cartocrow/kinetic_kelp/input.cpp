@@ -48,4 +48,12 @@ const MovingCatPoint& Input::operator[](int i) const {
 const std::vector<PointId>& Input::category(int k) const {
     return m_cats[k];
 }
+
+InputInstance Input::instance(double time) const {
+	std::vector<CatPoint> catPoints;
+	for (const auto& mcp : m_movingCatPoints) {
+		catPoints.emplace_back(mcp.category, pretendExact(mcp.trajectory.posAtTime(time)));
+	}
+	return {catPoints};
+}
 }

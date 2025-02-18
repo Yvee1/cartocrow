@@ -11,6 +11,7 @@ set(SOURCES
 	state.h
 	route_edges.cpp
 	pseudotriangulation.cpp
+	pseudotriangulation_painting.cpp
 )
 
 set(HEADERS
@@ -28,6 +29,7 @@ set(HEADERS
 	kelp.h
 	route_edges.h
 	pseudotriangulation.h
+	pseudotriangulation_painting.h
 	types.h
 	hash.h
 )
