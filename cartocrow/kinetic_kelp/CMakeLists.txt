@@ -29,6 +29,7 @@ set(HEADERS
 	route_edges.h
 	pseudotriangulation.h
 	types.h
+	hash.h
 )
 
 add_library(kinetic_kelp ${SOURCES})

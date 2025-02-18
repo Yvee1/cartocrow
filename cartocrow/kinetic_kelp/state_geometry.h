@@ -107,8 +107,14 @@ public:
 		auto& [edge, i] = straightId;
 		return edgeGeometry[edge].straights[i];
 	}
-	const Elbow& elbow(ElbowId elbowId) const { return elbow(elbowId); }
-	const Straight& straight(StraightId straightId) const { return straight(straightId); }
+	const Elbow& elbow(ElbowId elbowId) const {
+        auto& [edge, i] = elbowId;
+        return edgeGeometry.at(edge).elbows.at(i);
+    }
+	const Straight& straight(StraightId straightId) const {
+        auto& [edge, i] = straightId;
+        return edgeGeometry.at(edge).straights.at(i);
+    }
 };
 
 StateGeometry stateToGeometry(const State& state, const InputInstance& input, const Settings& settings);

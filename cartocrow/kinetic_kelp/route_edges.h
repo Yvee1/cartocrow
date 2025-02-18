@@ -3,6 +3,7 @@
 
 #include <utility>
 
+#include "hash.h"
 #include "input_instance.h"
 #include "state.h"
 #include "state_geometry.h"
@@ -10,46 +11,6 @@
 #include "cartocrow/circle_segment_helpers/circle_tangents.h"
 
 #include <boost/graph/adjacency_list.hpp>
-#include <boost/functional/hash.hpp>
-
-namespace std {
-template <>
-struct hash<cartocrow::Number<cartocrow::Exact>>
-{
-	std::size_t operator()(const cartocrow::Number<cartocrow::Exact>& x) const
-	{
-		return hash<double>{}(CGAL::to_double(x));
-	}
-};
-
-template <>
-struct hash<cartocrow::Point<cartocrow::Exact>>
-{
-	std::size_t operator()(const cartocrow::Point<cartocrow::Exact>& p) const
-	{
-		// Compute individual hash values for first, second and third
-		// http://stackoverflow.com/a/1646913/126995
-		std::size_t res = 17;
-		res = res * 31 + hash<cartocrow::Number<cartocrow::Exact>>{}(p.x());
-		res = res * 31 + hash<cartocrow::Number<cartocrow::Exact>>{}(p.y());
-		return res;
-	}
-};
-
-template <>
-struct hash<cartocrow::RationalRadiusCircle>
-{
-	std::size_t operator()(const cartocrow::RationalRadiusCircle& c) const
-	{
-		// Compute individual hash values for first, second and third
-		// http://stackoverflow.com/a/1646913/126995
-		std::size_t res = 17;
-		res = res * 31 + hash<cartocrow::Point<cartocrow::Exact>>{}(c.center);
-		res = res * 31 + hash<cartocrow::Number<cartocrow::Exact>>{}(c.radius);
-		return res;
-	}
-};
-}
 
 namespace cartocrow::kinetic_kelp {
 class RoutingGraph {

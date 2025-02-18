@@ -36,20 +36,20 @@ class Polyline_Segment_ptr
 	Segment m_seg;
 };
 
-template <class K, class InputIterator> class SegmentIterator {
+template <class K, class RandomAccessIterator> class SegmentIterator {
   public:
 	using iterator_category = std::input_iterator_tag;
 	using value_type = CGAL::Segment_2<K>;
-	using difference_type = typename InputIterator::difference_type;
+	using difference_type = typename RandomAccessIterator::difference_type;
 	using pointer = CGAL::Segment_2<K>*;
 	using reference = CGAL::Segment_2<K>&;
   private:
-	InputIterator m_first_vertex;
+	RandomAccessIterator m_first_vertex;
 
   public:
-	typedef SegmentIterator<K, InputIterator> Self;
+	typedef SegmentIterator<K, RandomAccessIterator> Self;
 
-	SegmentIterator(InputIterator first_vertex): m_first_vertex(first_vertex) {};
+	SegmentIterator(RandomAccessIterator first_vertex): m_first_vertex(first_vertex) {};
 
 	CGAL::Segment_2<K> operator*() const {
 		auto second_vertex = m_first_vertex;
@@ -70,6 +70,27 @@ template <class K, class InputIterator> class SegmentIterator {
 		++*this;
 		return tmp;
 	}
+
+    Self& operator--() {
+        --m_first_vertex;
+        return *this;
+    }
+
+    Self operator--(int) {
+        Self tmp = *this;
+        --*this;
+        return tmp;
+    }
+
+    Self& operator+=(difference_type rhs) { m_first_vertex += rhs; return *this; }
+    Self& operator-=(difference_type rhs) { m_first_vertex -= rhs; return *this; }
+    Self operator+(difference_type rhs) { return SegmentIterator(m_first_vertex + rhs); }
+    Self operator-(difference_type rhs) { return SegmentIterator(m_first_vertex - rhs); }
+    friend Self operator+(difference_type lhs, const Self& rhs) { return SegmentIterator(lhs + rhs); }
+    friend Self operator-(difference_type lhs, const Self& rhs) { return SegmentIterator(lhs - rhs); }
+    difference_type operator-(const Self& rhs) { return m_first_vertex - rhs.m_first_vertex; }
+
+    CGAL::Segment_2<K> operator[](difference_type rhs) { return *(this + rhs); }
 
 	bool operator==(const Self& other) const {
 		return m_first_vertex == other.m_first_vertex;
@@ -112,6 +133,10 @@ template <class K> class Polyline {
 	[[nodiscard]] int size() const { return num_vertices(); }
 	[[nodiscard]] CGAL::Point_2<K> vertex(int i) const { return m_points[i]; }
 	[[nodiscard]] CGAL::Segment_2<K> edge(int i) const { return *(std::next(edges_begin(), i)); }
+    [[nodiscard]] CGAL::Point_2<K> source() const { return m_points.front(); }
+    [[nodiscard]] CGAL::Point_2<K> target() const { return m_points.back(); }
+    [[nodiscard]] CGAL::Point_2<K> start() const { return source(); }
+    [[nodiscard]] CGAL::Point_2<K> end() const { return target(); }
   private:
 	std::vector<CGAL::Point_2<K>> m_points;
 };

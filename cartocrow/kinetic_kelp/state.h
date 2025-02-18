@@ -15,6 +15,7 @@ struct State {
     std::vector<MST> msts;
     std::map<MSTEdge, EdgeTopology> edgeTopology;
 	std::vector<std::list<ElbowId>> pointIdToElbows;
+    std::vector<std::list<MSTEdge>> pointIdToEdges;
 };
 
 struct Settings {
