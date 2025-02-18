@@ -8,6 +8,7 @@
 #include "cartocrow/kinetic_kelp/kinetic_kelp_painting.h"
 #include "cartocrow/kinetic_kelp/route_edges.h"
 #include "cartocrow/kinetic_kelp/pseudotriangulation.h"
+#include "cartocrow/kinetic_kelp/pseudotriangulation_painting.h"
 
 #include "../colors/colors.h"
 
@@ -68,23 +69,11 @@ void RenderStateDemo::recalculate() {
     auto pr1 = std::make_shared<PaintingRenderer>();
     auto [pt, ptg] = PseudotriangulationGeometry::pseudotriangulationTangents(stateTopology, *stateGeometry);
 
-    m_renderer->addPainting([pt, ptg](GeometryRenderer& renderer) {
-        renderer.setMode(GeometryRenderer::stroke);
-        renderer.setStroke(Color(0, 102, 202), 3.0);
-        for (const auto& [_, t] : ptg.m_tangents) {
-            renderer.draw(t.polyline());
-        }
+	auto ptP = std::make_shared<Pseudotriangulation>(pt);
+	auto ptgP = std::make_shared<PseudotriangulationGeometry>(ptg);
 
-        renderer.setStroke(Color(0, 0, 0), 3.0);
-        for (const auto& [_, obj] : ptg.m_tangentObject) {
-            if (auto cp = std::get_if<RationalRadiusCircle>(&obj)) {
-                renderer.draw(cp->circle());
-            } else {
-                auto p = std::get<Point<Exact>>(obj);
-                renderer.draw(p);
-            }
-        }
-    }, "Tangents");
+	auto ptPainting = std::make_shared<PseudotriangulationPainting>(ptP, ptgP);
+	m_renderer->addPainting(ptPainting, "Pseudotriangulation");
 
 	KineticKelpPainting::DrawSettings ds;
 	ds.colors = {CB::light_blue, CB::light_red, CB::light_green, CB::light_purple, CB::light_orange};
