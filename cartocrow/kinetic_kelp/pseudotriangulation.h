@@ -121,7 +121,6 @@ public:
 };
 }
 
-
 namespace std {
 template <>
 struct hash<cartocrow::kinetic_kelp::Pseudotriangulation::TangentObject>
@@ -133,7 +132,6 @@ struct hash<cartocrow::kinetic_kelp::Pseudotriangulation::TangentObject>
         std::size_t res = 17;
         res = res * 31 + hash<int>{}(static_cast<int>(to.type));
         res = res * 31 + hash<int>{}(to.pointId);
-//        res = res * 31 + hash<std::optional<cartocrow::kinetic_kelp::ElbowId>>{}(to.elbowId);
         res = res * 31 + hash<std::optional<cartocrow::kinetic_kelp::StraightId>>{}(to.straightId);
         return res;
     }

@@ -2,6 +2,8 @@
 #include "cartocrow/circle_segment_helpers/cs_polyline_helpers.h"
 #include "cartocrow/circle_segment_helpers/poly_line_gon_intersection.h"
 
+#include <future>
+
 namespace cartocrow::kinetic_kelp {
 bool circlePointLiesOnArc(const Point<Exact>& point, const RationalCircularArc& arc) {
 	auto sd = (arc.source - arc.circle.center).direction();
@@ -19,7 +21,7 @@ bool liesOnHalf(const OneRootPoint& pt, const Straight& s, bool firstHalf) {
     return false;
 }
 
-bool PseudotriangulationGeometry::free(const cartocrow::RationalTangent &rt, const CSPolygon& obstacle) {
+bool PseudotriangulationGeometry::free(const cartocrow::RationalTangent& rt, const CSPolygon& obstacle) {
     auto pl = polylineToCSPolyline(rt.polyline());
     const auto& pgn = obstacle;
     auto plBbox = CGAL::bbox_2(pl.curves_begin(), pl.curves_end());
@@ -33,7 +35,7 @@ bool PseudotriangulationGeometry::free(const cartocrow::RationalTangent &rt, con
     return true;
 }
 
-bool PseudotriangulationGeometry::free(const cartocrow::RationalTangent &rt, const CSPolygonWithHoles& obstacle) {
+bool PseudotriangulationGeometry::free(const cartocrow::RationalTangent& rt, const CSPolygonWithHoles& obstacle) {
     auto pl = polylineToCSPolyline(rt.polyline());
     const auto& pgn = obstacle;
     auto plBbox = CGAL::bbox_2(pl.curves_begin(), pl.curves_end());
@@ -87,14 +89,12 @@ std::pair<Pseudotriangulation, PseudotriangulationGeometry> PseudotriangulationG
             circleGeometry = RationalRadiusCircle(circle.center, r);
         }
         ptg.m_tangentObject[*(pt.m_tangentObjects.back())] = circleGeometry;
-//        RationalRadiusCircle circleGeometryEps(circleGeometry.center, circleGeometry.radius + M_EPSILON);
         auto& incidentEdges = state.pointIdToEdges[pId];
         for (const auto& edge : incidentEdges) {
             auto& edgeG = stateGeometry.edgeGeometry.at(edge);
             auto straightIndex = edge.first == pId ? 0 : edgeG.straights.size() - 1;
             auto straight = edgeG.straights[straightIndex];
             auto straightId = std::pair(edge, straightIndex);
-            // compute intersections between circle and straight.csPolygon()
             std::vector<OneRootPoint> ipts;
             intersectionPoints(straight.csPolygon(), circleToCSPolygon(circleGeometry.circle()), std::back_inserter(ipts));
             for (const auto& ipt : ipts) {
@@ -120,7 +120,7 @@ std::pair<Pseudotriangulation, PseudotriangulationGeometry> PseudotriangulationG
                     bool one = liesOnHalf(ipt, straight, true);
                     assert(one || liesOnHalf(ipt, straight, false));
                     pt.m_tangentObjects.push_back(std::make_shared<TangentObject>(pId, straightId, one));
-//                    assert(!ptg.m_tangentObject.contains(*(pt.m_tangentObjects.back())));
+                    assert(!ptg.m_tangentObject.contains(*(pt.m_tangentObjects.back())));
                     ptg.m_tangentObject[*(pt.m_tangentObjects.back())] = approx;
                 }
             }
@@ -146,87 +146,101 @@ std::pair<Pseudotriangulation, PseudotriangulationGeometry> PseudotriangulationG
         }
     }
 
+    auto task = [&allTangents, &state, &stateGeometry](int iStart, int iEnd) {
+        std::vector<std::pair<Tangent, RationalTangent>> freeTangents;
+        for (int tangentIndex = iStart; tangentIndex < iEnd; ++tangentIndex) {
+            const auto& t = allTangents[tangentIndex];
+            bool f = true;
+            for (const auto& [pId, circle]: stateGeometry.vertexGeometry) {
+                auto& elbows = state.pointIdToElbows[pId];
+
+                RationalRadiusCircle circleGeometry;
+                if (elbows.empty()) {
+                    circleGeometry = circle;
+                } else {
+                    auto& last = elbows.back();
+                    auto& orbit = stateGeometry.elbow(last).orbit();
+                    auto r = orbit.outerRadius;
+                    circleGeometry = RationalRadiusCircle(circle.center, r);
+                }
+
+                if (pId == t.first.source->pointId || pId == t.first.target->pointId) {
+                    CSPolygonSet perforatedCircle(circleToCSPolygon(circleGeometry.circle()));
+                    if (pId == t.first.source->pointId) {
+                        Circle<Exact> hole(t.second.source(), CGAL::square(M_EPSILON));
+                        perforatedCircle.difference(circleToCSPolygon(hole));
+                    }
+                    if (pId == t.first.target->pointId) {
+                        Circle<Exact> hole(t.second.target(), CGAL::square(M_EPSILON));
+                        perforatedCircle.difference(circleToCSPolygon(hole));
+                    }
+                    std::vector<CSPolygonWithHoles> result;
+                    perforatedCircle.polygons_with_holes(std::back_inserter(result));
+                    assert(result.size() == 1);
+                    if (!free(t.second, result[0])) {
+                        f = false;
+                        break;
+                    }
+                } else if (!free(t.second, circleToCSPolygon(circleGeometry.circle()))) {
+                    f = false;
+                    break;
+                }
+            }
+            if (!f) continue;
+            for (const auto& [edge, edgeGeometry]: stateGeometry.edgeGeometry) {
+                auto sourceStraightId = t.first.source->straightId;
+                auto targetStraightId = t.first.target->straightId;
+                auto special = sourceStraightId.has_value() && sourceStraightId->first == edge ||
+                               targetStraightId.has_value() && targetStraightId->first == edge;
+                auto edgeGeom = edgeGeometry.csPolygon();
+
+                if (special) {
+                    CSPolygonSet pgnSet(edgeGeom);
+                    if (sourceStraightId.has_value() && sourceStraightId->first == edge) {
+                        auto epsCircle = Circle<Exact>(t.second.source(), CGAL::square(M_EPSILON));
+                        pgnSet.difference(circleToCSPolygon(epsCircle));
+                    }
+                    if (targetStraightId.has_value() && targetStraightId->first == edge) {
+                        auto epsCircle = Circle<Exact>(t.second.target(), CGAL::square(M_EPSILON));
+                        pgnSet.difference(circleToCSPolygon(epsCircle));
+                    }
+                    std::vector<CSPolygonWithHoles> pgns;
+                    pgnSet.polygons_with_holes(std::back_inserter(pgns));
+
+                    assert(pgns.size() == 1);
+                    if (!free(t.second, pgns[0])) {
+                        f = false;
+                        break;
+                    }
+                } else {
+                    if (!free(t.second, edgeGeom)) {
+                        f = false;
+                        break;
+                    }
+                }
+            }
+            if (!f) continue;
+            freeTangents.push_back(t);
+        }
+        return freeTangents;
+    };
+
+    using Result = std::vector<std::pair<Tangent, RationalTangent>>;
+    std::vector<std::future<Result>> results;
+    int n = allTangents.size();
+    int nThreads = std::min(128, n);
+    double step = n / static_cast<double>(nThreads);
+    for (int i = 0; i < n / step; ++i) {
+        int iStart = std::ceil(i * step);
+        int iEnd = std::ceil((i + 1) * step);
+        results.push_back(std::async(std::launch::async, task, iStart, iEnd));
+    }
+
     std::vector<std::pair<Tangent, RationalTangent>> freeTangents;
 
-//    std::ofstream debug("debug-log.txt");
-
-    for (const auto& t : allTangents) {
-//        debug << t.second.source() << " -> " << t.second.target() << std::endl;
-        bool f = true;
-        for (const auto& [pId, circle] : stateGeometry.vertexGeometry) {
-            auto& elbows = state.pointIdToElbows[pId];
-
-            RationalRadiusCircle circleGeometry;
-            if (elbows.empty()) {
-                circleGeometry = circle;
-            } else {
-                auto& last = elbows.back();
-                auto& orbit = stateGeometry.elbow(last).orbit();
-                auto r = orbit.outerRadius;
-                circleGeometry = RationalRadiusCircle(circle.center, r);
-            }
-
-            if (pId == t.first.source->pointId || pId == t.first.target->pointId) {
-                CSPolygonSet perforatedCircle(circleToCSPolygon(circleGeometry.circle()));
-                if (pId == t.first.source->pointId) {
-                    Circle<Exact> hole(t.second.source(), CGAL::square(M_EPSILON));
-                    perforatedCircle.difference(circleToCSPolygon(hole));
-                }
-                if (pId == t.first.target->pointId) {
-                    Circle<Exact> hole(t.second.target(), CGAL::square(M_EPSILON));
-                    perforatedCircle.difference(circleToCSPolygon(hole));
-                }
-                std::vector<CSPolygonWithHoles> result;
-                perforatedCircle.polygons_with_holes(std::back_inserter(result));
-                assert(result.size() == 1);
-                if (!free(t.second, result[0])) {
-//                    debug << "intersected by perforated circle " << circleGeometry.circle() << std::endl;
-                    f = false;
-                    break;
-                }
-            } else if (!free(t.second, circleToCSPolygon(circleGeometry.circle()))) {
-//                debug << "intersected by circle " << circleGeometry.circle() << std::endl;
-//                debug << "reference; pId: " << pId << " and tangent pIds: " << t.first.source->pointId << " -> " << t.first.target->pointId << std::endl;
-                f = false;
-                break;
-            }
-        }
-        if (!f) continue;
-        for (const auto& [edge, edgeGeometry] : stateGeometry.edgeGeometry) {
-            auto sourceStraightId = t.first.source->straightId;
-            auto targetStraightId = t.first.target->straightId;
-            auto special = sourceStraightId.has_value() && sourceStraightId->first == edge || targetStraightId.has_value() && targetStraightId->first == edge;
-            auto edgeGeom = edgeGeometry.csPolygon();
-
-            if (special) {
-                CSPolygonSet pgnSet(edgeGeom);
-                if (sourceStraightId.has_value() && sourceStraightId->first == edge) {
-                    auto epsCircle = Circle<Exact>(t.second.source(), CGAL::square(M_EPSILON));
-                    pgnSet.difference(circleToCSPolygon(epsCircle));
-                }
-                if (targetStraightId.has_value() && targetStraightId->first == edge) {
-                    auto epsCircle = Circle<Exact>(t.second.target(), CGAL::square(M_EPSILON));
-                    pgnSet.difference(circleToCSPolygon(epsCircle));
-                }
-                std::vector<CSPolygonWithHoles> pgns;
-                pgnSet.polygons_with_holes(std::back_inserter(pgns));
-
-                assert(pgns.size() == 1);
-                if (!free(t.second, pgns[0])) {
-//                    debug << "intersected by edge " << edge.first << " -> " << edge.second << std::endl;
-                    f = false;
-                    break;
-                }
-            } else {
-                if (!free(t.second, edgeGeom)) {
-//                    debug << "intersected by edge " << edge.first << " -> " << edge.second << std::endl;
-                    f = false;
-                    break;
-                }
-            }
-        }
-        if (!f) continue;
-        freeTangents.push_back(t);
+    for (auto& futureResult : results) {
+        Result result = futureResult.get();
+        std::copy(result.begin(), result.end(), std::back_inserter(freeTangents));
     }
 
     std::vector<std::pair<Tangent, RationalTangent>> finalTangents;
@@ -236,11 +250,6 @@ std::pair<Pseudotriangulation, PseudotriangulationGeometry> PseudotriangulationG
         RationalTangent rt2 = t2.second;
         return CGAL::squared_distance(rt1.source(), rt1.target()) > CGAL::squared_distance(rt2.source(), rt2.target());
     });
-
-//    for (const auto& [t, tg] : freeTangents) {
-//        pt.m_tangents.push_back(std::make_shared<Tangent>(t));
-//        ptg.m_tangents[*(pt.m_tangents.back())] = tg;
-//    }
 
     finalTangents.push_back(freeTangents.back());
     freeTangents.pop_back();

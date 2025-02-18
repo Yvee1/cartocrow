@@ -75,9 +75,7 @@ void RenderStateDemo::recalculate() {
             renderer.draw(t.polyline());
         }
 
-//        renderer.setMode(GeometryRenderer::stroke | GeometryRenderer::fill);
         renderer.setStroke(Color(0, 0, 0), 3.0);
-//        renderer.setFill(Color(200, 200, 200));
         for (const auto& [_, obj] : ptg.m_tangentObject) {
             if (auto cp = std::get_if<RationalRadiusCircle>(&obj)) {
                 renderer.draw(cp->circle());
