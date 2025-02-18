@@ -29,11 +29,14 @@ private:
 	bool m_paused = true;
     int m_intervalMs;
     unsigned long m_ticks = 0;
+	double m_time = 0;
+	double m_speed = 1;
     std::optional<double> m_endTime;
     QSlider* m_scrubber = nullptr;
 	QIcon m_playIcon;
 	QIcon m_pauseIcon;
 	QToolButton* m_playPauseButton;
+	QToolButton* m_speedButton;
 	void done();
 signals:
     void ticked(int tick, double time);
