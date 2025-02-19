@@ -10,7 +10,8 @@ void TimeControlToolBar::tick() {
     }
 	emit ticked(m_ticks, m_time);
     parentWidget()->update();
-	if (m_time >= m_endTime.has_value()) {
+
+	if (m_endTime.has_value() && m_time >= *m_endTime) {
 		done();
 	} else {
 		++m_ticks;

@@ -17,11 +17,6 @@ struct State {
 	std::vector<std::list<ElbowId>> pointIdToElbows;
     std::vector<std::list<MSTEdge>> pointIdToEdges;
 };
-
-struct Settings {
-    Number<Exact> vertexRadius = 1.0;
-    Number<Exact> edgeWidth = 0.3;
-};
 }
 
 #endif //CARTOCROW_STATE_H

@@ -209,6 +209,10 @@ class PseudotriangulationGeometry {
 	std::unordered_map<Tangent, RationalTangent> m_tangents;
 	std::unordered_map<Vertex, Point<Exact>> m_vertices;
 
+    static TangentObjectGeometry geometry(const TangentObject& tangentObject, const State& state, const StateGeometry& stateGeometry, const InputInstance& input);
+    static std::optional<RationalTangent> geometry(const Tangent& tangent, const TangentObjectGeometry& source, const TangentObjectGeometry& target);
+//    static Point<Exact> geometry(const Vertex& vertex);
+
     using TangentObjectWG = std::pair<std::shared_ptr<TangentObject>, TangentObjectGeometry>;
 
     // returns std::pair<Tangent, RationalTangent>
@@ -349,6 +353,8 @@ class PseudotriangulationGeometry {
     static bool free(const RationalTangent& rt, const CSPolygonWithHoles& obstacle);
 
     static std::pair<Pseudotriangulation, PseudotriangulationGeometry> pseudotriangulationTangents(const State& state, const StateGeometry& stateGeometry);
+    PseudotriangulationGeometry() = default;
+    PseudotriangulationGeometry(const Pseudotriangulation& pt, const State& state, const StateGeometry& stateGeometry, const InputInstance& input);
 };
 }
 

@@ -6,6 +6,12 @@
 
 #include "cartocrow/core/core.h"
 #include "cartocrow/kinetic_kelp/input.h"
+#include "cartocrow/kinetic_kelp/settings.h"
+#include "cartocrow/kinetic_kelp/draw_settings.h"
+#include "cartocrow/kinetic_kelp/state.h"
+#include "cartocrow/kinetic_kelp/state_geometry.h"
+#include "cartocrow/kinetic_kelp/pseudotriangulation.h"
+#include "cartocrow/kinetic_kelp/kinetic_kelp_painting.h"
 
 #include <CGAL/Delaunay_triangulation_2.h>
 #include <CGAL/boost/graph/graph_traits_Delaunay_triangulation_2.h>
@@ -37,6 +43,8 @@ public:
 private:
     GeometryWidget* m_renderer;
     Input m_input;
+    Settings m_settings;
+    DrawSettings m_drawSettings;
     std::vector<DT> m_dts;
     std::vector<std::list<TGEdge>> m_msts;
     Box m_bbox;
@@ -44,9 +52,21 @@ private:
     std::optional<qint64> m_pausedTime;
     TimeControlToolBar* m_timeControl;
 
-    void computeMSTs(double time);
+    bool m_recompute = false;
+
+    std::shared_ptr<InputInstance> m_inputInstance;
+    std::shared_ptr<State> m_state;
+    std::shared_ptr<StateGeometry> m_stateGeometry;
+    std::shared_ptr<Pseudotriangulation> m_pt;
+    std::shared_ptr<PseudotriangulationGeometry> m_ptg;
+
+    std::shared_ptr<std::vector<Kelp>> m_kelps;
+    std::shared_ptr<KineticKelpPainting> m_kkPainting;
+
     void fitToScreen();
     void resizeEvent(QResizeEvent *event) override;
+    void initialize();
+    void update(double time);
 };
 
 #endif //CARTOCROW_KINETIC_KELP_DEMO_H

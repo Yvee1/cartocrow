@@ -117,16 +117,14 @@ EdgeGeometry::EdgeGeometry(const EdgeTopology& edge, const InputInstance& input,
 	}
 }
 
-StateGeometry stateToGeometry(const State& state, const InputInstance& input, const Settings& settings) {
-    StateGeometry stateGeometry;
+StateGeometry::StateGeometry(const State& state, const InputInstance& input, const Settings& settings) {
     for (auto [mstEdge, topology] : state.edgeTopology) {
-        stateGeometry.edgeGeometry[mstEdge] = EdgeGeometry(topology, input, settings);
+        edgeGeometry[mstEdge] = EdgeGeometry(topology, input, settings);
     }
     for (int i = 0; i < input.size(); ++i) {
         auto circle = RationalRadiusCircle(input[i].point, settings.vertexRadius);
-        stateGeometry.vertexGeometry[i] = circle;
+        vertexGeometry[i] = circle;
     }
-    return stateGeometry;
 }
 
 CSPolygon Elbow::csPolygon() const {

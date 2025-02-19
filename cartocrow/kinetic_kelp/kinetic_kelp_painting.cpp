@@ -10,6 +10,7 @@ KineticKelpPainting::KineticKelpPainting(std::shared_ptr<std::vector<Kelp>> kelp
     : m_kelps(std::move(kelps)), m_input(std::move(input)), m_drawSettings(std::move(ds)) {};
 
 void KineticKelpPainting::paint(renderer::GeometryRenderer &renderer) const {
+    if (m_kelps->empty()) return;
     renderer.setMode(GeometryRenderer::stroke | GeometryRenderer::fill);
     renderer.setStroke(Color(0, 0, 0), m_drawSettings.strokeWidth, true);
     for (int k = 0; k < m_input->numCategories(); ++k) {

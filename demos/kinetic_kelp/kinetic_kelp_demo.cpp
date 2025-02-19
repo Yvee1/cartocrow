@@ -5,15 +5,14 @@
 #include <QElapsedTimer>
 #include <QDockWidget>
 #include <QHBoxLayout>
+#include <QCheckBox>
 
 #include "cartocrow/renderer/svg_renderer.h"
 
 #include "cartocrow/kinetic_kelp/parse_input.h"
 #include "cartocrow/kinetic_kelp/moving_cat_point.h"
 #include "cartocrow/kinetic_kelp/route_edges.h"
-#include "cartocrow/kinetic_kelp/pseudotriangulation.h"
 #include "cartocrow/kinetic_kelp/pseudotriangulation_painting.h"
-#include "cartocrow/kinetic_kelp/kinetic_kelp_painting.h"
 #include "cartocrow/kinetic_kelp/state_geometry_painting.h"
 
 #include "cartocrow/renderer/painting_renderer.h"
@@ -41,11 +40,6 @@ Box bounds(const std::vector<MovingCatPoint>& movingPoints) {
     return CGAL::bbox_2(pts.begin(), pts.end());
 }
 
-struct DrawSettings {
-    std::vector<Color> colors;
-    double strokeWidth = 2.0;
-};
-
 void drawTrajectory(GeometryRenderer& renderer, const MovingCatPoint& mcp, const DrawSettings& ds) {
     renderer.setStroke(ds.colors[mcp.category], ds.strokeWidth);
     renderer.draw(mcp.trajectory.polyline());
@@ -68,75 +62,101 @@ KineticKelpDemo::KineticKelpDemo() {
     setCentralWidget(m_renderer);
 
     std::string filePath = "data/kinetic_kelp/trajectory.ipe";
-    m_input = Input(parseMovingPoints(filePath));
+    m_input = Input(parseMovingPoints(filePath, 5.0));
 
     m_timeControl = new TimeControlToolBar(m_renderer, m_input.timespan().second);
 
-	Settings settings;
-	settings.vertexRadius = 10.0;
-	settings.edgeWidth = 5.0;
+    auto* dockWidget = new QDockWidget();
+    addDockWidget(Qt::RightDockWidgetArea, dockWidget);
+    auto* vWidget = new QWidget();
+    auto* vLayout = new QVBoxLayout(vWidget);
+    vLayout->setAlignment(Qt::AlignTop);
+    dockWidget->setWidget(vWidget);
 
-	auto input = std::make_shared<InputInstance>(m_input.instance(m_timeControl->time()));
-	auto pr = std::make_shared<PaintingRenderer>();
-	auto [stateTopology, stateGeometry] = routeEdges(*input, settings, *pr);
+    auto* recomputeCheckBox = new QCheckBox("Recompute");
+    vLayout->addWidget(recomputeCheckBox);
 
-	auto stateGeometryP = std::make_shared<StateGeometryPainting>(stateGeometry);
-	m_renderer->addPainting(stateGeometryP, "State geometry");
+    connect(recomputeCheckBox, &QCheckBox::stateChanged, [this, recomputeCheckBox]() {
+        m_recompute = recomputeCheckBox->isChecked();
+    });
 
-	auto pr1 = std::make_shared<PaintingRenderer>();
-	auto [pt, ptg] = PseudotriangulationGeometry::pseudotriangulationTangents(stateTopology, *stateGeometry);
-	auto ptP = std::make_shared<Pseudotriangulation>(pt);
-	auto ptgP = std::make_shared<PseudotriangulationGeometry>(ptg);
-	auto ptPainting = std::make_shared<PseudotriangulationPainting>(ptP, ptgP);
-	m_renderer->addPainting(ptPainting, "Pseudotriangulation");
-
-	KineticKelpPainting::DrawSettings ds;
-	ds.colors = {CB::light_blue, CB::light_red, CB::light_green, CB::light_purple, CB::light_orange};
-	ds.markRadius = 1.0;
-	ds.strokeWidth = 1.0;
-	ds.smoothing = 5.0;
-
-	auto kelps = std::make_shared<std::vector<Kelp>>();
-	try {
-		stateGeometrytoKelps(*stateGeometry, *input, ds.smoothing, std::back_inserter(*kelps));
-	} catch (...) {}
-	auto kkPainting = std::make_shared<KineticKelpPainting>(kelps, input, ds);
-	m_renderer->addPainting(kkPainting, "KineticKelp");
+	m_drawSettings.colors = {CB::light_blue, CB::light_red, CB::light_green, CB::light_purple, CB::light_orange};
+	m_drawSettings.markRadius = 1.0;
+	m_drawSettings.strokeWidth = 1.0;
+	m_drawSettings.smoothing = 5.0;
 
     m_renderer->fitInView(bounds(m_input.movingCatPoints()));
 
-	connect(m_timeControl, &TimeControlToolBar::ticked, [saveToSvg, input, settings, stateGeometry, kelps, ds, ptP, ptgP, kkPainting, this](int tick, double time) {
-		*input = m_input.instance(time);
-		PaintingRenderer trash;
-		auto [newStateTopology, newStateGeometry] = routeEdges(*input, settings, trash);
-		*stateGeometry = std::move(*newStateGeometry);
+    initialize();
 
-	  	auto [pt, ptg] = PseudotriangulationGeometry::pseudotriangulationTangents(newStateTopology, *stateGeometry);
-		*ptP = pt;
-	  	*ptgP = ptg;
+	connect(m_timeControl, &TimeControlToolBar::ticked, [saveToSvg, this](int tick, double time) {
+        if (m_recompute) {
+            initialize();
+        } else {
+            update(time);
+        }
 
-		kelps->clear();
-		try {
-			stateGeometrytoKelps(*stateGeometry, *input, ds.smoothing, std::back_inserter(*kelps));
-		} catch(...) {}
-
-		if (saveToSvg) {
-			SvgRenderer svgRenderer;
-			svgRenderer.addPainting(
-				[kkPainting](GeometryRenderer& renderer) {
-				    kkPainting->paint(renderer);
-				},
-				"KineticKelp");
-			std::stringstream filename;
-			filename << "frames/frame-" << std::setfill('0') << std::setw(5) << tick;
-			svgRenderer.save(filename.str() + ".svg");
-		}
+        if (saveToSvg) {
+            SvgRenderer svgRenderer;
+            svgRenderer.addPainting(
+                    [this](GeometryRenderer& renderer) {
+                        m_kkPainting->paint(renderer);
+                    },
+                    "KineticKelp");
+            std::stringstream filename;
+            filename << "frames/frame-" << std::setfill('0') << std::setw(5) << tick;
+            svgRenderer.save(filename.str() + ".svg");
+        }
 	});
+}
+
+void KineticKelpDemo::initialize() {
+    m_renderer->clear();
+
+    m_settings.vertexRadius = 10.0;
+    m_settings.edgeWidth = 5.0;
+
+    m_inputInstance = std::make_shared<InputInstance>(m_input.instance(m_timeControl->time()));
+    auto pr = std::make_shared<PaintingRenderer>();
+    auto [stateTopology, stateGeometry] = routeEdges(*m_inputInstance, m_settings, *pr);
+    m_stateGeometry = std::move(stateGeometry);
+    m_state = std::make_shared<State>(stateTopology);
+
+    auto stateGeometryP = std::make_shared<StateGeometryPainting>(m_stateGeometry);
+    m_renderer->addPainting(stateGeometryP, "State geometry");
+
+    auto pr1 = std::make_shared<PaintingRenderer>();
+    auto [pt, ptg] = PseudotriangulationGeometry::pseudotriangulationTangents(*m_state, *m_stateGeometry);
+    m_pt = std::make_shared<Pseudotriangulation>(pt);
+    m_ptg = std::make_shared<PseudotriangulationGeometry>(ptg);
+    auto ptPainting = std::make_shared<PseudotriangulationPainting>(m_pt, m_ptg);
+    m_renderer->addPainting(ptPainting, "Pseudotriangulation");
+
+    m_kelps = std::make_shared<std::vector<Kelp>>();
+    try {
+        stateGeometrytoKelps(*m_stateGeometry, *m_inputInstance, m_drawSettings.smoothing, std::back_inserter(*m_kelps));
+    } catch (...) {}
+    m_kkPainting = std::make_shared<KineticKelpPainting>(m_kelps, m_inputInstance, m_drawSettings);
+    m_renderer->addPainting(m_kkPainting, "KineticKelp");
+}
+
+void KineticKelpDemo::update(double time) {
+    *m_inputInstance = m_input.instance(time);
+    PaintingRenderer trash;
+    *m_stateGeometry = StateGeometry(*m_state, *m_inputInstance, m_settings);
+    *m_ptg = PseudotriangulationGeometry(*m_pt, *m_state, *m_stateGeometry, *m_inputInstance);
+
+    m_kelps->clear();
+    try {
+        stateGeometrytoKelps(*m_stateGeometry, *m_inputInstance, m_drawSettings.smoothing, std::back_inserter(*m_kelps));
+    } catch(const std::runtime_error& error) {
+        std::cerr << error.what() << std::endl;
+    }
 }
 
 void KineticKelpDemo::fitToScreen() {
     Box box = bounds(m_input.movingCatPoints());
-    auto delta = CGAL::to_double(8 * m_pointRadius);
+    auto delta = CGAL::to_double(m_settings.vertexRadius + 2 * m_settings.edgeWidth);
     Box expanded(box.xmin() - delta, box.ymin() - delta, box.xmax() + delta, box.ymax() + delta);
     m_renderer->fitInView(expanded);
 }

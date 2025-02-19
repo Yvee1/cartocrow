@@ -2,18 +2,13 @@
 #define CARTOCROW_KELP_PAINTING_H
 
 #include "state_geometry.h"
+#include "draw_settings.h"
+
 #include "../renderer/geometry_painting.h"
 
 namespace cartocrow::kinetic_kelp {
 class KineticKelpPainting : public renderer::GeometryPainting {
 public:
-    struct DrawSettings {
-        double markRadius = 1.0;
-        double strokeWidth = 1.0;
-        double smoothing = 0.2;
-        std::vector<Color> colors;
-    };
-
     KineticKelpPainting(std::shared_ptr<std::vector<Kelp>> kelps, std::shared_ptr<InputInstance> input, DrawSettings ds);
     void paint(renderer::GeometryRenderer &renderer) const override;
 private:

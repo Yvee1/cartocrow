@@ -32,6 +32,8 @@ set(HEADERS
 	pseudotriangulation_painting.h
 	types.h
 	hash.h
+	settings.h
+	draw_settings.h
 )
 
 add_library(kinetic_kelp ${SOURCES})

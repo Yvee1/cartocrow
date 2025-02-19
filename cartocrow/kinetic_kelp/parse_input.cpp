@@ -47,7 +47,7 @@ std::vector<CatPoint> parseCatPoints(const std::string& s) {
 	return result;
 }
 
-std::vector<MovingCatPoint> parseMovingPoints(const std::filesystem::path& filePath) {
+std::vector<MovingCatPoint> parseMovingPoints(const std::filesystem::path& filePath, double secondsBetweenVertices) {
     auto doc = IpeReader::loadIpeFile(filePath);
     auto cascade = doc->cascade();
 
@@ -61,10 +61,10 @@ std::vector<MovingCatPoint> parseMovingPoints(const std::filesystem::path& fileP
 
     std::vector<MovingCatPoint> movingCatPoints;
 
-    auto polylineToTrajectory = [](const Polyline<Inexact>& polyline) {
+    auto polylineToTrajectory = [secondsBetweenVertices](const Polyline<Inexact>& polyline) {
         Trajectory t;
         for (int i = 0; i < polyline.num_vertices(); ++i) {
-            t.m_points.emplace_back(i, polyline.vertex(i));
+            t.m_points.emplace_back(i * secondsBetweenVertices, polyline.vertex(i));
         }
         return t;
     };

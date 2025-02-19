@@ -7,7 +7,7 @@
 
 namespace cartocrow::kinetic_kelp {
 std::vector<CatPoint> parseCatPoints(const std::string& s);
-std::vector<MovingCatPoint> parseMovingPoints(const std::filesystem::path& filePath);
+std::vector<MovingCatPoint> parseMovingPoints(const std::filesystem::path& filePath, double secondsBetweenVertices = 1.0);
 }
 
 #endif //CARTOCROW_PARSE_INPUT_H

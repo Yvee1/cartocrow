@@ -277,4 +277,110 @@ std::pair<Pseudotriangulation, PseudotriangulationGeometry> PseudotriangulationG
 
     return {pt, ptg};
 }
+
+//Point<Exact> PseudotriangulationGeometry::geometry(const Vertex& vertex, const InputInstance& input, const Settings& settings) {
+//}
+
+PseudotriangulationGeometry::TangentObjectGeometry
+PseudotriangulationGeometry::geometry(const TangentObject& tangentObject, const State& state, const StateGeometry& stateGeometry, const InputInstance& input) {
+    auto pId = tangentObject.pointId;
+    auto& elbows = state.pointIdToElbows[pId];
+    RationalRadiusCircle circleGeometry;
+    if (elbows.empty()) {
+        circleGeometry = stateGeometry.vertexGeometry.at(pId);
+    } else {
+        auto r = stateGeometry.elbow(elbows.back()).orbit().outerRadius;
+        circleGeometry = RationalRadiusCircle(input[tangentObject.pointId].point, r);
+    }
+
+    if (tangentObject.type == Pseudotriangulation::TangentObjectType::Circle) {
+        return circleGeometry;
+    }
+
+    if (tangentObject.straightId.has_value()) {
+        auto straightId = *(tangentObject.straightId);
+        const auto& straight = stateGeometry.straight(straightId);
+        std::vector<OneRootPoint> ipts;
+        intersectionPoints(straight.csPolygon(), circleToCSPolygon(circleGeometry.circle()), std::back_inserter(ipts));
+        for (const auto& ipt: ipts) {
+            bool one = liesOnHalf(ipt, straight, true);
+            if (one && tangentObject.type == Pseudotriangulation::CircleStraight1 ||
+                !one && tangentObject.type == Pseudotriangulation::CircleStraight2) {
+                Point<Exact> approx = pretendExact(approximateOneRootPoint(ipt));
+                return approx;
+            }
+        }
+    }
+
+    throw std::runtime_error("Unexpected tangent object type.");
+}
+
+std::optional<RationalTangent>
+PseudotriangulationGeometry::geometry(const Tangent& tangent, const TangentObjectGeometry& source, const TangentObjectGeometry& target) {
+    if (tangent.source->type == Pseudotriangulation::TangentObjectType::Circle &&
+       tangent.target->type == Pseudotriangulation::TangentObjectType::Circle) {
+        auto c1 = std::get<RationalRadiusCircle>(source);
+        auto c2 = std::get<RationalRadiusCircle>(target);
+        if (tangent.type == Outer1 || tangent.type == Outer2) {
+            auto outer = rationalBitangents(c1, c2, false);
+            if (!outer.has_value()) return std::nullopt;
+            if (tangent.type == Outer1)
+                return outer->first;
+            return outer->second;
+        }
+        if (tangent.type == Inner1 || tangent.type == Inner2) {
+            auto inner = rationalBitangents(c1, c2, true);
+            if (!inner.has_value()) return std::nullopt;
+            if (tangent.type == Inner1)
+                return inner->first;
+            return inner->second;
+        }
+    }
+
+    if (tangent.type == PointPoint) {
+        return RationalTangent({std::get<Point<Exact>>(source), std::get<Point<Exact>>(target)});
+    }
+
+    if (auto p1P = std::get_if<Point<Exact>>(&source)) {
+        auto p1 = *p1P;
+        auto c2 = std::get<RationalRadiusCircle>(target);
+        auto ts = rationalTangents(p1, c2);
+        if (!ts.has_value()) return std::nullopt;
+        if (tangent.type == PointCircle1) {
+            return ts->first;
+        }
+        if (tangent.type == PointCircle2) {
+            return ts->second;
+        }
+    }
+
+    throw std::runtime_error("Unexpected tangent type.");
+}
+
+PseudotriangulationGeometry::PseudotriangulationGeometry(const Pseudotriangulation& pt, const State& state, const StateGeometry& stateGeometry, const InputInstance& input) {
+    for (const auto& tObj : pt.m_tangentObjects) {
+        try {
+            m_tangentObject[*tObj] = geometry(*tObj, state, stateGeometry, input);
+        } catch (...) {
+            std::cerr << "TangentObjectGeometry computation failed!" << std::endl;
+        }
+    }
+    for (const auto& t : pt.m_tangents) {
+        auto ts = *(t->source);
+        auto tt = *(t->target);
+        bool success = false;
+        if (m_tangentObject.contains(ts) && m_tangentObject.contains(tt)) {
+            auto sObj = m_tangentObject[ts];
+            auto tObj = m_tangentObject[tt];
+            auto g = geometry(*t, sObj, tObj);
+            if (g.has_value()) {
+                m_tangents[*t] = *g;
+                success = true;
+            }
+        }
+        if (!success) {
+            std::cerr << "Tangent does not exist!" << std::endl;
+        }
+    }
+}
 }

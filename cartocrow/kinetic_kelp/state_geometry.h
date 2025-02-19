@@ -3,14 +3,14 @@
 
 #include <ranges>
 
-
-#include "state.h"
-#include "input_instance.h"
 #include "cartocrow/circle_segment_helpers/circle_tangents.h"
 #include "cartocrow/circle_segment_helpers/cs_types.h"
 #include "cartocrow/circle_segment_helpers/cs_polygon_helpers.h"
-
 #include "cartocrow/circle_segment_helpers/cs_curve_helpers.h"
+
+#include "state.h"
+#include "settings.h"
+#include "input_instance.h"
 #include "kelp.h"
 
 namespace cartocrow::kinetic_kelp {
@@ -115,9 +115,10 @@ public:
         auto& [edge, i] = straightId;
         return edgeGeometry.at(edge).straights.at(i);
     }
-};
 
-StateGeometry stateToGeometry(const State& state, const InputInstance& input, const Settings& settings);
+    StateGeometry() = default;
+    StateGeometry(const State& state, const InputInstance& input, const Settings& settings);
+};
 
 template <class OutputIterator>
 void stateGeometrytoKelps(const StateGeometry& stateGeometry, const InputInstance& input, double smoothing, OutputIterator out) {
@@ -128,10 +129,18 @@ void stateGeometrytoKelps(const StateGeometry& stateGeometry, const InputInstanc
     for (const auto& [mstEdge, geometry] : stateGeometry.edgeGeometry) {
         int k = input[mstEdge.first].category;
         CSPolygonSet& roughKelp = roughKelps[k];
-        try {
-            roughKelp.join(geometry.csPolygon());
-        } catch (...) {
-            std::cerr << "Problems with edge geometry of edge " << mstEdge.first << " -> " << mstEdge.second << std::endl;
+        auto edgePoly = geometry.csPolygon();
+        if (is_simple(edgePoly)) {
+            roughKelp.join(edgePoly);
+        } else {
+            for (const auto& straight : geometry.straights) {
+                roughKelp.join(straight.csPolygon());
+            }
+            for (const auto& elbow : geometry.elbows) {
+                roughKelp.join(elbow.csPolygon());
+            }
+            roughKelp.join(geometry.startTerminal.csPolygon());
+            roughKelp.join(geometry.endTerminal.csPolygon());
         }
     }
     for (const auto& [vertex, circle] : stateGeometry.vertexGeometry) {
