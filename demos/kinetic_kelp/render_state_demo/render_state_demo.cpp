@@ -4,6 +4,7 @@
 
 #include "cartocrow/renderer/geometry_widget.h"
 #include "cartocrow/renderer/painting_renderer.h"
+#include "cartocrow/kinetic_kelp/draw_settings.h"
 #include "cartocrow/kinetic_kelp/state_geometry_painting.h"
 #include "cartocrow/kinetic_kelp/kinetic_kelp_painting.h"
 #include "cartocrow/kinetic_kelp/route_edges.h"
@@ -75,7 +76,7 @@ void RenderStateDemo::recalculate() {
 	auto ptPainting = std::make_shared<PseudotriangulationPainting>(ptP, ptgP);
 	m_renderer->addPainting(ptPainting, "Pseudotriangulation");
 
-	KineticKelpPainting::DrawSettings ds;
+	DrawSettings ds;
 	ds.colors = {CB::light_blue, CB::light_red, CB::light_green, CB::light_purple, CB::light_orange};
 	ds.markRadius = 1.0;
 	ds.strokeWidth = 1.0;

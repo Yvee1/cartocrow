@@ -6,6 +6,8 @@
 #include <QDockWidget>
 #include <QHBoxLayout>
 #include <QCheckBox>
+#include <QPushButton>
+#include <QFileDialog>
 
 #include "cartocrow/renderer/svg_renderer.h"
 
@@ -75,6 +77,18 @@ KineticKelpDemo::KineticKelpDemo() {
 
     auto* recomputeCheckBox = new QCheckBox("Recompute");
     vLayout->addWidget(recomputeCheckBox);
+
+    auto* loadFileButton = new QPushButton("Load file");
+    vLayout->addWidget(loadFileButton);
+
+    connect(loadFileButton, &QPushButton::clicked, [this]() {
+        QString startDir = "data/kinetic_kelp";
+        std::filesystem::path filePath = QFileDialog::getOpenFileName(this, tr("Select trajectory file"), startDir).toStdString();
+        if (filePath == "") return;
+        m_input = Input(parseMovingPoints(filePath, 5.0));
+        m_timeControl->restart();
+        initialize();
+    });
 
     connect(recomputeCheckBox, &QCheckBox::stateChanged, [this, recomputeCheckBox]() {
         m_recompute = recomputeCheckBox->isChecked();
