@@ -270,10 +270,52 @@ std::pair<Pseudotriangulation, PseudotriangulationGeometry> PseudotriangulationG
             finalTangents.push_back(t);
     }
 
+	// Add tangents to pt and ptg
+	pt.m_pointIdToTangents.resize(stateGeometry.vertexGeometry.size());
     for (const auto& [t, tg] : finalTangents) {
-        pt.m_tangents.push_back(std::make_shared<Tangent>(t));
-        ptg.m_tangents[*(pt.m_tangents.back())] = tg;
+		auto tP = std::make_shared<Tangent>(t);
+        pt.m_tangents.push_back(tP);
+		auto sPID = t.source->pointId;
+		auto tPID = t.target->pointId;
+		pt.m_pointIdToTangents[sPID].push_back(tP);
+		pt.m_pointIdToTangents[tPID].push_back(tP);
+        ptg.m_tangents[t] = tg;
     }
+
+	// Sort tangents around each point
+	for (int pId = 0; pId < pt.m_pointIdToTangents.size(); ++pId) {
+		auto& tangents = pt.m_pointIdToTangents[pId];
+		auto& point = stateGeometry.vertexGeometry.at(pId).center;
+		tangents.sort([pId, &ptg, point](const std::shared_ptr<Tangent>& t1, const std::shared_ptr<Tangent>& t2) {
+			auto p1 = ptg.tangentEndpoint(*t1, pId);
+		  	auto p2 = ptg.tangentEndpoint(*t2, pId);
+			auto d1 = (p1 - point).direction();
+		  	auto d2 = (p2 - point).direction();
+			if (d1 < d2) {
+				return true;
+			} else if (d1 > d2) {
+				return false;
+			} else {
+				auto q1 = ptg.otherTangentEndpoint(*t1, pId);
+				auto q2 = ptg.otherTangentEndpoint(*t1, pId);
+				d1 = (q1 - point).direction();
+				d2 = (q2 - point).direction();
+				return d1 < d2;
+			}
+		});
+
+		for (auto t1It = tangents.begin(); t1It != tangents.end(); ++t1It) {
+			auto t2It = t1It;
+			++t2It;
+			if (t2It == tangents.end()) {
+				t2It = tangents.begin();
+			}
+			auto t1 = *t1It;
+			auto t2 = *t2It;
+			if (t1->otherEndpoint(pId)->pointId == t2->otherEndpoint(pId)->pointId) continue;
+			pt.m_tangentEndpointCertificates.emplace_back(pId, t1, t2);
+		}
+	}
 
     return {pt, ptg};
 }
@@ -357,6 +399,13 @@ PseudotriangulationGeometry::geometry(const Tangent& tangent, const TangentObjec
     throw std::runtime_error("Unexpected tangent type.");
 }
 
+std::optional<RationalTangent>
+PseudotriangulationGeometry::geometry(const Tangent& tangent, const State& state, const StateGeometry& stateGeometry, const InputInstance& input) {
+	auto sObj = geometry(*tangent.source, state, stateGeometry, input);
+	auto tObj = geometry(*tangent.target, state, stateGeometry, input);
+	return geometry(tangent, sObj, tObj);
+}
+
 PseudotriangulationGeometry::PseudotriangulationGeometry(const Pseudotriangulation& pt, const State& state, const StateGeometry& stateGeometry, const InputInstance& input) {
     for (const auto& tObj : pt.m_tangentObjects) {
         try {
@@ -382,5 +431,294 @@ PseudotriangulationGeometry::PseudotriangulationGeometry(const Pseudotriangulati
             std::cerr << "Tangent does not exist!" << std::endl;
         }
     }
+}
+
+bool
+Pseudotriangulation::TangentEndpointCertificate::valid(const State& state, const InputInstance& input, const Settings& settings) {
+	// todo: selectively pass input
+	// todo: selectively compute geometry and/or (for now) add option for passing state geometry
+	StateGeometry stateGeometry(state, input, settings);
+	// todo: approximate
+	auto t1G = PseudotriangulationGeometry::geometry(*t1, state, stateGeometry, input);
+	auto t2G = PseudotriangulationGeometry::geometry(*t2, state, stateGeometry, input);
+	bool t1R = t1->target->pointId == pointId;
+	bool t2R = t2->target->pointId == pointId;
+	auto v1 = t1G->target() - t1G->source();
+	auto v2 = t2G->target() - t2G->source();
+	if (t1R) {
+		v1 = -v1;
+	}
+	if (t2R) {
+		v2 = -v2;
+	}
+	bool valid;
+	if (t1->orientation(t1R) == t2->orientation(t2R)) {
+		valid = CGAL::determinant(v1, v2) > 0;
+	} else {
+		valid = CGAL::determinant(v1, v2) < 0;
+	}
+
+	t1SubsetOft2 = v1.squared_length() < v2.squared_length();
+
+	return valid;
+}
+
+std::string name(TangentType tt) {
+	switch (tt) {
+	case Outer1:
+		return "Outer1";
+	case Outer2:
+		return "Outer2";
+	case Inner1:
+		return "Inner1";
+	case Inner2:
+		return "Inner2";
+	case PointCircle1:
+		return "PointCircle1";
+	case PointCircle2:
+		return "PointCircle2";
+	case PointPoint:
+		return "PointPoint";
+	}
+	throw std::invalid_argument("Unimplemented handling of a tangent type.");
+}
+
+std::ostream& operator<<(std::ostream& os, const Pseudotriangulation::Tangent& t) {
+	os << name(t.type) << "," << t.source->pointId << " -> " << t.target->pointId;
+	return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const Pseudotriangulation::TangentEndpointCertificate& c)
+{
+	os << "pId: " << c.pointId << " t1(" << *c.t1 << ") t2(" << *c.t2 << ")";
+	return os;
+}
+
+void Pseudotriangulation::removeTangent(std::shared_ptr<Tangent> t) {
+	std::cout << "Removing tangent " << *t << std::endl;
+
+	auto it = std::remove(m_tangents.begin(), m_tangents.end(), t);
+	if (it == m_tangents.end()) {
+		std::cerr << "Could not find tangent to delete" << std::endl;
+	}
+	m_tangents.erase(it, m_tangents.end());
+	auto itC = std::remove_if(m_tangentEndpointCertificates.begin(), m_tangentEndpointCertificates.end(), [&t](const TangentEndpointCertificate& tP) {
+		return *tP.t1 == *t || *tP.t2 == *t;
+	});
+	m_tangentEndpointCertificates.erase(itC, m_tangentEndpointCertificates.end());
+
+	auto& tsS = m_pointIdToTangents[t->source->pointId];
+	tsS.erase(std::remove(tsS.begin(), tsS.end(), t), tsS.end());
+	auto& tsT = m_pointIdToTangents[t->target->pointId];
+	tsT.erase(std::remove(tsT.begin(), tsT.end(), t), tsT.end());
+}
+
+TangentType tangentType(CGAL::Orientation or1, CGAL::Orientation or2) {
+	if (or1 == CGAL::COUNTERCLOCKWISE && or2 == CGAL::CLOCKWISE) {
+		return Outer1;
+	}
+	if (or1 == CGAL::CLOCKWISE && or2 == CGAL::COUNTERCLOCKWISE) {
+		return Outer2;
+	}
+	if (or1 == CGAL::COUNTERCLOCKWISE && or2 == CGAL::COUNTERCLOCKWISE) {
+		return Inner1;
+	}
+	if (or1 == CGAL::CLOCKWISE && or2 == CGAL::CLOCKWISE) {
+		return Inner2;
+	}
+	throw std::invalid_argument("The two orientations should not be collinear.");
+}
+
+void Pseudotriangulation::fix(TangentEndpointCertificate& certificate) {
+	std::cout << "Fixing certificate " << certificate << std::endl;
+
+	const auto& t1 = certificate.t1;
+	const auto& t2 = certificate.t2;
+	auto pId0 = certificate.pointId;
+	auto obj0 = t1->endpoint(pId0);
+	auto obj1 = t1->otherEndpoint(pId0);
+	auto obj2 = t2->otherEndpoint(pId0);
+	auto pId1 = obj1->pointId;
+	auto pId2 = obj2->pointId;
+	auto& ts0 = m_pointIdToTangents[pId0];
+	auto& ts1 = m_pointIdToTangents[pId1];
+	auto& ts2 = m_pointIdToTangents[pId2];
+	bool t1R = t1->target->pointId == pId0;
+	bool t2R = t2->target->pointId == pId0;
+
+	auto handle = [&](const std::shared_ptr<Tangent>& oldTangent, const std::shared_ptr<Tangent>& newTangent) {
+		std::cout << "New tangent: " << *newTangent << std::endl;
+
+		// Before removing we create new certificate on obj0 between the two tangents that will become adjacent
+		auto t0It = std::find(ts0.begin(), ts0.end(), oldTangent);
+		auto prev0It = t0It;
+		if (prev0It == ts0.begin()) {
+			prev0It = --ts0.end();
+		} else {
+			--prev0It;
+		}
+		auto next0It = t0It;
+		++next0It;
+		if (next0It == ts0.end()) {
+			next0It = ts0.begin();
+		}
+		auto prev0 = *prev0It;
+		auto next0 = *next0It;
+
+		// on obj1 newTangent has opposite orientation of t1. If t1 is ccw then newTangent is inserted before it.
+		// If t1 cw then newTangent is inserted after.
+
+		// on obj2 if t2 is ccw then newTangent is inserted after, otherwise inserted before.
+		auto t1It = std::find(ts1.begin(), ts1.end(), t1);
+		if (t1->orientation(!t1R) == CGAL::CLOCKWISE) {
+			++t1It;
+		}
+		auto newIt1 = ts1.insert(t1It, newTangent);
+
+		auto t2It = std::find(ts2.begin(), ts2.end(), t2);
+		if (t2->orientation(!t2R) == CGAL::COUNTERCLOCKWISE) {
+			++t2It;
+		}
+		auto newIt2 = ts2.insert(t2It, newTangent);
+
+		removeTangent(oldTangent);
+		m_tangents.push_back(newTangent);
+
+		auto prev1 = newIt1;
+		if (prev1 == ts1.begin()) {
+			prev1 = --ts1.end();
+		} else {
+			--prev1;
+		}
+		auto next1 = newIt1;
+		++next1;
+		if (next1 == ts1.end()) {
+			next1 = ts1.begin();
+		}
+
+		if (newTangent->otherEndpoint(pId1)->pointId != (*prev1)->otherEndpoint(pId1)->pointId) {
+			m_tangentEndpointCertificates.emplace_back(pId1, *prev1, newTangent);
+		}
+		if (newTangent->otherEndpoint(pId1)->pointId != (*next1)->otherEndpoint(pId1)->pointId) {
+			m_tangentEndpointCertificates.emplace_back(pId1, newTangent, *next1);
+		}
+		m_tangentEndpointCertificates.erase(std::remove_if(m_tangentEndpointCertificates.begin(), m_tangentEndpointCertificates.end(), [&](const TangentEndpointCertificate& c) {
+			return c.t1 == *prev1 && c.t2 == *next1;
+		}), m_tangentEndpointCertificates.end());
+
+		auto prev2 = newIt2;
+		if (prev2 == ts2.begin()) {
+			prev2 = --ts2.end();
+		} else {
+			--prev2;
+		}
+		auto next2 = newIt2;
+		++next2;
+		if (next2 == ts2.end()) {
+			next2 = ts2.begin();
+		}
+
+		if (newTangent->otherEndpoint(pId2)->pointId != (*prev2)->otherEndpoint(pId2)->pointId) {
+			m_tangentEndpointCertificates.emplace_back(pId2, *prev2, newTangent);
+		}
+		if (newTangent->otherEndpoint(pId2)->pointId != (*next2)->otherEndpoint(pId2)->pointId) {
+			m_tangentEndpointCertificates.emplace_back(pId2, newTangent, *next2);
+		}
+
+		if (prev0->otherEndpoint(pId0)->pointId != next0->otherEndpoint(pId0)->pointId) {
+			m_tangentEndpointCertificates.emplace_back(pId0, prev0, next0);
+		}
+
+		m_tangentEndpointCertificates.erase(std::remove_if(m_tangentEndpointCertificates.begin(), m_tangentEndpointCertificates.end(), [&](const TangentEndpointCertificate& c) {
+			return c.t1 == *prev2 && c.t2 == *next2;
+		}), m_tangentEndpointCertificates.end());
+	};
+
+
+	std::cout << "Before fixing" << std::endl;
+	for (const auto& c : m_tangentEndpointCertificates) {
+		if (c.pointId == pId0 || c.pointId == pId1 || c.pointId == pId2) {
+			std::cout << "Certificate " << c << std::endl;
+		}
+	}
+
+	bool angleZero = t1->orientation(t1R) == t2->orientation(t2R);
+
+	if (angleZero && certificate.t1SubsetOft2) {
+		//      t1
+		//   |-------|
+		// obj0 -- obj1 -- obj2
+		//   |--------------|
+		//          t2
+
+		// remove t2 and add new tangent between obj1 and obj2
+
+		//      t1
+		//   |-------|
+		// obj0 -- obj1 -- obj2
+		//           |-------|
+		//              new
+
+		// new tangent should have orientation opposite that of t1 on obj1
+		// and the same orientation as t2 on obj2
+		auto orientationNewOnObj1 = opposite(t1->orientation(!t1R));
+		auto orientationNewOnObj2 = t2->orientation(!t2R);
+
+		// create inner bitangent of obj1 and obj2
+		auto newTangent = std::make_shared<Tangent>(tangentType(orientationNewOnObj1, orientationNewOnObj2), obj1, obj2);
+		handle(t2, newTangent);
+	} else if (angleZero) {
+		//      t2
+		//   |-------|
+		// obj0 -- obj2 -- obj1
+		//   |--------------|
+		//          t1
+
+		// remove t1 and add new tangent between obj1 and obj2
+
+		//      t2
+		//   |-------|
+		// obj0 -- obj2 -- obj1
+		//           |-------|
+		//              new
+
+		// new tangent should have orientation opposite that of t2 on obj2
+		// and the same orientation as t1 on obj1
+		auto orientationNewOnObj2 = opposite(t2->orientation(!t2R));
+		auto orientationNewOnObj1 = t1->orientation(!t1R);
+
+		// create inner bitangent of obj1 and obj2
+		auto newTangent = std::make_shared<Tangent>(tangentType(orientationNewOnObj2, orientationNewOnObj1), obj2, obj1);
+		handle(t1, newTangent);
+	} else {
+		//      t1
+		//   |-------|
+		// obj1 -- obj0 -- obj2
+		//           |-------|
+		//              t2
+
+		// remove t1 or t2; we remove t2.
+		// add new tangent between obj1 and obj2
+
+		//      t1
+		//   |-------|
+		// obj1 -- obj0 -- obj2
+		//   |---------------|
+		//          new
+
+		// new tangent should have orientation same as that of t1 on obj1 and t2 on obj2
+		auto orientationNewOnObj1 = t1->orientation(!t1R);
+		auto orientationNewOnObj2 = t2->orientation(!t2R);
+
+		auto newTangent = std::make_shared<Tangent>(tangentType(orientationNewOnObj1, orientationNewOnObj2), obj1, obj2);
+		handle(t2, newTangent);
+	}
+
+	std::cout << "After fixing" << std::endl;
+	for (auto c : m_tangentEndpointCertificates) {
+		if (c.pointId == pId0 || c.pointId == pId1 || c.pointId == pId2) {
+			std::cout << "Certificate: " << c << std::endl;
+		}
+	}
 }
 }

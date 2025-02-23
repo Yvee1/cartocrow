@@ -5,6 +5,7 @@
 #include "types.h"
 #include "state_geometry.h"
 #include "hash.h"
+#include "input.h"
 
 #include "cartocrow/circle_segment_helpers/circle_tangents.h"
 #include "cartocrow/circle_segment_helpers/cs_render_helpers.h"
@@ -52,11 +53,14 @@ struct hash<cartocrow::kinetic_kelp::RationalCircularArc>
 namespace cartocrow::kinetic_kelp {
 bool circlePointLiesOnArc(const Point<Exact> &point, const RationalCircularArc &arc);
 
+struct Certificate {
+	virtual bool valid(const State& state, const InputInstance& input, const Settings& settings) = 0;
+};
+
 class Pseudotriangulation {
 public:
     enum TangentObjectType {
         Circle,
-//        Elbow,
         CircleStraight1,
         CircleStraight2,
         CircleCircle1,
@@ -65,7 +69,6 @@ public:
     struct TangentObject {
         TangentObjectType type;
         PointId pointId;
-//        std::optional<ElbowId> elbowId;
         std::optional<StraightId> straightId;
 
         bool circleStraight() { return type == CircleStraight1 || type == CircleStraight2; }
@@ -80,44 +83,78 @@ public:
         std::shared_ptr<TangentObject> source;
         std::shared_ptr<TangentObject> target;
 
+		std::shared_ptr<TangentObject> endpoint(PointId pointId) {
+			if (source->pointId == pointId) {
+				return source;
+			}
+			if (target->pointId == pointId) {
+				return target;
+			}
+			throw std::invalid_argument("The provided pointId is not an endpoint of the tangent.");
+		}
+
+		std::shared_ptr<TangentObject> otherEndpoint(PointId pointId) {
+			if (source->pointId == pointId) {
+				return target;
+			}
+			if (target->pointId == pointId) {
+				return source;
+			}
+			throw std::invalid_argument("The provided pointId is not an endpoint of the tangent.");
+		}
+
+		CGAL::Orientation sourceOrientation() const {
+			if (type == Outer1 || type == Inner1) {
+				return CGAL::COUNTERCLOCKWISE;
+			}
+			if (type == Outer2 || type == Inner2) {
+				return CGAL::CLOCKWISE;
+			}
+			throw std::invalid_argument("Unimplemented enum type");
+		}
+
+		CGAL::Orientation targetOrientation() const {
+			if (type == Outer1 || type == Inner2) {
+				return CGAL::CLOCKWISE;
+			}
+			if (type == Outer2 || type == Inner1) {
+				return CGAL::COUNTERCLOCKWISE;
+			}
+			throw std::invalid_argument("Unimplemented enum type");
+		}
+
+		CGAL::Orientation orientation(bool target) const {
+			return target ? targetOrientation() : sourceOrientation();
+		}
+
         bool operator==(const Tangent& other) const = default;
-    };
-    struct TangentPart;
-    // probably need Object and ObjectType, and store in ObjectPart
-    struct ObjectPart {
-        std::shared_ptr<TangentPart> next;
-        std::variant<StraightId, ElbowId, PointId> object;
-    };
-    struct TangentPart {
-        std::shared_ptr<ObjectPart> next;
-        std::shared_ptr<Tangent> tangent;
-    };
-    enum VertexType {
-        TangentEndpoint,
-        CircleElbow,
-        CircleStraight,
-        CircleCircle,
-    };
-    struct Vertex {
-        VertexType type;
-        PointId pointId;
-        std::optional<ElbowId> elbowId;
-        std::optional<StraightId> straightId;
-        bool operator==(const Vertex& other) const = default;
-    };
-    struct Edge {
-        std::vector<ObjectPart> objectParts;
-        std::vector<TangentPart> tangentParts;
-        std::variant<std::shared_ptr<ObjectPart>, std::shared_ptr<TangentPart>> firstPart;
-        std::shared_ptr<Vertex> source;
-        std::shared_ptr<Vertex> target;
-        bool operator==(const Edge& other) const = default;
     };
 
     std::vector<std::shared_ptr<TangentObject>> m_tangentObjects;
     std::vector<std::shared_ptr<Tangent>> m_tangents;
-    std::vector<std::shared_ptr<Vertex>> m_vertices;
-    std::vector<std::shared_ptr<Edge>> m_edges;
+	std::vector<std::list<std::shared_ptr<Tangent>>> m_pointIdToTangents; // sorted on angle
+
+	/// Certifies that determinant of tangents of t1 and t2 is positive?
+	struct TangentEndpointCertificate : public Certificate {
+		PointId pointId;
+		std::shared_ptr<Tangent> t1;
+		std::shared_ptr<Tangent> t2;
+
+		bool operator==(const TangentEndpointCertificate& other) {
+			return pointId == other.pointId && *t1 == *other.t1 && *t2 == *other.t2;
+		}
+
+		bool t1SubsetOft2;
+
+		bool valid(const State& state, const InputInstance& input, const Settings& settings) override;
+
+		TangentEndpointCertificate(PointId pointId, std::shared_ptr<Tangent> t1, std::shared_ptr<Tangent> t2)
+		    : pointId(pointId), t1(t1), t2(t2) {};
+	};
+
+	std::vector<TangentEndpointCertificate> m_tangentEndpointCertificates;
+	void fix(TangentEndpointCertificate& certificate);
+	void removeTangent(std::shared_ptr<Tangent> t);
 };
 }
 
@@ -148,23 +185,6 @@ struct hash<cartocrow::kinetic_kelp::Pseudotriangulation::Tangent>
         res = res * 31 + hash<int>{}(static_cast<int>(t.type));
         res = res * 31 + hash<std::shared_ptr<cartocrow::kinetic_kelp::Pseudotriangulation::TangentObject>>{}(t.source);
         res = res * 31 + hash<std::shared_ptr<cartocrow::kinetic_kelp::Pseudotriangulation::TangentObject>>{}(t.target);
-        return res;
-    }
-};
-
-
-template <>
-struct hash<cartocrow::kinetic_kelp::Pseudotriangulation::Vertex>
-{
-    std::size_t operator()(const cartocrow::kinetic_kelp::Pseudotriangulation::Vertex& v) const
-    {
-        // Compute individual hash values for member variables
-        // http://stackoverflow.com/a/1646913/126995
-        std::size_t res = 17;
-        res = res * 31 + hash<int>{}(static_cast<int>(v.type));
-        res = res * 31 + hash<int>{}(v.pointId);
-        res = res * 31 + hash<std::optional<cartocrow::kinetic_kelp::ElbowId>>{}(v.elbowId);
-        res = res * 31 + hash<std::optional<cartocrow::kinetic_kelp::StraightId>>{}(v.straightId);
         return res;
     }
 };
@@ -202,16 +222,14 @@ class PseudotriangulationGeometry {
   public:
     using TangentObject = Pseudotriangulation::TangentObject;
     using Tangent = Pseudotriangulation::Tangent;
-    using Vertex = Pseudotriangulation::Vertex;
 	using TangentObjectGeometry = std::variant<Point<Exact>, RationalRadiusCircle>;
 
 	std::unordered_map<TangentObject, TangentObjectGeometry> m_tangentObject;
 	std::unordered_map<Tangent, RationalTangent> m_tangents;
-	std::unordered_map<Vertex, Point<Exact>> m_vertices;
 
     static TangentObjectGeometry geometry(const TangentObject& tangentObject, const State& state, const StateGeometry& stateGeometry, const InputInstance& input);
     static std::optional<RationalTangent> geometry(const Tangent& tangent, const TangentObjectGeometry& source, const TangentObjectGeometry& target);
-//    static Point<Exact> geometry(const Vertex& vertex);
+	static std::optional<RationalTangent> geometry(const Tangent& tangent, const State& state, const StateGeometry& stateGeometry, const InputInstance& input);
 
     using TangentObjectWG = std::pair<std::shared_ptr<TangentObject>, TangentObjectGeometry>;
 
@@ -232,28 +250,6 @@ class PseudotriangulationGeometry {
                     *out++ = std::pair(Tangent(Inner1, one.first, other.first), inner->first);
                     *out++ = std::pair(Tangent(Inner2, one.first, other.first), inner->second);
                 }
-//            } else if (auto cap2 = std::get_if<RationalCircularArc>(&other.second)) {
-//                auto ca2 = *cap2;
-//                auto outer = rationalBitangents(c1, ca2.circle, false);
-//                auto inner = rationalBitangents(c1, ca2.circle, true);
-//                if (outer.has_value()) {
-//                    auto [t1, t2] = *outer;
-//                    if (circlePointLiesOnArc(t1.target(), ca2)) {
-//                        *out++ = std::pair(Tangent(Outer1, one.first, other.first), t1);
-//                    }
-//                    if (circlePointLiesOnArc(t2.target(), ca2)) {
-//                        *out++ = std::pair(Tangent(Outer2, one.first, other.first), t2);
-//                    }
-//                }
-//                if (inner.has_value()) {
-//                    auto [t1, t2] = *inner;
-//                    if (circlePointLiesOnArc(t1.target(), ca2)) {
-//                        *out++ = std::pair(Tangent(Inner1, one.first, other.first), t1);
-//                    }
-//                    if (circlePointLiesOnArc(t2.target(), ca2)) {
-//                        *out++ = std::pair(Tangent(Inner2, one.first, other.first), t2);
-//                    }
-//                }
             } else {
                 auto p2 = std::get<Point<Exact>>(other.second);
                 auto ts = rationalTangents(p2, c1);
@@ -262,64 +258,6 @@ class PseudotriangulationGeometry {
                     *out++ = std::pair(Tangent(PointCircle2, other.first, one.first), ts->second);
                 }
             }
-//        } else if (auto cap1 = std::get_if<RationalCircularArc>(&one.second)) {
-//            auto ca1 = *cap1;
-//            if (auto cap2 = std::get_if<RationalCircularArc>(&other.second)) {
-//                auto ca2 = *cap2;
-//                auto outer = rationalBitangents(ca1.circle, ca2.circle, false);
-//                auto inner = rationalBitangents(ca1.circle, ca2.circle, true);
-//                if (outer.has_value()) {
-//                    auto [t1, t2] = *outer;
-//                    if (circlePointLiesOnArc(t1.source(), ca1) && circlePointLiesOnArc(t1.target(), ca2)) {
-//                        *out++ = std::pair(Tangent(Outer1, one.first, other.first), t1);
-//                    }
-//                    if (circlePointLiesOnArc(t2.source(), ca1) && circlePointLiesOnArc(t2.target(), ca2)) {
-//                        *out++ = std::pair(Tangent(Outer2, one.first, other.first), t2);
-//                    }
-//                }
-//                if (inner.has_value()) {
-//                    auto [t1, t2] = *inner;
-//                    if (circlePointLiesOnArc(t1.source(), ca1) && circlePointLiesOnArc(t1.target(), ca2)) {
-//                        *out++ = std::pair(Tangent(Inner1, one.first, other.first), t1);
-//                    }
-//                    if (circlePointLiesOnArc(t2.source(), ca1) && circlePointLiesOnArc(t2.target(), ca2)) {
-//                        *out++ = std::pair(Tangent(Inner2, one.first, other.first), t2);
-//                    }
-//                }
-//            } else if (auto p2p = std::get_if<Point<Exact>>(&other.second)) {
-//                auto ts = rationalTangents(*p2p, ca1.circle);
-//                if (ts.has_value()) {
-//                    auto [t1, t2] = *ts;
-//                    if (circlePointLiesOnArc(t1.target(), ca1)) {
-//                        *out++ = std::pair(Tangent(PointCircle1, other.first, one.first), t1);
-//                    }
-//                    if (circlePointLiesOnArc(t2.target(), ca1)) {
-//                        *out++ = std::pair(Tangent(PointCircle2, other.first, one.first), t2);
-//                    }
-//                }
-//            } else {
-//                auto c2 = std::get<RationalRadiusCircle>(other.second);
-//                auto outer = rationalBitangents(ca1.circle, c2, false);
-//                auto inner = rationalBitangents(ca1.circle, c2, true);
-//                if (outer.has_value()) {
-//                    auto [t1, t2] = *outer;
-//                    if (circlePointLiesOnArc(t1.source(), ca1)) {
-//                        *out++ = std::pair(Tangent(Outer1, one.first, other.first), t1);
-//                    }
-//                    if (circlePointLiesOnArc(t2.source(), ca1)) {
-//                        *out++ = std::pair(Tangent(Outer2, one.first, other.first), t2);
-//                    }
-//                }
-//                if (inner.has_value()) {
-//                    auto [t1, t2] = *inner;
-//                    if (circlePointLiesOnArc(t1.source(), ca1)) {
-//                        *out++ = std::pair(Tangent(Inner1, one.first, other.first), t1);
-//                    }
-//                    if (circlePointLiesOnArc(t2.source(), ca1)) {
-//                        *out++ = std::pair(Tangent(Inner2, one.first, other.first), t2);
-//                    }
-//                }
-//            }
         } else {
             auto p1 = std::get<Point<Exact>>(one.second);
             if (auto p2p = std::get_if<Point<Exact>>(&other.second)) {
@@ -334,23 +272,31 @@ class PseudotriangulationGeometry {
             } else {
                 throw std::runtime_error("Impossible");
             }
-//                auto ca2 = std::get<RationalCircularArc>(other.second);
-//                auto ts = rationalTangents(p1, ca2.circle);
-//                if (ts.has_value()) {
-//                    auto [t1, t2] = *ts;
-//                    if (circlePointLiesOnArc(t1.target(), ca2)) {
-//                        *out++ = std::pair(Tangent(PointCircle1, other.first, one.first), t1);
-//                    }
-//                    if (circlePointLiesOnArc(t2.target(), ca2)) {
-//                        *out++ = std::pair(Tangent(PointCircle2, other.first, one.first), t2);
-//                    }
-//                }
-//            }
         }
     }
 
     static bool free(const RationalTangent& rt, const CSPolygon& obstacle);
     static bool free(const RationalTangent& rt, const CSPolygonWithHoles& obstacle);
+
+	Point<Exact> tangentEndpoint(const Tangent& tangent, PointId pointId) {
+		if (tangent.source->pointId == pointId) {
+			return m_tangents[tangent].source();
+		}
+		if (tangent.target->pointId == pointId) {
+			return m_tangents[tangent].target();
+		}
+		throw std::invalid_argument("The provided pointId is not an endpoint of the tangent.");
+	}
+
+	Point<Exact> otherTangentEndpoint(const Tangent& tangent, PointId pointId) {
+		if (tangent.source->pointId == pointId) {
+			return m_tangents[tangent].target();
+		}
+		if (tangent.target->pointId == pointId) {
+			return m_tangents[tangent].source();
+		}
+		throw std::invalid_argument("The provided pointId is not an endpoint of the tangent.");
+	}
 
     static std::pair<Pseudotriangulation, PseudotriangulationGeometry> pseudotriangulationTangents(const State& state, const StateGeometry& stateGeometry);
     PseudotriangulationGeometry() = default;

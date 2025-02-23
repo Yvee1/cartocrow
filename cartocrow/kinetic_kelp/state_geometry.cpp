@@ -78,16 +78,6 @@ EdgeGeometry::EdgeGeometry(const EdgeTopology& edge, const InputInstance& input,
 		return arc;
     };
 
-	auto oppositeDir = [](CGAL::Orientation dir) {
-	  if (dir == CGAL::CLOCKWISE) {
-		  return CGAL::COUNTERCLOCKWISE;
-	  } else if (dir == CGAL::COUNTERCLOCKWISE) {
-		  return CGAL::CLOCKWISE;
-	  } else {
-		  return CGAL::COLLINEAR;
-	  }
-	};
-
 	// Compute terminal curves
 	auto& straightF = straights.front();
 	Point<Exact> arcuSource = straightF.secondHalf.target();
@@ -113,7 +103,7 @@ EdgeGeometry::EdgeGeometry(const EdgeTopology& edge, const InputInstance& input,
 		Point<Exact> arcTargetSH = elbow.prev->secondHalf.source();
 		bool innerSH = orbit.dir == CGAL::COUNTERCLOCKWISE;
 		RationalRadiusCircle cSH(input[orbit.pointId].point, innerSH ? orbit.innerRadius : orbit.outerRadius);
-		elbow.secondHalf = createArc(cSH, oppositeDir(orbit.dir), arcSourceSH, arcTargetSH);
+		elbow.secondHalf = createArc(cSH, opposite(orbit.dir), arcSourceSH, arcTargetSH);
 	}
 }
 

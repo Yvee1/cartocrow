@@ -19,5 +19,40 @@ void PseudotriangulationPainting::paint(GeometryRenderer &renderer) const {
 			renderer.draw(p);
 		}
 	}
+
+	for (int pId = 0; pId < m_pt->m_pointIdToTangents.size(); ++pId) {
+		auto& ts = m_pt->m_pointIdToTangents[pId];
+
+		RenderPath path;
+		for (const auto& t : ts) {
+			auto p = m_ptg->tangentEndpoint(*t, pId);
+			if (path.commands().empty()) {
+				path.moveTo(approximate(p));
+			} else {
+				path.lineTo(approximate(p));
+			}
+		}
+		path.lineTo(approximate(m_ptg->tangentEndpoint(*ts.front(), pId)));
+		path.close();
+
+		renderer.setStroke(Color(0, 0, 0), 3.0);
+		renderer.setMode(GeometryRenderer::stroke | GeometryRenderer::vertices);
+		renderer.draw(path);
+	}
+
+	for (auto tpCertificate : m_pt->m_tangentEndpointCertificates) {
+		auto pId = tpCertificate.pointId;
+		auto& t1 = *(tpCertificate.t1);
+		auto& t2 = *(tpCertificate.t2);
+		auto p1 = m_ptg->tangentEndpoint(t1, pId);
+		auto p2 = m_ptg->tangentEndpoint(t2, pId);
+
+		if (tpCertificate.valid(*m_state, *m_inputInstance, m_settings)) {
+			renderer.setStroke(Color(50, 202, 50), 3.0);
+		} else {
+			renderer.setStroke(Color(202, 50, 50), 3.0);
+		}
+		renderer.draw(Segment<Exact>(p1, p2));
+	}
 }
 }

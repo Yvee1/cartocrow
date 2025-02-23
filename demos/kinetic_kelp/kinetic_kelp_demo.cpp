@@ -63,8 +63,8 @@ KineticKelpDemo::KineticKelpDemo() {
     m_renderer->setDrawAxes(false);
     setCentralWidget(m_renderer);
 
-    std::string filePath = "data/kinetic_kelp/trajectory.ipe";
-    m_input = Input(parseMovingPoints(filePath, 5.0));
+    std::string filePath = "data/kinetic_kelp/easy.ipe";
+    m_input = Input(parseMovingPoints(filePath, 15.0));
 
     m_timeControl = new TimeControlToolBar(m_renderer, m_input.timespan().second);
 
@@ -104,10 +104,13 @@ KineticKelpDemo::KineticKelpDemo() {
     initialize();
 
 	connect(m_timeControl, &TimeControlToolBar::ticked, [saveToSvg, this](int tick, double time) {
-        if (m_recompute) {
+        if (m_recompute || tick == 0) {
             initialize();
         } else {
-            update(time);
+            bool success = update(time);
+			if (!success) {
+				m_timeControl->playOrPause();
+			}
         }
 
         if (saveToSvg) {
@@ -143,7 +146,7 @@ void KineticKelpDemo::initialize() {
     auto [pt, ptg] = PseudotriangulationGeometry::pseudotriangulationTangents(*m_state, *m_stateGeometry);
     m_pt = std::make_shared<Pseudotriangulation>(pt);
     m_ptg = std::make_shared<PseudotriangulationGeometry>(ptg);
-    auto ptPainting = std::make_shared<PseudotriangulationPainting>(m_pt, m_ptg);
+    auto ptPainting = std::make_shared<PseudotriangulationPainting>(m_pt, m_ptg, m_state, m_inputInstance, m_settings);
     m_renderer->addPainting(ptPainting, "Pseudotriangulation");
 
     m_kelps = std::make_shared<std::vector<Kelp>>();
@@ -154,10 +157,30 @@ void KineticKelpDemo::initialize() {
     m_renderer->addPainting(m_kkPainting, "KineticKelp");
 }
 
-void KineticKelpDemo::update(double time) {
-    *m_inputInstance = m_input.instance(time);
+bool KineticKelpDemo::update(double time) {
+	bool noIssues = true;
+
+	auto newInputInstance = m_input.instance(time);
+	auto newStateGeometry = StateGeometry(*m_state, newInputInstance, m_settings);
+
+	bool allGood = false;
+	while (!allGood) {
+		bool foundInvalidCertificate = false;
+		for (auto& c : m_pt->m_tangentEndpointCertificates) {
+			if (!c.valid(*m_state, newInputInstance, m_settings)) {
+				m_pt->fix(c);
+				foundInvalidCertificate = true;
+				noIssues = false;
+				break;
+			}
+		}
+		if (!foundInvalidCertificate)
+			allGood = true;
+	}
+
+    *m_inputInstance = newInputInstance;
     PaintingRenderer trash;
-    *m_stateGeometry = StateGeometry(*m_state, *m_inputInstance, m_settings);
+    *m_stateGeometry = newStateGeometry;
     *m_ptg = PseudotriangulationGeometry(*m_pt, *m_state, *m_stateGeometry, *m_inputInstance);
 
     m_kelps->clear();
@@ -166,6 +189,8 @@ void KineticKelpDemo::update(double time) {
     } catch(const std::runtime_error& error) {
         std::cerr << error.what() << std::endl;
     }
+
+	return noIssues;
 }
 
 void KineticKelpDemo::fitToScreen() {

@@ -66,7 +66,7 @@ private:
     void fitToScreen();
     void resizeEvent(QResizeEvent *event) override;
     void initialize();
-    void update(double time);
+    bool update(double time);
 };
 
 #endif //CARTOCROW_KINETIC_KELP_DEMO_H
