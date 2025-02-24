@@ -546,7 +546,9 @@ void Pseudotriangulation::fix(TangentEndpointCertificate& certificate) {
 	bool t1R = t1->target->pointId == pId0;
 	bool t2R = t2->target->pointId == pId0;
 
-	auto handle = [&](const std::shared_ptr<Tangent>& oldTangent, const std::shared_ptr<Tangent>& newTangent) {
+    bool angleZero = t1->orientation(t1R) == t2->orientation(t2R);
+
+    auto handle = [&](const std::shared_ptr<Tangent>& oldTangent, const std::shared_ptr<Tangent>& newTangent) {
 		std::cout << "New tangent: " << *newTangent << std::endl;
 
 		// Before removing we create new certificate on obj0 between the two tangents that will become adjacent
@@ -565,18 +567,14 @@ void Pseudotriangulation::fix(TangentEndpointCertificate& certificate) {
 		auto prev0 = *prev0It;
 		auto next0 = *next0It;
 
-		// on obj1 newTangent has opposite orientation of t1. If t1 is ccw then newTangent is inserted before it.
-		// If t1 cw then newTangent is inserted after.
-
-		// on obj2 if t2 is ccw then newTangent is inserted after, otherwise inserted before.
 		auto t1It = std::find(ts1.begin(), ts1.end(), t1);
-		if (t1->orientation(!t1R) == CGAL::CLOCKWISE) {
+		if (t2 == oldTangent && (angleZero ? t1->orientation(!t1R) == CGAL::CLOCKWISE : t1->orientation(t1R) == CGAL::COUNTERCLOCKWISE)) {
 			++t1It;
 		}
 		auto newIt1 = ts1.insert(t1It, newTangent);
 
 		auto t2It = std::find(ts2.begin(), ts2.end(), t2);
-		if (t2->orientation(!t2R) == CGAL::COUNTERCLOCKWISE) {
+		if (t1 == oldTangent && (angleZero ? t2->orientation(!t2R) == CGAL::CLOCKWISE : t2->orientation(t2R) == CGAL::COUNTERCLOCKWISE)) {
 			++t2It;
 		}
 		auto newIt2 = ts2.insert(t2It, newTangent);
@@ -634,15 +632,12 @@ void Pseudotriangulation::fix(TangentEndpointCertificate& certificate) {
 		}), m_tangentEndpointCertificates.end());
 	};
 
-
 	std::cout << "Before fixing" << std::endl;
 	for (const auto& c : m_tangentEndpointCertificates) {
 		if (c.pointId == pId0 || c.pointId == pId1 || c.pointId == pId2) {
 			std::cout << "Certificate " << c << std::endl;
 		}
 	}
-
-	bool angleZero = t1->orientation(t1R) == t2->orientation(t2R);
 
 	if (angleZero && certificate.t1SubsetOft2) {
 		//      t1
