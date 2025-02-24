@@ -8,6 +8,7 @@
 #include <QCheckBox>
 #include <QPushButton>
 #include <QFileDialog>
+#include <QLabel>
 
 #include "cartocrow/renderer/svg_renderer.h"
 
@@ -63,11 +64,6 @@ KineticKelpDemo::KineticKelpDemo() {
     m_renderer->setDrawAxes(false);
     setCentralWidget(m_renderer);
 
-    std::string filePath = "data/kinetic_kelp/easy.ipe";
-    m_input = Input(parseMovingPoints(filePath, 15.0));
-
-    m_timeControl = new TimeControlToolBar(m_renderer, m_input.timespan().second);
-
     auto* dockWidget = new QDockWidget();
     addDockWidget(Qt::RightDockWidgetArea, dockWidget);
     auto* vWidget = new QWidget();
@@ -75,18 +71,43 @@ KineticKelpDemo::KineticKelpDemo() {
     vLayout->setAlignment(Qt::AlignTop);
     dockWidget->setWidget(vWidget);
 
-    auto* recomputeCheckBox = new QCheckBox("Recompute");
-    vLayout->addWidget(recomputeCheckBox);
+    auto* interpolationTimeLabel = new QLabel("Seconds between polyline vertices");
+    m_interpolationTimeSpinBox = new QSpinBox();
+    m_interpolationTimeSpinBox->setMinimum(1);
+    m_interpolationTimeSpinBox->setMaximum(15);
+    m_interpolationTimeSpinBox->setValue(5);
+    vLayout->addWidget(interpolationTimeLabel);
+    vLayout->addWidget(m_interpolationTimeSpinBox);
+
+    m_filePath = "data/kinetic_kelp/easy.ipe";
+    m_input = Input(parseMovingPoints(m_filePath, m_interpolationTimeSpinBox->value()));
+
+    m_timeControl = new TimeControlToolBar(m_renderer, m_input.timespan().second);
 
     auto* loadFileButton = new QPushButton("Load file");
     vLayout->addWidget(loadFileButton);
+
+    auto* recomputeCheckBox = new QCheckBox("Recompute");
+    vLayout->addWidget(recomputeCheckBox);
+
+    auto* pauseOnEventCheckBox = new QCheckBox("Pause on event");
+    vLayout->addWidget(pauseOnEventCheckBox);
+
+    connect(m_interpolationTimeSpinBox, QOverload<int>::of(&QSpinBox::valueChanged), [this]() {
+        m_input = Input(parseMovingPoints(m_filePath, m_interpolationTimeSpinBox->value()));
+        m_timeControl->restart();
+        m_timeControl->setEndTime(m_input.timespan().second);
+        initialize();
+    });
 
     connect(loadFileButton, &QPushButton::clicked, [this]() {
         QString startDir = "data/kinetic_kelp";
         std::filesystem::path filePath = QFileDialog::getOpenFileName(this, tr("Select trajectory file"), startDir).toStdString();
         if (filePath == "") return;
-        m_input = Input(parseMovingPoints(filePath, 5.0));
+        m_filePath = filePath;
+        m_input = Input(parseMovingPoints(m_filePath, m_interpolationTimeSpinBox->value()));
         m_timeControl->restart();
+        m_timeControl->setEndTime(m_input.timespan().second);
         initialize();
     });
 
@@ -103,12 +124,12 @@ KineticKelpDemo::KineticKelpDemo() {
 
     initialize();
 
-	connect(m_timeControl, &TimeControlToolBar::ticked, [saveToSvg, this](int tick, double time) {
+	connect(m_timeControl, &TimeControlToolBar::ticked, [saveToSvg, pauseOnEventCheckBox, this](int tick, double time) {
         if (m_recompute || tick == 0) {
             initialize();
         } else {
-            bool success = update(time);
-			if (!success) {
+            bool noEvent = update(time);
+			if (!noEvent && pauseOnEventCheckBox->isChecked()) {
 				m_timeControl->playOrPause();
 			}
         }

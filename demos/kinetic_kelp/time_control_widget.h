@@ -17,6 +17,7 @@ public:
     TimeControlToolBar(QWidget* parent = nullptr, std::optional<double> endTimeSecond = std::nullopt, int intervalMs = 17);
 
     void resized();
+    void setEndTime(double endTimeInSeconds);
 public slots:
 	void start();
 	void restart();

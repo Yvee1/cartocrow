@@ -3,6 +3,7 @@
 
 #include <QMainWindow>
 #include <QToolBar>
+#include <QSpinBox>
 
 #include "cartocrow/core/core.h"
 #include "cartocrow/kinetic_kelp/input.h"
@@ -22,6 +23,7 @@
 #include "time_control_widget.h"
 
 #include <map>
+#include <filesystem>
 
 using namespace cartocrow;
 using namespace cartocrow::kinetic_kelp;
@@ -51,6 +53,9 @@ private:
     double m_pointRadius = 1;
     std::optional<qint64> m_pausedTime;
     TimeControlToolBar* m_timeControl;
+    QSpinBox* m_interpolationTimeSpinBox;
+
+    std::filesystem::path m_filePath;
 
     bool m_recompute = false;
 

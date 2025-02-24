@@ -123,3 +123,7 @@ void TimeControlToolBar::resized() {
 void TimeControlToolBar::resizeEvent(QResizeEvent* e) {
     resized();
 }
+
+void TimeControlToolBar::setEndTime(double endTimeInSeconds) {
+    m_endTime = endTimeInSeconds;
+}
