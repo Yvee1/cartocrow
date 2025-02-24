@@ -128,6 +128,11 @@ std::pair<Pseudotriangulation, PseudotriangulationGeometry> PseudotriangulationG
         // todo circle-circle intersections
     }
 
+    // The tangents in the final pseudotriangulation.
+    // We declare it here already as we will add tangents for each side of a straight.
+    std::vector<std::pair<Tangent, RationalTangent>> finalTangents;
+
+    // All tangents between tangent objects
     std::vector<std::pair<Tangent, RationalTangent>> allTangents;
     for (int objIndex1 = 0; objIndex1 < pt.m_tangentObjects.size(); ++objIndex1) {
         auto& obj1 = pt.m_tangentObjects[objIndex1];
@@ -140,7 +145,20 @@ std::pair<Pseudotriangulation, PseudotriangulationGeometry> PseudotriangulationG
                 // Is there edge between?
                 auto sId1 = *(obj1->straightId);
                 auto sId2 = *(obj2->straightId);
-                if (sId1 == sId2) continue;
+                if (sId1 == sId2) {
+                    // obj1 and obj2 are the circle-straight intersection points
+                    // arising from the same straight but different circles.
+                    // if the points belong to the same part of the straight then
+                    // we connect them.
+                    if (obj1->type == obj2->type) {
+                        auto p1 = std::get<Point<Exact>>(ptg.m_tangentObject[*obj1]);
+                        auto p2 = std::get<Point<Exact>>(ptg.m_tangentObject[*obj2]);
+                        Tangent straightTangent(PointPoint, obj1, obj2);
+                        finalTangents.emplace_back(straightTangent, RationalTangent(Segment<Exact>(p1, p2)));
+                    }
+                    continue;
+                }
+
             }
             tangents(std::pair(obj1, obj1G), std::pair(obj2, obj2G), std::back_inserter(allTangents));
         }
@@ -243,8 +261,6 @@ std::pair<Pseudotriangulation, PseudotriangulationGeometry> PseudotriangulationG
         std::copy(result.begin(), result.end(), std::back_inserter(freeTangents));
     }
 
-    std::vector<std::pair<Tangent, RationalTangent>> finalTangents;
-
     std::sort(freeTangents.begin(), freeTangents.end(), [](const auto& t1, const auto& t2) {
         RationalTangent rt1 = t1.second;
         RationalTangent rt2 = t2.second;
@@ -313,15 +329,13 @@ std::pair<Pseudotriangulation, PseudotriangulationGeometry> PseudotriangulationG
 			auto t1 = *t1It;
 			auto t2 = *t2It;
 			if (t1->otherEndpoint(pId)->pointId == t2->otherEndpoint(pId)->pointId) continue;
+            if (t1->endpoint(pId)->circleStraight() && t2->endpoint(pId)->circleStraight()) continue;
 			pt.m_tangentEndpointCertificates.emplace_back(pId, t1, t2);
 		}
 	}
 
     return {pt, ptg};
 }
-
-//Point<Exact> PseudotriangulationGeometry::geometry(const Vertex& vertex, const InputInstance& input, const Settings& settings) {
-//}
 
 PseudotriangulationGeometry::TangentObjectGeometry
 PseudotriangulationGeometry::geometry(const TangentObject& tangentObject, const State& state, const StateGeometry& stateGeometry, const InputInstance& input) {
@@ -452,7 +466,7 @@ Pseudotriangulation::TangentEndpointCertificate::valid(const State& state, const
 		v2 = -v2;
 	}
 	bool valid;
-	if (t1->orientation(t1R) == t2->orientation(t2R)) {
+	if (t1->orientation(t1R) == t2->orientation(t2R) || t1->orientation(t1R) == CGAL::COLLINEAR || t2->orientation(t2R) == CGAL::COLLINEAR) {
 		valid = CGAL::determinant(v1, v2) > 0;
 	} else {
 		valid = CGAL::determinant(v1, v2) < 0;

@@ -110,6 +110,7 @@ public:
 			if (type == Outer2 || type == Inner2) {
 				return CGAL::CLOCKWISE;
 			}
+            return CGAL::COLLINEAR; /// todo
 			throw std::invalid_argument("Unimplemented enum type");
 		}
 
@@ -120,6 +121,7 @@ public:
 			if (type == Outer2 || type == Inner1) {
 				return CGAL::COUNTERCLOCKWISE;
 			}
+            return CGAL::COLLINEAR;
 			throw std::invalid_argument("Unimplemented enum type");
 		}
 
