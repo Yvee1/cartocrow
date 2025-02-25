@@ -91,6 +91,7 @@ std::pair<Pseudotriangulation, PseudotriangulationGeometry> PseudotriangulationG
         ptg.m_tangentObject[*(pt.m_tangentObjects.back())] = circleGeometry;
         auto& incidentEdges = state.pointIdToEdges[pId];
         for (const auto& edge : incidentEdges) {
+			auto& orbits = state.edgeTopology.at(edge).orbits;
             auto& edgeG = stateGeometry.edgeGeometry.at(edge);
             auto straightIndex = edge.first == pId ? 0 : edgeG.straights.size() - 1;
             auto straight = edgeG.straights[straightIndex];
@@ -100,8 +101,14 @@ std::pair<Pseudotriangulation, PseudotriangulationGeometry> PseudotriangulationG
             for (const auto& ipt : ipts) {
                 Point<Exact> approx = pretendExact(approximateOneRootPoint(ipt));
 
-                bool one = liesOnHalf(ipt, straight, true);
-                assert(one || liesOnHalf(ipt, straight, false));
+				auto pId2 = straightIndex == orbits.size() ? edge.second : orbits[straightIndex].pointId;
+				auto rev = pId == pId2;
+				auto thisPoint = straight.backboneEndpoint(rev);
+				auto otherPoint = straight.backboneEndpoint(!rev);
+
+				auto orient = CGAL::orientation(thisPoint, otherPoint, approx);
+				bool one = orient == CGAL::CLOCKWISE;
+
                 pt.m_tangentObjects.push_back(std::make_shared<TangentObject>(pId, straightId, one));
                 assert(!ptg.m_tangentObject.contains(*(pt.m_tangentObjects.back())));
                 ptg.m_tangentObject[*(pt.m_tangentObjects.back())] = approx;
@@ -111,15 +118,25 @@ std::pair<Pseudotriangulation, PseudotriangulationGeometry> PseudotriangulationG
         auto& orbitElbows = state.pointIdToElbows[pId];
         for (const auto& elbowId : orbitElbows) {
             auto elbow = stateGeometry.elbow(elbowId);
+			auto& edge = elbowId.first;
+			auto& orbits = state.edgeTopology.at(edge).orbits;
             for (const auto& [straight, straightId] : {std::pair(*(elbow.prev), StraightId{elbowId.first, elbowId.second}), std::pair(*(elbow.next), StraightId{elbowId.first, elbowId.second + 1})}) {
                 std::vector<OneRootPoint> ipts;
                 intersectionPoints(straight.csPolygon(), circleToCSPolygon(circleGeometry.circle()), std::back_inserter(ipts));
                 for (const auto &ipt: ipts) {
                     Point<Exact> approx = pretendExact(approximateOneRootPoint(ipt));
 
-                    bool one = liesOnHalf(ipt, straight, true);
-                    assert(one || liesOnHalf(ipt, straight, false));
-                    pt.m_tangentObjects.push_back(std::make_shared<TangentObject>(pId, straightId, one));
+					auto straightIndex = straightId.second;
+
+					auto pId2 = straightIndex == orbits.size() ? edge.second : orbits[straightIndex].pointId;
+					auto rev = pId == pId2;
+					auto thisPoint = straight.backboneEndpoint(rev);
+					auto otherPoint = straight.backboneEndpoint(!rev);
+
+					auto orient = CGAL::orientation(thisPoint, otherPoint, approx);
+					bool one = orient == CGAL::CLOCKWISE;
+
+					pt.m_tangentObjects.push_back(std::make_shared<TangentObject>(pId, straightId, one));
                     assert(!ptg.m_tangentObject.contains(*(pt.m_tangentObjects.back())));
                     ptg.m_tangentObject[*(pt.m_tangentObjects.back())] = approx;
                 }
@@ -150,7 +167,7 @@ std::pair<Pseudotriangulation, PseudotriangulationGeometry> PseudotriangulationG
                     // arising from the same straight but different circles.
                     // if the points belong to the same part of the straight then
                     // we connect them.
-                    if (obj1->type == obj2->type) {
+                    if (obj1->type != obj2->type) {
                         auto p1 = std::get<Point<Exact>>(ptg.m_tangentObject[*obj1]);
                         auto p2 = std::get<Point<Exact>>(ptg.m_tangentObject[*obj2]);
                         Tangent straightTangent(PointPoint, obj1, obj2);
@@ -313,10 +330,11 @@ std::pair<Pseudotriangulation, PseudotriangulationGeometry> PseudotriangulationG
 				return false;
 			} else {
 				auto q1 = ptg.otherTangentEndpoint(*t1, pId);
-				auto q2 = ptg.otherTangentEndpoint(*t1, pId);
-				d1 = (q1 - point).direction();
-				d2 = (q2 - point).direction();
-				return d1 < d2;
+				auto q2 = ptg.otherTangentEndpoint(*t2, pId);
+				d1 = (q1 - p1).direction();
+				d2 = (q2 - p2).direction();
+				auto ref = (point - p1).direction();
+				return d1.counterclockwise_in_between(ref, d2);
 			}
 		});
 
@@ -329,7 +347,14 @@ std::pair<Pseudotriangulation, PseudotriangulationGeometry> PseudotriangulationG
 			auto t1 = *t1It;
 			auto t2 = *t2It;
 			if (t1->otherEndpoint(pId)->pointId == t2->otherEndpoint(pId)->pointId) continue;
-            if (t1->endpoint(pId)->circleStraight() && t2->endpoint(pId)->circleStraight()) continue;
+			if (!t1->endpoint(pId)->circleStraight() && t2->endpoint(pId)->circleStraight() && t1->orientation(pId) == CGAL::COUNTERCLOCKWISE) {
+				assert(t2->endpoint(pId)->type == Pseudotriangulation::CircleStraight1);
+				continue;
+			}
+			if (t1->endpoint(pId)->circleStraight() && !t2->endpoint(pId)->circleStraight() && t2->orientation(pId) == CGAL::CLOCKWISE) {
+				assert(t1->endpoint(pId)->type == Pseudotriangulation::CircleStraight2);
+				continue;
+			}
 			pt.m_tangentEndpointCertificates.emplace_back(pId, t1, t2);
 		}
 	}
@@ -356,13 +381,25 @@ PseudotriangulationGeometry::geometry(const TangentObject& tangentObject, const 
     if (tangentObject.straightId.has_value()) {
         auto straightId = *(tangentObject.straightId);
         const auto& straight = stateGeometry.straight(straightId);
+		auto& edge = straightId.first;
+		auto& orbits = state.edgeTopology.at(edge).orbits;
         std::vector<OneRootPoint> ipts;
         intersectionPoints(straight.csPolygon(), circleToCSPolygon(circleGeometry.circle()), std::back_inserter(ipts));
         for (const auto& ipt: ipts) {
-            bool one = liesOnHalf(ipt, straight, true);
+			Point<Exact> approx = pretendExact(approximateOneRootPoint(ipt));
+
+			auto straightIndex = straightId.second;
+			auto pId2 = straightIndex == orbits.size() ? edge.second : orbits[straightIndex].pointId;
+
+			auto rev = pId == pId2;
+			auto thisPoint = straight.backboneEndpoint(rev);
+			auto otherPoint = straight.backboneEndpoint(!rev);
+
+			auto orient = CGAL::orientation(thisPoint, otherPoint, approx);
+			bool one = orient == CGAL::CLOCKWISE;
+
             if (one && tangentObject.type == Pseudotriangulation::CircleStraight1 ||
                 !one && tangentObject.type == Pseudotriangulation::CircleStraight2) {
-                Point<Exact> approx = pretendExact(approximateOneRootPoint(ipt));
                 return approx;
             }
         }
@@ -466,10 +503,10 @@ Pseudotriangulation::TangentEndpointCertificate::valid(const State& state, const
 		v2 = -v2;
 	}
 	bool valid;
-	if (t1->orientation(t1R) == t2->orientation(t2R) || t1->orientation(t1R) == CGAL::COLLINEAR || t2->orientation(t2R) == CGAL::COLLINEAR) {
-		valid = CGAL::determinant(v1, v2) > 0;
-	} else {
+	if (t1->endpoint(t1R)->circleTangent() && t2->endpoint(t2R)->circleTangent() && t1->orientation(t1R) != t2->orientation(t2R)) {
 		valid = CGAL::determinant(v1, v2) < 0;
+	} else {
+		valid = CGAL::determinant(v1, v2) > 0;
 	}
 
 	t1SubsetOft2 = v1.squared_length() < v2.squared_length();

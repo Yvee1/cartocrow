@@ -61,8 +61,8 @@ class Pseudotriangulation {
 public:
     enum TangentObjectType {
         Circle,
-        CircleStraight1,
-        CircleStraight2,
+        CircleStraight1, // intersection with right part of straight, viewed from this object.
+        CircleStraight2, // intersection with left part of straight, viewed from this object.
         CircleCircle1,
         CircleCircle2,
     };
@@ -72,6 +72,7 @@ public:
         std::optional<StraightId> straightId;
 
         bool circleStraight() { return type == CircleStraight1 || type == CircleStraight2; }
+		bool circleTangent() { return type == Circle; }
 
         TangentObject(PointId pointId) : pointId(pointId), type(Circle), straightId(std::nullopt) {};
         TangentObject(PointId pointId, StraightId straightId, bool one) : pointId(pointId), straightId(straightId), type(one ? CircleStraight1 : CircleStraight2) {};
@@ -103,7 +104,16 @@ public:
 			throw std::invalid_argument("The provided pointId is not an endpoint of the tangent.");
 		}
 
+		std::shared_ptr<TangentObject> endpoint(bool target) {
+			return target ? this->target : this->source;
+		}
+
+		std::shared_ptr<TangentObject> otherEndpoint(bool target) {
+			return target ? this->source : this->target;
+		}
+
 		CGAL::Orientation sourceOrientation() const {
+			// todo incorrect
 			if (type == Outer1 || type == Inner1) {
 				return CGAL::COUNTERCLOCKWISE;
 			}
@@ -115,10 +125,10 @@ public:
 		}
 
 		CGAL::Orientation targetOrientation() const {
-			if (type == Outer1 || type == Inner2) {
+			if (type == Outer1 || type == Inner2 || type == PointCircle1) {
 				return CGAL::CLOCKWISE;
 			}
-			if (type == Outer2 || type == Inner1) {
+			if (type == Outer2 || type == Inner1 || type == PointCircle2) {
 				return CGAL::COUNTERCLOCKWISE;
 			}
             return CGAL::COLLINEAR;
@@ -127,6 +137,18 @@ public:
 
 		CGAL::Orientation orientation(bool target) const {
 			return target ? targetOrientation() : sourceOrientation();
+		}
+
+		CGAL::Orientation orientation(PointId pId) const {
+			return source->pointId == pId ? sourceOrientation() : targetOrientation();
+		}
+
+		bool circleBitangent() const {
+			return type == Outer1 || type == Outer2 || type == Inner1 || type == Inner2;
+		}
+
+		bool straightEdge() const {
+			return source->circleStraight() && target->circleStraight();
 		}
 
         bool operator==(const Tangent& other) const = default;
@@ -193,8 +215,8 @@ struct hash<cartocrow::kinetic_kelp::Pseudotriangulation::Tangent>
 }
 
 namespace cartocrow::kinetic_kelp {
-template <class OutputIterator>
-void intersectionPoints(const CSPolygon& one, const CSPolygon& other, OutputIterator out) {
+template <class OutputIterator, class CSPoly1, class CSPoly2>
+void intersectionPoints(const CSPoly1& one, const CSPoly2& other, OutputIterator out) {
     using Intersection = boost::variant<std::pair<OneRootPoint, ArrCSTraits::Multiplicity>, CSXMCurve>;
     std::vector<Intersection> intersections;
 
@@ -208,12 +230,28 @@ void intersectionPoints(const CSPolygon& one, const CSPolygon& other, OutputIter
         }
     }
 
+	std::vector<OneRootPoint> intersectionPoints;
     for (const auto& inter : intersections) {
         if (inter.type() == typeid(std::pair<OneRootPoint, ArrCSTraits::Multiplicity>)) {
             auto pt = boost::get<std::pair<OneRootPoint, ArrCSTraits::Multiplicity>>(inter).first;
-            *out++ = pt;
+			intersectionPoints.push_back(pt);
         }
     }
+
+	std::sort(intersectionPoints.begin(), intersectionPoints.end(), [](const OneRootPoint& pt1, const OneRootPoint& pt2) {
+		if (pt1.x() < pt2.x()) {
+			return true;
+		} else if (pt1.x() > pt2.x()) {
+			return false;
+		} else {
+			return pt1.y() < pt2.y();
+		}
+	});
+	intersectionPoints.erase(std::unique(intersectionPoints.begin(), intersectionPoints.end()), intersectionPoints.end());
+
+	for (const auto& ip : intersectionPoints) {
+		*out++ = ip;
+	}
 }
 
 bool liesOnHalf(const OneRootPoint& pt, const Straight& s, bool firstHalf);

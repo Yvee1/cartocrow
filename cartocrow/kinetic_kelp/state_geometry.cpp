@@ -163,6 +163,22 @@ CSPolygon Straight::csPolygon() const {
 	return csPolygon;
 }
 
+Point<Exact> Straight::backboneSource() const {
+	return CGAL::midpoint(firstHalf.source(), secondHalf.target());
+}
+
+Point<Exact> Straight::backboneTarget() const {
+	return CGAL::midpoint(firstHalf.target(), secondHalf.source());
+}
+
+Point<Exact> Straight::backboneEndpoint(bool target) const {
+	return target ? backboneTarget() : backboneSource();
+}
+
+Segment<Exact> Straight::backbone() const {
+	return {backboneSource(), backboneTarget()};
+}
+
 CSPolygon Terminal::csPolygon() const {
 	std::vector<CSXMCurve> xmCurves;
 	auto in = std::back_inserter(xmCurves);

@@ -48,6 +48,10 @@ struct Straight {
 	RationalTangent secondHalf;
 	ElbowOrTerminal* prev;
 	ElbowOrTerminal* next;
+	Segment<Exact> backbone() const;
+	Point<Exact> backboneSource() const;
+	Point<Exact> backboneTarget() const;
+	Point<Exact> backboneEndpoint(bool target) const;
 };
 
 template <class OutputIterator>

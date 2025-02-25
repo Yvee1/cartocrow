@@ -169,6 +169,8 @@ void KineticKelpDemo::initialize() {
     m_ptg = std::make_shared<PseudotriangulationGeometry>(ptg);
     auto ptPainting = std::make_shared<PseudotriangulationPainting>(m_pt, m_ptg, m_state, m_inputInstance, m_settings);
     m_renderer->addPainting(ptPainting, "Pseudotriangulation");
+	auto ptCPainting = std::make_shared<PseudotriangulationCertificatesPainting>(m_pt, m_ptg, m_state, m_inputInstance, m_settings);
+	m_renderer->addPainting(ptCPainting, "Certificates");
 
     m_kelps = std::make_shared<std::vector<Kelp>>();
     try {
