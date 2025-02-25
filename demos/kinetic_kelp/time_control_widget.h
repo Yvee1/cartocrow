@@ -41,6 +41,7 @@ private:
 	void done();
 signals:
     void ticked(int tick, double time);
+    void restarted();
 };
 
 #endif //CARTOCROW_TIME_CONTROL_WIDGET_H

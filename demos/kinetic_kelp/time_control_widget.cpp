@@ -79,7 +79,7 @@ void TimeControlToolBar::restart() {
 		m_scrubber->setValue(0);
 	}
 	m_playPauseButton->setIcon(m_playIcon);
-	emit ticked(0, 0);
+    emit restarted();
 	parentWidget()->update();
 }
 

@@ -125,7 +125,7 @@ KineticKelpDemo::KineticKelpDemo() {
     initialize();
 
 	connect(m_timeControl, &TimeControlToolBar::ticked, [saveToSvg, pauseOnEventCheckBox, this](int tick, double time) {
-        if (m_recompute || tick == 0) {
+        if (m_recompute) {
             initialize();
         } else {
             bool noEvent = update(time);
@@ -146,6 +146,10 @@ KineticKelpDemo::KineticKelpDemo() {
             svgRenderer.save(filename.str() + ".svg");
         }
 	});
+
+    connect(m_timeControl, &TimeControlToolBar::restarted, [this]() {
+        initialize();
+    });
 }
 
 void KineticKelpDemo::initialize() {
@@ -183,14 +187,14 @@ void KineticKelpDemo::initialize() {
 bool KineticKelpDemo::update(double time) {
 	bool noIssues = true;
 
-	auto newInputInstance = m_input.instance(time);
-	auto newStateGeometry = StateGeometry(*m_state, newInputInstance, m_settings);
+    *m_inputInstance = m_input.instance(time);
+	*m_stateGeometry = StateGeometry(*m_state, *m_inputInstance, m_settings);
 
 	bool allGood = false;
 	while (!allGood) {
 		bool foundInvalidCertificate = false;
 		for (auto& c : m_pt->m_tangentEndpointCertificates) {
-			if (!c.valid(*m_state, newInputInstance, m_settings)) {
+			if (!c.valid(*m_state, *m_inputInstance, m_settings)) {
 				m_pt->fix(c);
 				foundInvalidCertificate = true;
 				noIssues = false;
@@ -201,9 +205,6 @@ bool KineticKelpDemo::update(double time) {
 			allGood = true;
 	}
 
-    *m_inputInstance = newInputInstance;
-    PaintingRenderer trash;
-    *m_stateGeometry = newStateGeometry;
     *m_ptg = PseudotriangulationGeometry(*m_pt, *m_state, *m_stateGeometry, *m_inputInstance);
 
     m_kelps->clear();
