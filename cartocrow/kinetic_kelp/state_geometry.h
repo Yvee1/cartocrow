@@ -103,20 +103,28 @@ public:
 	std::map<MSTEdge, EdgeGeometry> edgeGeometry;
 	std::map<PointId, RationalRadiusCircle> vertexGeometry;
 
-	Elbow& elbow(ElbowId elbowId) {
-		auto& [edge, i] = elbowId;
+	Elbow& elbow(ElbowId elbowId, const State& state) {
+		auto& [edge, it] = elbowId;
+        const std::list<Orbit>& orbits = state.edgeTopology.at(edge).orbits;
+        auto i = std::distance(orbits.begin(), it);
 		return edgeGeometry[edge].elbows[i];
 	}
-	Straight& straight(StraightId straightId) {
-		auto& [edge, i] = straightId;
+	Straight& straight(StraightId straightId, const State& state) {
+		auto& [edge, it] = straightId;
+        const std::list<Orbit>& orbits = state.edgeTopology.at(edge).orbits;
+        auto i = std::distance(orbits.begin(), it);
 		return edgeGeometry[edge].straights[i];
 	}
-	const Elbow& elbow(ElbowId elbowId) const {
-        auto& [edge, i] = elbowId;
+	const Elbow& elbow(ElbowId elbowId, const State& state) const {
+        auto& [edge, it] = elbowId;
+        const std::list<Orbit>& orbits = state.edgeTopology.at(edge).orbits;
+        auto i = std::distance(orbits.begin(), it);
         return edgeGeometry.at(edge).elbows.at(i);
     }
-	const Straight& straight(StraightId straightId) const {
-        auto& [edge, i] = straightId;
+	const Straight& straight(StraightId straightId, const State& state) const {
+        auto& [edge, it] = straightId;
+        const std::list<Orbit>& orbits = state.edgeTopology.at(edge).orbits;
+        auto i = std::distance(orbits.begin(), it);
         return edgeGeometry.at(edge).straights.at(i);
     }
 

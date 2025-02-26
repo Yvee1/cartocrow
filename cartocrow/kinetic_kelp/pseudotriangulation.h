@@ -147,10 +147,6 @@ public:
 			return type == Outer1 || type == Outer2 || type == Inner1 || type == Inner2;
 		}
 
-		bool straightEdge() const {
-			return source->circleStraight() && target->circleStraight();
-		}
-
         bool operator==(const Tangent& other) const = default;
     };
 
@@ -158,7 +154,9 @@ public:
     std::vector<std::shared_ptr<Tangent>> m_tangents;
 	std::vector<std::list<std::shared_ptr<Tangent>>> m_pointIdToTangents; // sorted on angle
 
-	/// Certifies that determinant of tangents of t1 and t2 is positive?
+    typedef CGAL::Circulator_from_container<std::list<std::shared_ptr<Tangent>>> TangentCirculator;
+
+    /// Certifies that determinant of tangents of t1 and t2 is positive?
 	struct TangentEndpointCertificate : public Certificate {
 		PointId pointId;
 		std::shared_ptr<Tangent> t1;
@@ -177,9 +175,12 @@ public:
 	};
 
 	std::vector<TangentEndpointCertificate> m_tangentEndpointCertificates;
-	void fix(TangentEndpointCertificate& certificate);
+	void fix(TangentEndpointCertificate& certificate, State& state, const Settings& settings);
 	void removeTangent(std::shared_ptr<Tangent> t);
 	void maybeAddCertificate(PointId pId, const std::shared_ptr<Tangent>& t1, const std::shared_ptr<Tangent>& t2);
+    std::pair<std::shared_ptr<Pseudotriangulation::Tangent>, std::shared_ptr<Pseudotriangulation::Tangent>> neighbouringTangents(PointId pId, const std::shared_ptr<Tangent>& t);
+    std::shared_ptr<Pseudotriangulation::Tangent> previousTangent(PointId pId, const std::shared_ptr<Tangent>& t);
+    std::shared_ptr<Pseudotriangulation::Tangent> nextTangent(PointId pId, const std::shared_ptr<Tangent>& t);
 };
 }
 
@@ -194,7 +195,7 @@ struct hash<cartocrow::kinetic_kelp::Pseudotriangulation::TangentObject>
         std::size_t res = 17;
         res = res * 31 + hash<int>{}(static_cast<int>(to.type));
         res = res * 31 + hash<int>{}(to.pointId);
-        res = res * 31 + hash<std::optional<cartocrow::kinetic_kelp::StraightId>>{}(to.straightId);
+//        res = res * 31 + hash<std::optional<cartocrow::kinetic_kelp::StraightId>>{}(to.straightId);
         return res;
     }
 };

@@ -398,10 +398,10 @@ std::pair<State, std::shared_ptr<StateGeometry>> routeEdges(const InputInstance&
             stateGeometry->edgeGeometry[mstE] = EdgeGeometry(topo, input, settings);
             auto& geometry = stateGeometry->edgeGeometry[mstE];
 
-			for (int orbitIndex = 0; orbitIndex < topo.orbits.size(); ++orbitIndex) {
-                const auto& orbit = topo.orbits[orbitIndex];
+            for (auto orbitIt = topo.orbits.begin(); orbitIt != topo.orbits.end(); ++orbitIt) {
+                const auto& orbit = *orbitIt;
 				auto pId = orbit.pointId;
-                state.pointIdToElbows[pId].emplace_back(mstE, orbitIndex);
+                state.pointIdToElbows[pId].emplace_back(mstE, orbitIt);
 				// Remove all edges and vertices on the orbit
 				for (const auto& v : graph.m_circleVertices[pId]) {
 					graph.m_pointToVertex.erase(g[v].point);
@@ -462,7 +462,7 @@ std::pair<State, std::shared_ptr<StateGeometry>> routeEdges(const InputInstance&
 }
 
 EdgeTopology extractTopology(const RoutingGraph::Path& path, RoutingGraph::Graph& g, const Settings& settings) {
-    std::vector<Orbit> orbits;
+    std::list<Orbit> orbits;
     int lastOrbit = -1;
     auto p = path.path;
 

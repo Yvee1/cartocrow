@@ -84,7 +84,7 @@ std::pair<Pseudotriangulation, PseudotriangulationGeometry> PseudotriangulationG
             circleGeometry = circle;
         } else {
             auto& last = elbows.back();
-            auto orbit = stateGeometry.elbow(last).orbit();
+            auto orbit = stateGeometry.elbow(last, state).orbit();
             auto r = orbit.outerRadius;
             circleGeometry = RationalRadiusCircle(circle.center, r);
         }
@@ -93,15 +93,15 @@ std::pair<Pseudotriangulation, PseudotriangulationGeometry> PseudotriangulationG
         for (const auto& edge : incidentEdges) {
 			auto& orbits = state.edgeTopology.at(edge).orbits;
             auto& edgeG = stateGeometry.edgeGeometry.at(edge);
-            auto straightIndex = edge.first == pId ? 0 : edgeG.straights.size() - 1;
-            auto straight = edgeG.straights[straightIndex];
-            auto straightId = std::pair(edge, straightIndex);
+            auto orbitsIt = edge.first == pId ? orbits.begin() : (--orbits.end());
+            auto straightId = std::pair(edge, orbitsIt);
+            auto straight = stateGeometry.straight(straightId, state);
             std::vector<OneRootPoint> ipts;
             intersectionPoints(straight.csPolygon(), circleToCSPolygon(circleGeometry.circle()), std::back_inserter(ipts));
             for (const auto& ipt : ipts) {
                 Point<Exact> approx = pretendExact(approximateOneRootPoint(ipt));
 
-				auto pId2 = straightIndex == orbits.size() ? edge.second : orbits[straightIndex].pointId;
+                auto pId2 = orbitsIt == orbits.end() ? edge.second : orbitsIt->pointId;
 				auto rev = pId == pId2;
 				auto thisPoint = straight.backboneEndpoint(rev);
 				auto otherPoint = straight.backboneEndpoint(!rev);
@@ -117,18 +117,20 @@ std::pair<Pseudotriangulation, PseudotriangulationGeometry> PseudotriangulationG
 
         auto& orbitElbows = state.pointIdToElbows[pId];
         for (const auto& elbowId : orbitElbows) {
-            auto elbow = stateGeometry.elbow(elbowId);
-			auto& edge = elbowId.first;
+            auto elbow = stateGeometry.elbow(elbowId, state);
+			auto& [edge, orbitIt] = elbowId;
+            auto orbitItNext = orbitIt;
+            ++orbitItNext;
 			auto& orbits = state.edgeTopology.at(edge).orbits;
-            for (const auto& [straight, straightId] : {std::pair(*(elbow.prev), StraightId{elbowId.first, elbowId.second}), std::pair(*(elbow.next), StraightId{elbowId.first, elbowId.second + 1})}) {
+            for (const auto& [straight, straightId] : {std::pair(*(elbow.prev), StraightId{edge, orbitIt}), std::pair(*(elbow.next), StraightId{edge, orbitItNext})}) {
                 std::vector<OneRootPoint> ipts;
                 intersectionPoints(straight.csPolygon(), circleToCSPolygon(circleGeometry.circle()), std::back_inserter(ipts));
                 for (const auto &ipt: ipts) {
                     Point<Exact> approx = pretendExact(approximateOneRootPoint(ipt));
 
-					auto straightIndex = straightId.second;
+					auto orbitsIt = straightId.second;
 
-					auto pId2 = straightIndex == orbits.size() ? edge.second : orbits[straightIndex].pointId;
+					auto pId2 = orbitsIt == orbits.end() ? edge.second : orbitsIt->pointId;
 					auto rev = pId == pId2;
 					auto thisPoint = straight.backboneEndpoint(rev);
 					auto otherPoint = straight.backboneEndpoint(!rev);
@@ -194,7 +196,7 @@ std::pair<Pseudotriangulation, PseudotriangulationGeometry> PseudotriangulationG
                     circleGeometry = circle;
                 } else {
                     auto& last = elbows.back();
-                    auto& orbit = stateGeometry.elbow(last).orbit();
+                    auto& orbit = stateGeometry.elbow(last, state).orbit();
                     auto r = orbit.outerRadius;
                     circleGeometry = RationalRadiusCircle(circle.center, r);
                 }
@@ -361,7 +363,7 @@ PseudotriangulationGeometry::geometry(const TangentObject& tangentObject, const 
     if (elbows.empty()) {
         circleGeometry = stateGeometry.vertexGeometry.at(pId);
     } else {
-        auto r = stateGeometry.elbow(elbows.back()).orbit().outerRadius;
+        auto r = stateGeometry.elbow(elbows.back(), state).orbit().outerRadius;
         circleGeometry = RationalRadiusCircle(input[tangentObject.pointId].point, r);
     }
 
@@ -371,7 +373,7 @@ PseudotriangulationGeometry::geometry(const TangentObject& tangentObject, const 
 
     if (tangentObject.straightId.has_value()) {
         auto straightId = *(tangentObject.straightId);
-        const auto& straight = stateGeometry.straight(straightId);
+        const auto& straight = stateGeometry.straight(straightId, state);
 		auto& edge = straightId.first;
 		auto& orbits = state.edgeTopology.at(edge).orbits;
         std::vector<OneRootPoint> ipts;
@@ -379,8 +381,8 @@ PseudotriangulationGeometry::geometry(const TangentObject& tangentObject, const 
         for (const auto& ipt: ipts) {
 			Point<Exact> approx = pretendExact(approximateOneRootPoint(ipt));
 
-			auto straightIndex = straightId.second;
-			auto pId2 = straightIndex == orbits.size() ? edge.second : orbits[straightIndex].pointId;
+			auto orbitsIt = straightId.second;
+            auto pId2 = orbitsIt == orbits.end() ? edge.second : orbitsIt->pointId;
 
 			auto rev = pId == pId2;
 			auto thisPoint = straight.backboneEndpoint(rev);
@@ -593,7 +595,32 @@ void Pseudotriangulation::maybeAddCertificate(PointId pId, const std::shared_ptr
 	m_tangentEndpointCertificates.emplace_back(pId, t1, t2);
 }
 
-void Pseudotriangulation::fix(TangentEndpointCertificate& certificate) {
+std::shared_ptr<Pseudotriangulation::Tangent> Pseudotriangulation::previousTangent(PointId pId, const std::shared_ptr<Tangent>& t) {
+    auto& ts = m_pointIdToTangents[pId];
+    auto tIt = std::find(ts.begin(), ts.end(), t);
+    TangentCirculator circ(&ts, tIt);
+    return *(--circ);
+}
+
+std::shared_ptr<Pseudotriangulation::Tangent> Pseudotriangulation::nextTangent(PointId pId, const std::shared_ptr<Tangent>& t) {
+    auto& ts = m_pointIdToTangents[pId];
+    auto tIt = std::find(ts.begin(), ts.end(), t);
+    TangentCirculator circ(&ts, tIt);
+    return *(++circ);
+}
+
+std::pair<std::shared_ptr<Pseudotriangulation::Tangent>, std::shared_ptr<Pseudotriangulation::Tangent>> Pseudotriangulation::neighbouringTangents(PointId pId, const std::shared_ptr<Tangent>& t) {
+    auto& ts = m_pointIdToTangents[pId];
+    auto tIt = std::find(ts.begin(), ts.end(), t);
+    TangentCirculator circ(&ts, tIt);
+    auto prev = circ;
+    --prev;
+    auto next = circ;
+    ++next;
+    return {*prev, *next};
+}
+
+void Pseudotriangulation::fix(TangentEndpointCertificate& certificate, State& state, const Settings& settings) {
 	std::cout << "Fixing certificate " << certificate << std::endl;
 
 	const auto& t1 = certificate.t1;
@@ -615,48 +642,69 @@ void Pseudotriangulation::fix(TangentEndpointCertificate& certificate) {
     auto handle = [&](const std::shared_ptr<Tangent>& oldTangent, const std::shared_ptr<Tangent>& newTangent) {
 		std::cout << "New tangent: " << *newTangent << std::endl;
 
-		// Before removing we create new certificate on obj0 between the two tangents that will become adjacent
-		auto t0It = std::find(ts0.begin(), ts0.end(), oldTangent);
-		auto prev0It = t0It;
-		if (prev0It == ts0.begin()) {
-			prev0It = --ts0.end();
-		} else {
-			--prev0It;
-		}
-		auto next0It = t0It;
-		++next0It;
-		if (next0It == ts0.end()) {
-			next0It = ts0.begin();
-		}
-		auto prev0 = *prev0It;
-		auto next0 = *next0It;
+        auto [prev0, next0] = neighbouringTangents(pId0, oldTangent);
 
-		auto t1It = std::find(ts1.begin(), ts1.end(), t1);
+        // Is oldTangent an edge of a straight?
+        if (angleZero) {
+            if (oldTangent->type == PointPoint) {
+                auto notLong = oldTangent == t1 ? t2 : t1;
+                auto maybeOtherEdge = prev0 == notLong ? next0 : prev0;
+                if (maybeOtherEdge->type == PointPoint &&
+                    oldTangent->otherEndpoint(pId0) != maybeOtherEdge->otherEndpoint(pId0) &&
+                    oldTangent->otherEndpoint(pId0)->pointId == maybeOtherEdge->otherEndpoint(pId0)->pointId &&
+                    oldTangent->endpoint(pId0) != maybeOtherEdge->endpoint(pId0)) {
+                    // Yes, oldTangent is an edge of a straight.
+                    // We want to split maybeOtherEdge into two tangents.
+                    // Update cerificates etc.
+                    // And update state: add orbit to edge.
+
+                    // Make orbit
+                    auto [edge, orbitAfterIt] = *(oldTangent->endpoint(pId0)->straightId);
+                    auto obstaclePId = t1 == notLong ? pId1 : pId2;
+                    auto currentObstacleOrbits = state.pointIdToElbows[obstaclePId];
+                    Orbit newOrbit;
+                    newOrbit.pointId = obstaclePId;
+                    if (currentObstacleOrbits.empty()) {
+                        newOrbit.innerRadius = settings.vertexRadius;
+                        newOrbit.outerRadius = settings.vertexRadius + settings.edgeWidth;
+                    } else {
+                        auto lastOrbit = currentObstacleOrbits.back();
+                        newOrbit.innerRadius = lastOrbit.second->outerRadius;
+                        newOrbit.outerRadius = newOrbit.innerRadius + settings.edgeWidth;
+                    }
+
+                    // Add orbit to edge
+                    auto newOrbitIt = state.edgeTopology[edge].orbits.insert(orbitAfterIt, newOrbit);
+
+                    // Add elbow id to point
+                    state.pointIdToElbows[obstaclePId].emplace_back(edge, newOrbitIt);
+
+                    // Slit maybeOtherEdge into two tangents and update certificates
+                }
+            }
+        }
+
+        auto t1It = std::find(ts1.begin(), ts1.end(), t1);
 		if (t2 == oldTangent && (angleZero ? t1->orientation(!t1R) == CGAL::CLOCKWISE : t1->orientation(t1R) == CGAL::COUNTERCLOCKWISE)) {
 			++t1It;
 		}
 		auto newIt1 = ts1.insert(t1It, newTangent);
+        TangentCirculator newCirc1(&ts1, newIt1);
 
 		auto t2It = std::find(ts2.begin(), ts2.end(), t2);
 		if (t1 == oldTangent && (angleZero ? t2->orientation(!t2R) == CGAL::CLOCKWISE : t2->orientation(t2R) == CGAL::COUNTERCLOCKWISE)) {
 			++t2It;
 		}
 		auto newIt2 = ts2.insert(t2It, newTangent);
+        TangentCirculator newCirc2(&ts2, newIt2);
 
 		removeTangent(oldTangent);
 		m_tangents.push_back(newTangent);
 
-		auto prev1 = newIt1;
-		if (prev1 == ts1.begin()) {
-			prev1 = --ts1.end();
-		} else {
-			--prev1;
-		}
-		auto next1 = newIt1;
+		auto prev1 = newCirc1;
+		--prev1;
+		auto next1 = newCirc1;
 		++next1;
-		if (next1 == ts1.end()) {
-			next1 = ts1.begin();
-		}
 
 		maybeAddCertificate(pId1, *prev1, newTangent);
 		maybeAddCertificate(pId1, newTangent, *next1);
@@ -665,17 +713,10 @@ void Pseudotriangulation::fix(TangentEndpointCertificate& certificate) {
 			return c.t1 == *prev1 && c.t2 == *next1;
 		}), m_tangentEndpointCertificates.end());
 
-		auto prev2 = newIt2;
-		if (prev2 == ts2.begin()) {
-			prev2 = --ts2.end();
-		} else {
-			--prev2;
-		}
-		auto next2 = newIt2;
+		auto prev2 = newCirc2;
+		--prev2;
+		auto next2 = newCirc2;
 		++next2;
-		if (next2 == ts2.end()) {
-			next2 = ts2.begin();
-		}
 
 		maybeAddCertificate(pId2, *prev2, newTangent);
 		maybeAddCertificate(pId2, newTangent, *next2);
