@@ -346,16 +346,7 @@ std::pair<Pseudotriangulation, PseudotriangulationGeometry> PseudotriangulationG
 			}
 			auto t1 = *t1It;
 			auto t2 = *t2It;
-			if (t1->otherEndpoint(pId)->pointId == t2->otherEndpoint(pId)->pointId) continue;
-			if (!t1->endpoint(pId)->circleStraight() && t2->endpoint(pId)->circleStraight() && t1->orientation(pId) == CGAL::COUNTERCLOCKWISE) {
-				assert(t2->endpoint(pId)->type == Pseudotriangulation::CircleStraight1);
-				continue;
-			}
-			if (t1->endpoint(pId)->circleStraight() && !t2->endpoint(pId)->circleStraight() && t2->orientation(pId) == CGAL::CLOCKWISE) {
-				assert(t1->endpoint(pId)->type == Pseudotriangulation::CircleStraight2);
-				continue;
-			}
-			pt.m_tangentEndpointCertificates.emplace_back(pId, t1, t2);
+			pt.maybeAddCertificate(pId, t1, t2);
 		}
 	}
 
@@ -577,7 +568,29 @@ TangentType tangentType(CGAL::Orientation or1, CGAL::Orientation or2) {
 	if (or1 == CGAL::CLOCKWISE && or2 == CGAL::CLOCKWISE) {
 		return Inner2;
 	}
-	throw std::invalid_argument("The two orientations should not be collinear.");
+	if (or1 == CGAL::COLLINEAR && or2 == CGAL::CLOCKWISE) {
+		return PointCircle1;
+	}
+	if (or1 == CGAL::COLLINEAR && or2 == CGAL::COUNTERCLOCKWISE) {
+		return PointCircle2;
+	}
+	if (or1 == CGAL::COLLINEAR && or2 == CGAL::COLLINEAR) {
+		return PointPoint;
+	}
+	throw std::invalid_argument("Unexpected case.");
+}
+
+void Pseudotriangulation::maybeAddCertificate(PointId pId, const std::shared_ptr<Tangent>& t1, const std::shared_ptr<Tangent>& t2) {
+	if (t1->otherEndpoint(pId)->pointId == t2->otherEndpoint(pId)->pointId) return;
+	if (!t1->endpoint(pId)->circleStraight() && t2->endpoint(pId)->circleStraight() && t1->orientation(pId) == CGAL::COUNTERCLOCKWISE) {
+		assert(t2->endpoint(pId)->type == Pseudotriangulation::CircleStraight1);
+		return;
+	}
+	if (t1->endpoint(pId)->circleStraight() && !t2->endpoint(pId)->circleStraight() && t2->orientation(pId) == CGAL::CLOCKWISE) {
+		assert(t1->endpoint(pId)->type == Pseudotriangulation::CircleStraight2);
+		return;
+	}
+	m_tangentEndpointCertificates.emplace_back(pId, t1, t2);
 }
 
 void Pseudotriangulation::fix(TangentEndpointCertificate& certificate) {
@@ -645,12 +658,9 @@ void Pseudotriangulation::fix(TangentEndpointCertificate& certificate) {
 			next1 = ts1.begin();
 		}
 
-		if (newTangent->otherEndpoint(pId1)->pointId != (*prev1)->otherEndpoint(pId1)->pointId) {
-			m_tangentEndpointCertificates.emplace_back(pId1, *prev1, newTangent);
-		}
-		if (newTangent->otherEndpoint(pId1)->pointId != (*next1)->otherEndpoint(pId1)->pointId) {
-			m_tangentEndpointCertificates.emplace_back(pId1, newTangent, *next1);
-		}
+		maybeAddCertificate(pId1, *prev1, newTangent);
+		maybeAddCertificate(pId1, newTangent, *next1);
+
 		m_tangentEndpointCertificates.erase(std::remove_if(m_tangentEndpointCertificates.begin(), m_tangentEndpointCertificates.end(), [&](const TangentEndpointCertificate& c) {
 			return c.t1 == *prev1 && c.t2 == *next1;
 		}), m_tangentEndpointCertificates.end());
@@ -667,16 +677,9 @@ void Pseudotriangulation::fix(TangentEndpointCertificate& certificate) {
 			next2 = ts2.begin();
 		}
 
-		if (newTangent->otherEndpoint(pId2)->pointId != (*prev2)->otherEndpoint(pId2)->pointId) {
-			m_tangentEndpointCertificates.emplace_back(pId2, *prev2, newTangent);
-		}
-		if (newTangent->otherEndpoint(pId2)->pointId != (*next2)->otherEndpoint(pId2)->pointId) {
-			m_tangentEndpointCertificates.emplace_back(pId2, newTangent, *next2);
-		}
-
-		if (prev0->otherEndpoint(pId0)->pointId != next0->otherEndpoint(pId0)->pointId) {
-			m_tangentEndpointCertificates.emplace_back(pId0, prev0, next0);
-		}
+		maybeAddCertificate(pId2, *prev2, newTangent);
+		maybeAddCertificate(pId2, newTangent, *next2);
+		maybeAddCertificate(pId0, prev0, next0);
 
 		m_tangentEndpointCertificates.erase(std::remove_if(m_tangentEndpointCertificates.begin(), m_tangentEndpointCertificates.end(), [&](const TangentEndpointCertificate& c) {
 			return c.t1 == *prev2 && c.t2 == *next2;
@@ -710,8 +713,9 @@ void Pseudotriangulation::fix(TangentEndpointCertificate& certificate) {
 		auto orientationNewOnObj1 = opposite(t1->orientation(!t1R));
 		auto orientationNewOnObj2 = t2->orientation(!t2R);
 
-		// create inner bitangent of obj1 and obj2
-		auto newTangent = std::make_shared<Tangent>(tangentType(orientationNewOnObj1, orientationNewOnObj2), obj1, obj2);
+		auto newTangent = orientationNewOnObj2 == CGAL::COLLINEAR && orientationNewOnObj1 != CGAL::COLLINEAR ?
+		                  std::make_shared<Tangent>(tangentType(orientationNewOnObj2, orientationNewOnObj1), obj2, obj1) :
+		                  std::make_shared<Tangent>(tangentType(orientationNewOnObj1, orientationNewOnObj2), obj1, obj2);
 		handle(t2, newTangent);
 	} else if (angleZero) {
 		//      t2
@@ -733,8 +737,9 @@ void Pseudotriangulation::fix(TangentEndpointCertificate& certificate) {
 		auto orientationNewOnObj2 = opposite(t2->orientation(!t2R));
 		auto orientationNewOnObj1 = t1->orientation(!t1R);
 
-		// create inner bitangent of obj1 and obj2
-		auto newTangent = std::make_shared<Tangent>(tangentType(orientationNewOnObj2, orientationNewOnObj1), obj2, obj1);
+		auto newTangent = orientationNewOnObj2 == CGAL::COLLINEAR && orientationNewOnObj1 != CGAL::COLLINEAR ?
+		                  std::make_shared<Tangent>(tangentType(orientationNewOnObj2, orientationNewOnObj1), obj2, obj1) :
+		                  std::make_shared<Tangent>(tangentType(orientationNewOnObj1, orientationNewOnObj2), obj1, obj2);
 		handle(t1, newTangent);
 	} else {
 		//      t1
@@ -756,7 +761,9 @@ void Pseudotriangulation::fix(TangentEndpointCertificate& certificate) {
 		auto orientationNewOnObj1 = t1->orientation(!t1R);
 		auto orientationNewOnObj2 = t2->orientation(!t2R);
 
-		auto newTangent = std::make_shared<Tangent>(tangentType(orientationNewOnObj1, orientationNewOnObj2), obj1, obj2);
+		auto newTangent = orientationNewOnObj2 == CGAL::COLLINEAR && orientationNewOnObj1 != CGAL::COLLINEAR ?
+		                  std::make_shared<Tangent>(tangentType(orientationNewOnObj2, orientationNewOnObj1), obj2, obj1) :
+		                  std::make_shared<Tangent>(tangentType(orientationNewOnObj1, orientationNewOnObj2), obj1, obj2);
 		handle(t2, newTangent);
 	}
 

@@ -179,6 +179,7 @@ public:
 	std::vector<TangentEndpointCertificate> m_tangentEndpointCertificates;
 	void fix(TangentEndpointCertificate& certificate);
 	void removeTangent(std::shared_ptr<Tangent> t);
+	void maybeAddCertificate(PointId pId, const std::shared_ptr<Tangent>& t1, const std::shared_ptr<Tangent>& t2);
 };
 }
 

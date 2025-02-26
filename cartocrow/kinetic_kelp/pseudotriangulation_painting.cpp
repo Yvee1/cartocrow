@@ -24,6 +24,10 @@ void PseudotriangulationPainting::paint(GeometryRenderer &renderer) const {
 }
 
 void PseudotriangulationCertificatesPainting::paint(GeometryRenderer &renderer) const {
+	for (int pId = 0; pId < m_inputInstance->size(); ++pId) {
+		renderer.drawText((*m_inputInstance)[pId].point, std::to_string(pId));
+	}
+
 	for (int pId = 0; pId < m_pt->m_pointIdToTangents.size(); ++pId) {
 		auto& ts = m_pt->m_pointIdToTangents[pId];
 
