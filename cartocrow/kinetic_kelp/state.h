@@ -16,6 +16,25 @@ struct State {
     std::map<MSTEdge, EdgeTopology> edgeTopology;
 	std::vector<std::list<ElbowId>> pointIdToElbows;
     std::vector<std::list<MSTEdge>> pointIdToEdges;
+
+	std::pair<PointId, PointId> straightEndpoints(const StraightId& straightId) const {
+		auto [edge, orbitIt] = straightId;
+		auto& orbits = edgeTopology.at(edge).orbits;
+		PointId straightTarget;
+		if (orbitIt == orbits.end()) {
+			straightTarget = edge.second;
+		} else {
+			straightTarget = orbits.back().pointId;
+		}
+		PointId straightSource;
+		if (orbitIt == orbits.begin()) {
+			straightSource = edge.first;
+		} else {
+			--orbitIt;
+			straightSource = orbitIt->pointId;
+		}
+		return {straightSource, straightTarget};
+	}
 };
 }
 

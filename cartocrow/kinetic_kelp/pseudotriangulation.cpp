@@ -478,11 +478,7 @@ PseudotriangulationGeometry::PseudotriangulationGeometry(const Pseudotriangulati
 }
 
 bool
-Pseudotriangulation::TangentEndpointCertificate::valid(const State& state, const InputInstance& input, const Settings& settings) {
-	// todo: selectively pass input
-	// todo: selectively compute geometry and/or (for now) add option for passing state geometry
-	StateGeometry stateGeometry(state, input, settings);
-	// todo: approximate
+Pseudotriangulation::TangentEndpointCertificate::valid(const State& state, const StateGeometry& stateGeometry, const InputInstance& input, const Settings& settings) {
 	auto t1G = PseudotriangulationGeometry::geometry(*t1, state, stateGeometry, input);
 	auto t2G = PseudotriangulationGeometry::geometry(*t2, state, stateGeometry, input);
 	bool t1R = t1->target->pointId == pointId;
@@ -505,6 +501,15 @@ Pseudotriangulation::TangentEndpointCertificate::valid(const State& state, const
 	t1SubsetOft2 = v1.squared_length() < v2.squared_length();
 
 	return valid;
+}
+
+bool
+Pseudotriangulation::TangentEndpointCertificate::valid(const State& state, const InputInstance& input, const Settings& settings) {
+	// todo: selectively pass input
+	// todo: selectively compute geometry and/or (for now) add option for passing state geometry
+	StateGeometry stateGeometry(state, input, settings);
+	// todo: approximate
+	valid(state, stateGeometry, input, settings);
 }
 
 std::string name(TangentType tt) {
@@ -595,24 +600,23 @@ void Pseudotriangulation::maybeAddCertificate(PointId pId, const std::shared_ptr
 	m_tangentEndpointCertificates.emplace_back(pId, t1, t2);
 }
 
+Pseudotriangulation::TangentCirculator Pseudotriangulation::tangentCirculator(PointId pId, const std::shared_ptr<Tangent>& t) {
+	auto& ts = m_pointIdToTangents[pId];
+	auto tIt = std::find(ts.begin(), ts.end(), t);
+	TangentCirculator circ(&ts, tIt);
+	return circ;
+}
+
 std::shared_ptr<Pseudotriangulation::Tangent> Pseudotriangulation::previousTangent(PointId pId, const std::shared_ptr<Tangent>& t) {
-    auto& ts = m_pointIdToTangents[pId];
-    auto tIt = std::find(ts.begin(), ts.end(), t);
-    TangentCirculator circ(&ts, tIt);
-    return *(--circ);
+    return *(--tangentCirculator(pId, t));
 }
 
 std::shared_ptr<Pseudotriangulation::Tangent> Pseudotriangulation::nextTangent(PointId pId, const std::shared_ptr<Tangent>& t) {
-    auto& ts = m_pointIdToTangents[pId];
-    auto tIt = std::find(ts.begin(), ts.end(), t);
-    TangentCirculator circ(&ts, tIt);
-    return *(++circ);
+	return *(++tangentCirculator(pId, t));
 }
 
 std::pair<std::shared_ptr<Pseudotriangulation::Tangent>, std::shared_ptr<Pseudotriangulation::Tangent>> Pseudotriangulation::neighbouringTangents(PointId pId, const std::shared_ptr<Tangent>& t) {
-    auto& ts = m_pointIdToTangents[pId];
-    auto tIt = std::find(ts.begin(), ts.end(), t);
-    TangentCirculator circ(&ts, tIt);
+    auto circ = tangentCirculator(pId, t);
     auto prev = circ;
     --prev;
     auto next = circ;
@@ -623,8 +627,8 @@ std::pair<std::shared_ptr<Pseudotriangulation::Tangent>, std::shared_ptr<Pseudot
 void Pseudotriangulation::fix(TangentEndpointCertificate& certificate, State& state, const Settings& settings) {
 	std::cout << "Fixing certificate " << certificate << std::endl;
 
-	const auto& t1 = certificate.t1;
-	const auto& t2 = certificate.t2;
+	const auto t1 = certificate.t1;
+	const auto t2 = certificate.t2;
 	auto pId0 = certificate.pointId;
 	auto obj0 = t1->endpoint(pId0);
 	auto obj1 = t1->otherEndpoint(pId0);
@@ -637,52 +641,12 @@ void Pseudotriangulation::fix(TangentEndpointCertificate& certificate, State& st
 	bool t1R = t1->target->pointId == pId0;
 	bool t2R = t2->target->pointId == pId0;
 
-    bool angleZero = t1->orientation(t1R) == t2->orientation(t2R);
+    bool angleZero = t1->orientation(t1R) == t2->orientation(t2R) || t1->endpoint(pId0)->circleStraight() && t1->endpoint(pId0) == t2->endpoint(pId0);
 
     auto handle = [&](const std::shared_ptr<Tangent>& oldTangent, const std::shared_ptr<Tangent>& newTangent) {
 		std::cout << "New tangent: " << *newTangent << std::endl;
 
         auto [prev0, next0] = neighbouringTangents(pId0, oldTangent);
-
-        // Is oldTangent an edge of a straight?
-        if (angleZero) {
-            if (oldTangent->type == PointPoint) {
-                auto notLong = oldTangent == t1 ? t2 : t1;
-                auto maybeOtherEdge = prev0 == notLong ? next0 : prev0;
-                if (maybeOtherEdge->type == PointPoint &&
-                    oldTangent->otherEndpoint(pId0) != maybeOtherEdge->otherEndpoint(pId0) &&
-                    oldTangent->otherEndpoint(pId0)->pointId == maybeOtherEdge->otherEndpoint(pId0)->pointId &&
-                    oldTangent->endpoint(pId0) != maybeOtherEdge->endpoint(pId0)) {
-                    // Yes, oldTangent is an edge of a straight.
-                    // We want to split maybeOtherEdge into two tangents.
-                    // Update cerificates etc.
-                    // And update state: add orbit to edge.
-
-                    // Make orbit
-                    auto [edge, orbitAfterIt] = *(oldTangent->endpoint(pId0)->straightId);
-                    auto obstaclePId = t1 == notLong ? pId1 : pId2;
-                    auto currentObstacleOrbits = state.pointIdToElbows[obstaclePId];
-                    Orbit newOrbit;
-                    newOrbit.pointId = obstaclePId;
-                    if (currentObstacleOrbits.empty()) {
-                        newOrbit.innerRadius = settings.vertexRadius;
-                        newOrbit.outerRadius = settings.vertexRadius + settings.edgeWidth;
-                    } else {
-                        auto lastOrbit = currentObstacleOrbits.back();
-                        newOrbit.innerRadius = lastOrbit.second->outerRadius;
-                        newOrbit.outerRadius = newOrbit.innerRadius + settings.edgeWidth;
-                    }
-
-                    // Add orbit to edge
-                    auto newOrbitIt = state.edgeTopology[edge].orbits.insert(orbitAfterIt, newOrbit);
-
-                    // Add elbow id to point
-                    state.pointIdToElbows[obstaclePId].emplace_back(edge, newOrbitIt);
-
-                    // Slit maybeOtherEdge into two tangents and update certificates
-                }
-            }
-        }
 
         auto t1It = std::find(ts1.begin(), ts1.end(), t1);
 		if (t2 == oldTangent && (angleZero ? t1->orientation(!t1R) == CGAL::CLOCKWISE : t1->orientation(t1R) == CGAL::COUNTERCLOCKWISE)) {
@@ -734,7 +698,94 @@ void Pseudotriangulation::fix(TangentEndpointCertificate& certificate, State& st
 		}
 	}
 
-	if (angleZero && certificate.t1SubsetOft2) {
+	std::cout << "angleZero: " << angleZero << std::endl;
+	auto longer = certificate.t1SubsetOft2 ? t2 : t1;
+	// Is oldTangent an edge of a straight?
+	if (angleZero && longer->type == PointPoint) {
+		auto shorter = longer == t1 ? t2 : t1;
+		auto longerIt = tangentCirculator(pId0, longer);
+		auto prev0It = longerIt;
+		--prev0It;
+		auto next0It = longerIt;
+		++next0It;
+		auto prev0 = *prev0It;
+		auto next0 = *next0It;
+		auto maybeOtherEdge = prev0 == shorter ? next0 : prev0;
+		std::cout << "!" << std::endl;
+		if (maybeOtherEdge->type == PointPoint &&
+		    longer->otherEndpoint(pId0) != maybeOtherEdge->otherEndpoint(pId0) &&
+		    longer->otherEndpoint(pId0)->pointId == maybeOtherEdge->otherEndpoint(pId0)->pointId &&
+		    longer->endpoint(pId0) != maybeOtherEdge->endpoint(pId0)) {
+			std::cout << "Hit edge of straight!" << std::endl;
+			auto& otherEdge = maybeOtherEdge;
+			// Yes, subT is an edge of a straight.
+			// We want to split maybeOtherEdge into two tangents.
+			// Update cerificates etc.
+			// And update state: add orbit to edge.
+
+			// Make orbit
+			auto oldStraight = *(longer->endpoint(pId0)->straightId);
+			auto& [edge, orbitAfterIt] = oldStraight;
+			auto obstaclePId = t1 == shorter ? pId1 : pId2;
+			auto currentObstacleOrbits = state.pointIdToElbows[obstaclePId];
+			Orbit newOrbit;
+			newOrbit.pointId = obstaclePId;
+			if (currentObstacleOrbits.empty()) {
+				newOrbit.innerRadius = settings.vertexRadius;
+				newOrbit.outerRadius = settings.vertexRadius + settings.edgeWidth;
+			} else {
+				auto lastOrbit = currentObstacleOrbits.back();
+				newOrbit.innerRadius = lastOrbit.second->outerRadius;
+				newOrbit.outerRadius = newOrbit.innerRadius + settings.edgeWidth;
+			}
+
+			// Store source and target pointIds of straight before updating state
+			auto [sId, tId] = state.straightEndpoints(oldStraight);
+
+			newOrbit.dir = longer->endpoint(sId)->type == CircleStraight2 ? CGAL::COUNTERCLOCKWISE : CGAL::CLOCKWISE;
+
+			// Add orbit to edge
+			auto newOrbitIt = state.edgeTopology[edge].orbits.insert(orbitAfterIt, newOrbit);
+			StraightId newStraightId(edge, newOrbitIt);
+
+			// Add elbow id to point
+			state.pointIdToElbows[obstaclePId].emplace_back(edge, newOrbitIt);
+
+			// Update tangent objects
+			longer->endpoint(sId)->straightId = newStraightId;
+			otherEdge->endpoint(sId)->straightId = newStraightId;
+			// Create new tangent objects
+			for (const auto& straightId : {oldStraight, newStraightId}) {
+				for (const auto& one : {false, true}) {
+					auto tObj = std::make_shared<TangentObject>(obstaclePId, straightId, one);
+					m_tangentObjects.push_back(tObj);
+					// Connect
+
+					auto [sourceId, targetId] = state.straightEndpoints(straightId);
+					auto otherId = sourceId == obstaclePId ? targetId : sourceId;
+
+					auto connectee = one ? (longer->endpoint(otherId)->type == CircleStraight2 ? longer->endpoint(otherId) : otherEdge->endpoint(otherId))
+					    				 : (longer->endpoint(otherId)->type == CircleStraight1 ? longer->endpoint(otherId) : otherEdge->endpoint(otherId));
+					auto straightEdge = std::make_shared<Tangent>(PointPoint, tObj, connectee);
+					std::cout << "Adding tangent " << *straightEdge << std::endl;
+					m_tangents.push_back(std::move(straightEdge));
+					// Todo add tangents to m_pointIdToTangents in appropriate position
+				}
+			}
+
+			// Remove tangents
+			std::cout << *otherEdge << " " << *t1 << " " << *t2 << std::endl;
+			removeTangent(otherEdge);
+			removeTangent(t1);
+			removeTangent(t2);
+
+			// Create tangents for the edges of the two new straights
+
+			// Update certificates...
+
+			return;
+		}
+	} else if (angleZero && certificate.t1SubsetOft2) {
 		//      t1
 		//   |-------|
 		// obj0 -- obj1 -- obj2

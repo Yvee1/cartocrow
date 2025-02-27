@@ -55,6 +55,7 @@ bool circlePointLiesOnArc(const Point<Exact> &point, const RationalCircularArc &
 
 struct Certificate {
 	virtual bool valid(const State& state, const InputInstance& input, const Settings& settings) = 0;
+	virtual bool valid(const State& state, const StateGeometry& stateGeometry, const InputInstance& input, const Settings& settings) = 0;
 };
 
 class Pseudotriangulation {
@@ -169,6 +170,7 @@ public:
 		bool t1SubsetOft2;
 
 		bool valid(const State& state, const InputInstance& input, const Settings& settings) override;
+		bool valid(const State& state, const StateGeometry& stateGeometry, const InputInstance& input, const Settings& settings) override;
 
 		TangentEndpointCertificate(PointId pointId, std::shared_ptr<Tangent> t1, std::shared_ptr<Tangent> t2)
 		    : pointId(pointId), t1(t1), t2(t2) {};
@@ -181,6 +183,7 @@ public:
     std::pair<std::shared_ptr<Pseudotriangulation::Tangent>, std::shared_ptr<Pseudotriangulation::Tangent>> neighbouringTangents(PointId pId, const std::shared_ptr<Tangent>& t);
     std::shared_ptr<Pseudotriangulation::Tangent> previousTangent(PointId pId, const std::shared_ptr<Tangent>& t);
     std::shared_ptr<Pseudotriangulation::Tangent> nextTangent(PointId pId, const std::shared_ptr<Tangent>& t);
+	TangentCirculator tangentCirculator(PointId pId, const std::shared_ptr<Tangent>& t);
 };
 }
 

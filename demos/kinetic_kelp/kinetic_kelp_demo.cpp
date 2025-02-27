@@ -173,7 +173,7 @@ void KineticKelpDemo::initialize() {
     m_ptg = std::make_shared<PseudotriangulationGeometry>(ptg);
     auto ptPainting = std::make_shared<PseudotriangulationPainting>(m_pt, m_ptg, m_state, m_inputInstance, m_settings);
     m_renderer->addPainting(ptPainting, "Pseudotriangulation");
-	auto ptCPainting = std::make_shared<PseudotriangulationCertificatesPainting>(m_pt, m_ptg, m_state, m_inputInstance, m_settings);
+	auto ptCPainting = std::make_shared<PseudotriangulationCertificatesPainting>(m_pt, m_ptg, m_state, m_stateGeometry, m_inputInstance, m_settings);
 	m_renderer->addPainting(ptCPainting, "Certificates");
 
     m_kelps = std::make_shared<std::vector<Kelp>>();
@@ -188,22 +188,23 @@ bool KineticKelpDemo::update(double time) {
 	bool noIssues = true;
 
     *m_inputInstance = m_input.instance(time);
-	*m_stateGeometry = StateGeometry(*m_state, *m_inputInstance, m_settings);
 
 	bool allGood = false;
 	while (!allGood) {
 		bool foundInvalidCertificate = false;
 		for (auto& c : m_pt->m_tangentEndpointCertificates) {
-			if (!c.valid(*m_state, *m_inputInstance, m_settings)) {
+			if (!c.valid(*m_state, *m_stateGeometry, *m_inputInstance, m_settings)) {
 				m_pt->fix(c, *m_state, m_settings);
 				foundInvalidCertificate = true;
 				noIssues = false;
 				break;
 			}
 		}
-		if (!foundInvalidCertificate)
+//		if (!foundInvalidCertificate)
 			allGood = true;
 	}
+
+	*m_stateGeometry = StateGeometry(*m_state, *m_inputInstance, m_settings);
 
     *m_ptg = PseudotriangulationGeometry(*m_pt, *m_state, *m_stateGeometry, *m_inputInstance);
 

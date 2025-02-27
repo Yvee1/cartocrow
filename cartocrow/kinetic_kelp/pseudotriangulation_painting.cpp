@@ -45,6 +45,7 @@ void PseudotriangulationCertificatesPainting::paint(GeometryRenderer &renderer) 
 			intersectionPoints(plCS, circleToCSPolygon(circle), std::back_inserter(ipts));
 
 			// intersect pl with circle
+			if (ipts.empty()) continue;
 			if (path.commands().empty()) {
 				path.moveTo(approximateOneRootPoint(ipts[0]));
 			} else {
@@ -79,13 +80,16 @@ void PseudotriangulationCertificatesPainting::paint(GeometryRenderer &renderer) 
 		std::vector<OneRootPoint> ipts2;
 		intersectionPoints(plCS2, circleToCSPolygon(circle), std::back_inserter(ipts2));
 
+		if (ipts1.empty()) continue;
+		if (ipts2.empty()) continue;
+
 		auto p1 = ipts1[0];
 		auto p2 = ipts2[0];
 
-		if (tpCertificate.valid(*m_state, *m_inputInstance, m_settings)) {
-			renderer.setStroke(Color(50, 202, 50), 3.0);
+		if (tpCertificate.valid(*m_state, *m_stateGeometry, *m_inputInstance, m_settings)) {
+			renderer.setStroke(Color(71, 142, 0), 3.0);
 		} else {
-			renderer.setStroke(Color(202, 50, 50), 3.0);
+			renderer.setStroke(Color(213, 0, 0), 3.0);
 		}
 		RenderPath path;
 
