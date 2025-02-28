@@ -18,6 +18,9 @@ public:
 
     void resized();
     void setEndTime(double endTimeInSeconds);
+	void setInterval(int intervalMs);
+	void setPlayPauseEnabled(bool enabled);
+	void setRestartEnabled(bool enabled);
 public slots:
 	void start();
 	void restart();
@@ -37,6 +40,7 @@ private:
 	QIcon m_playIcon;
 	QIcon m_pauseIcon;
 	QToolButton* m_playPauseButton;
+	QToolButton* m_restartButton;
 	QToolButton* m_speedButton;
 	void done();
 signals:

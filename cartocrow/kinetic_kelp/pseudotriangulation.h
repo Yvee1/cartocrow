@@ -57,8 +57,9 @@ class Pseudotriangulation;
 
 struct Certificate {
 	virtual bool valid(Pseudotriangulation& pt, const State& state, const InputInstance& input, const Settings& settings) = 0;
-	virtual bool valid(Pseudotriangulation& pt, const State& state, const StateGeometry& stateGeometry, const InputInstance& input, const Settings& settings) = 0;
 };
+
+class PseudotriangulationGeometry;
 
 class Pseudotriangulation {
 public:
@@ -79,6 +80,23 @@ public:
 
         TangentObject(PointId pointId) : pointId(pointId), type(Circle), straightId(std::nullopt) {};
         TangentObject(PointId pointId, StraightId straightId, bool one) : pointId(pointId), straightId(straightId), type(one ? CircleStraight1 : CircleStraight2) {};
+		TangentObject(const TangentObject& obj, const State& oldState, const State& newState) {
+			type = obj.type;
+			pointId = obj.pointId;
+			if (!obj.straightId.has_value()) {
+				straightId = std::nullopt;
+			} else {
+				auto [edge, oldOrbitIt] = *obj.straightId;
+				auto& oldOrbits = oldState.edgeTopology.at(edge).orbits;
+				auto& newOrbits = newState.edgeTopology.at(edge).orbits;
+				if (oldOrbits.end() == oldOrbitIt) {
+					std::cout << "!!!" << std::endl;
+				}
+				auto i = std::distance(oldOrbits.begin(), oldOrbitIt);
+				auto newOrbitIt = std::next(newOrbits.begin(), i);
+				straightId = {edge, newOrbitIt};
+			}
+		}
 
         bool operator==(const TangentObject& other) const = default;
         std::optional<Orbit> elbowPoint(const State& state) {
@@ -174,7 +192,8 @@ public:
 
         void setPseudotriangulation(Pseudotriangulation* pseudotriangulationPointer);
 		bool valid(Pseudotriangulation& pt, const State& state, const InputInstance& input, const Settings& settings) override;
-		bool valid(Pseudotriangulation& pt, const State& state, const StateGeometry& stateGeometry, const InputInstance& input, const Settings& settings) override;
+		bool valid(Pseudotriangulation& pt, const State& state, const PseudotriangulationGeometry& ptg);
+		bool valid(Pseudotriangulation& pt, const State& state, const RationalTangent& t1G, const RationalTangent& t2G);
 
 		TangentEndpointCertificate(PointId pointId, std::shared_ptr<Tangent> t1, std::shared_ptr<Tangent> t2)
 		    : pointId(pointId), t1(t1), t2(t2) {};
@@ -189,6 +208,7 @@ public:
     std::shared_ptr<Pseudotriangulation::Tangent> nextTangent(PointId pId, const std::shared_ptr<Tangent>& t);
     std::optional<std::shared_ptr<Tangent>> edgeOfStraight(const std::shared_ptr<Tangent>& t);
 	TangentCirculator tangentCirculator(PointId pId, const std::shared_ptr<Tangent>& t);
+	std::shared_ptr<Pseudotriangulation::TangentObject> circleTangentObject(PointId pointId) const;
 
     CGAL::Orientation sourceOrientation(const std::shared_ptr<Tangent>& t, const State& state) {
         if (t->source->elbowPoint(state).has_value() && edgeOfStraight(t).has_value()) {
@@ -238,6 +258,61 @@ public:
     CGAL::Orientation orientation(const std::shared_ptr<Tangent>& t, PointId pId, const State& state) {
         return t->source->pointId == pId ? sourceOrientation(t, state) : targetOrientation(t, state);
     }
+
+	Pseudotriangulation() = default;
+
+	Pseudotriangulation(const Pseudotriangulation& pt, const State& oldState, const State& newState) {
+		struct HashTangentObject {
+			std::size_t operator()(const cartocrow::kinetic_kelp::Pseudotriangulation::TangentObject& to) const
+			{
+				// Compute individual hash values for member variables
+				// http://stackoverflow.com/a/1646913/126995
+				std::size_t res = 17;
+				res = res * 31 + std::hash<int>{}(static_cast<int>(to.type));
+				res = res * 31 + std::hash<int>{}(to.pointId);
+				//        res = res * 31 + hash<std::optional<cartocrow::kinetic_kelp::StraightId>>{}(to.straightId);
+				return res;
+			}
+		};
+
+		struct HashTangent {
+			std::size_t operator()(const cartocrow::kinetic_kelp::Pseudotriangulation::Tangent& t) const
+			{
+				// Compute individual hash values for member variables
+				// http://stackoverflow.com/a/1646913/126995
+				std::size_t res = 17;
+				res = res * 31 + std::hash<int>{}(static_cast<int>(t.type));
+				res = res * 31 + std::hash<std::shared_ptr<cartocrow::kinetic_kelp::Pseudotriangulation::TangentObject>>{}(t.source);
+				res = res * 31 + std::hash<std::shared_ptr<cartocrow::kinetic_kelp::Pseudotriangulation::TangentObject>>{}(t.target);
+				return res;
+			};
+		};
+
+		std::cout << "Copying" << std::endl;
+		std::unordered_map<TangentObject, std::shared_ptr<TangentObject>, HashTangentObject> objMap;
+		for (const auto& obj : pt.m_tangentObjects) {
+			m_tangentObjects.push_back(std::make_shared<TangentObject>(*obj, oldState, newState));
+			objMap[*obj] = m_tangentObjects.back();
+		}
+		std::unordered_map<Tangent, std::shared_ptr<Tangent>, HashTangent> tMap;
+		for (const auto& t : pt.m_tangents) {
+			auto sObj = objMap[*t->source];
+			auto tObj = objMap[*t->target];
+			m_tangents.push_back(std::make_shared<Tangent>(t->type, sObj, tObj));
+			tMap[*t] = m_tangents.back();
+		}
+		for (const auto& ts : pt.m_pointIdToTangents) {
+			auto& newTs = m_pointIdToTangents.emplace_back();
+			for (const auto& t : ts) {
+				newTs.push_back(tMap[*t]);
+			}
+		}
+		for (const auto& c : pt.m_tangentEndpointCertificates) {
+			auto& t1 = tMap[*c.t1];
+			auto& t2 = tMap[*c.t2];
+			m_tangentEndpointCertificates.emplace_back(c.pointId, t1, t2);
+		}
+	}
 };
 }
 

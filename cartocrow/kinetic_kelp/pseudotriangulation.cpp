@@ -478,13 +478,11 @@ PseudotriangulationGeometry::PseudotriangulationGeometry(const Pseudotriangulati
 }
 
 bool
-Pseudotriangulation::TangentEndpointCertificate::valid(Pseudotriangulation& pt, const State& state, const StateGeometry& stateGeometry, const InputInstance& input, const Settings& settings) {
-	auto t1G = PseudotriangulationGeometry::geometry(*t1, state, stateGeometry, input);
-	auto t2G = PseudotriangulationGeometry::geometry(*t2, state, stateGeometry, input);
+Pseudotriangulation::TangentEndpointCertificate::valid(Pseudotriangulation& pt, const State& state, const RationalTangent& t1G, const RationalTangent& t2G) {
 	bool t1R = t1->target->pointId == pointId;
 	bool t2R = t2->target->pointId == pointId;
-	auto v1 = t1G->target() - t1G->source();
-	auto v2 = t2G->target() - t2G->source();
+	auto v1 = t1G.target() - t1G.source();
+	auto v2 = t2G.target() - t2G.source();
 	if (t1R) {
 		v1 = -v1;
 	}
@@ -505,7 +503,8 @@ Pseudotriangulation::TangentEndpointCertificate::valid(Pseudotriangulation& pt, 
     }
 
     bool valid;
-	if (t1->endpoint(t1R)->circleTangent() && t2->endpoint(t2R)->circleTangent() && pt.orientation(t1, t1R, state) != pt.orientation(t2, t2R, state) ||
+	if (pt.orientation(t1, t1R, state) == CGAL::CLOCKWISE && pt.orientation(t2, t2R, state) == CGAL::COUNTERCLOCKWISE ||
+	    pt.orientation(t2, t2R, state) == CGAL::CLOCKWISE && pt.orientation(t1, t1R, state) == CGAL::COUNTERCLOCKWISE ||
         special) {
 		valid = CGAL::determinant(v1, v2) < 0;
 	} else {
@@ -519,11 +518,22 @@ Pseudotriangulation::TangentEndpointCertificate::valid(Pseudotriangulation& pt, 
 
 bool
 Pseudotriangulation::TangentEndpointCertificate::valid(Pseudotriangulation& pt, const State& state, const InputInstance& input, const Settings& settings) {
-	// todo: selectively pass input
-	// todo: selectively compute geometry and/or (for now) add option for passing state geometry
 	StateGeometry stateGeometry(state, input, settings);
-	// todo: approximate
-	valid(pt, state, stateGeometry, input, settings);
+	auto t1G = PseudotriangulationGeometry::geometry(*t1, state, stateGeometry, input);
+	auto t2G = PseudotriangulationGeometry::geometry(*t2, state, stateGeometry, input);
+	if (!t1G.has_value()) {
+		throw std::runtime_error("Tangent does not exist!");
+	}
+	if (!t2G.has_value()) {
+		throw std::runtime_error("Tangent does not exist!");
+	}
+	return valid(pt, state, *t1G, *t2G);
+}
+
+bool Pseudotriangulation::TangentEndpointCertificate::valid(Pseudotriangulation& pt, const State& state, const PseudotriangulationGeometry& ptg) {
+	auto t1G = ptg.m_tangents.at(*t1);
+	auto t2G = ptg.m_tangents.at(*t2);
+	return valid(pt, state, t1G, t2G);
 }
 
 std::string name(TangentType tt) {
@@ -658,6 +668,12 @@ std::optional<std::shared_ptr<Pseudotriangulation::Tangent>> Pseudotriangulation
         }
     }
     return std::nullopt;
+}
+
+std::shared_ptr<Pseudotriangulation::TangentObject> Pseudotriangulation::circleTangentObject(PointId pointId) const {
+	return *std::find_if(m_tangentObjects.begin(), m_tangentObjects.end(), [pointId](const std::shared_ptr<TangentObject>& tObj) {
+		return tObj->type == Circle && tObj->pointId == pointId;
+	});
 }
 
 void Pseudotriangulation::fix(TangentEndpointCertificate& certificate, State& state, const Settings& settings) {
@@ -888,9 +904,19 @@ void Pseudotriangulation::fix(TangentEndpointCertificate& certificate, State& st
 		auto orientationNewOnObj1 = opposite(orientation(t1, !t1R, state));
 		auto orientationNewOnObj2 = orientation(t2, !t2R, state);
 
+		std::shared_ptr<TangentObject>& nObj1 = obj1;
+		std::shared_ptr<TangentObject>& nObj2 = obj2;
+
+		if (obj1->elbowPoint(state)) {
+			nObj1 = circleTangentObject(obj1->pointId);
+		}
+		if (obj2->elbowPoint(state)) {
+			nObj2 = circleTangentObject(obj2->pointId);
+		}
+
 		auto newTangent = orientationNewOnObj2 == CGAL::COLLINEAR && orientationNewOnObj1 != CGAL::COLLINEAR ?
-		                  std::make_shared<Tangent>(tangentType(orientationNewOnObj2, orientationNewOnObj1), obj2, obj1) :
-		                  std::make_shared<Tangent>(tangentType(orientationNewOnObj1, orientationNewOnObj2), obj1, obj2);
+		                  std::make_shared<Tangent>(tangentType(orientationNewOnObj2, orientationNewOnObj1), nObj2, nObj1) :
+		                  std::make_shared<Tangent>(tangentType(orientationNewOnObj1, orientationNewOnObj2), nObj1, nObj2);
 		handle(t2, newTangent);
 	} else if (angleZero) {
 		//      t2
@@ -912,9 +938,18 @@ void Pseudotriangulation::fix(TangentEndpointCertificate& certificate, State& st
 		auto orientationNewOnObj2 = opposite(orientation(t2, !t2R, state));
 		auto orientationNewOnObj1 = orientation(t1, !t1R, state);
 
+		std::shared_ptr<TangentObject>& nObj1 = obj1;
+		std::shared_ptr<TangentObject>& nObj2 = obj2;
+
+		if (obj1->elbowPoint(state)) {
+			nObj1 = circleTangentObject(obj1->pointId);
+		}
+		if (obj2->elbowPoint(state)) {
+			nObj2 = circleTangentObject(obj2->pointId);
+		}
 		auto newTangent = orientationNewOnObj2 == CGAL::COLLINEAR && orientationNewOnObj1 != CGAL::COLLINEAR ?
-		                  std::make_shared<Tangent>(tangentType(orientationNewOnObj2, orientationNewOnObj1), obj2, obj1) :
-		                  std::make_shared<Tangent>(tangentType(orientationNewOnObj1, orientationNewOnObj2), obj1, obj2);
+		                  std::make_shared<Tangent>(tangentType(orientationNewOnObj2, orientationNewOnObj1), nObj2, nObj1) :
+		                  std::make_shared<Tangent>(tangentType(orientationNewOnObj1, orientationNewOnObj2), nObj1, nObj2);
 		handle(t1, newTangent);
 	} else {
 		//      t1

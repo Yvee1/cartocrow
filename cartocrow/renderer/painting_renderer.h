@@ -59,6 +59,8 @@ class PaintingRenderer : public GeometryPainting, public GeometryRenderer {
 	void setHorizontalTextAlignment(HorizontalTextAlignment alignment) override;
 	void setVerticalTextAlignment(VerticalTextAlignment alignment) override;
 
+	void clear();
+
   private:
 	struct Style {
 		/// The draw mode.

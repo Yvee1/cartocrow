@@ -141,7 +141,7 @@ class RoutingGraph {
     void makeRoutingObjects();
 };
 
-std::pair<State, std::shared_ptr<StateGeometry>> routeEdges(const InputInstance& input, const Settings& settings, renderer::GeometryRenderer& renderer);
+std::pair<std::shared_ptr<State>, std::shared_ptr<StateGeometry>> routeEdges(const InputInstance& input, const Settings& settings, renderer::GeometryRenderer& renderer);
 
 CSPolygon rationalTangentToCSPolygon(const RationalTangent& rt, const Settings& settings);
 

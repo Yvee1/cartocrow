@@ -6,12 +6,15 @@
 #include <QSpinBox>
 
 #include "cartocrow/core/core.h"
+#include "cartocrow/renderer/painting_renderer.h"
+
 #include "cartocrow/kinetic_kelp/input.h"
 #include "cartocrow/kinetic_kelp/settings.h"
 #include "cartocrow/kinetic_kelp/draw_settings.h"
 #include "cartocrow/kinetic_kelp/state.h"
 #include "cartocrow/kinetic_kelp/state_geometry.h"
 #include "cartocrow/kinetic_kelp/pseudotriangulation.h"
+#include "cartocrow/kinetic_kelp/pseudotriangulation_painting.h"
 #include "cartocrow/kinetic_kelp/kinetic_kelp_painting.h"
 
 #include <CGAL/Delaunay_triangulation_2.h>
@@ -67,11 +70,18 @@ private:
 
     std::shared_ptr<std::vector<Kelp>> m_kelps;
     std::shared_ptr<KineticKelpPainting> m_kkPainting;
+	std::shared_ptr<PaintingRenderer> m_failurePainting;
+
+	std::shared_ptr<Pseudotriangulation> m_brokenPt;
+	std::shared_ptr<State> m_brokenState;
+
+	std::optional<Pseudotriangulation::TangentEndpointCertificate> m_failedCertificate = std::nullopt;
 
     void fitToScreen();
     void resizeEvent(QResizeEvent *event) override;
     void initialize();
     bool update(double time);
+	std::optional<std::pair<Pseudotriangulation::TangentEndpointCertificate, CertificateFailurePainting>> updateDebug(double time);
 };
 
 #endif //CARTOCROW_KINETIC_KELP_DEMO_H

@@ -1,6 +1,7 @@
 #include "pseudotriangulation_painting.h"
 #include "cartocrow/circle_segment_helpers/cs_polyline_helpers.h"
 #include "cartocrow/circle_segment_helpers/poly_line_gon_intersection.h"
+#include "state_geometry_painting.h"
 
 using namespace cartocrow::renderer;
 
@@ -38,11 +39,19 @@ void PseudotriangulationCertificatesPainting::paint(GeometryRenderer &renderer) 
 		RenderPath path;
 		for (const auto& t : ts) {
 			auto p = m_ptg->tangentEndpoint(*t, pId);
-			auto rt = m_ptg->m_tangents[*t];
+			if (!m_ptg->m_tangents.contains(*t)) {
+				continue;
+			}
+			auto rt = m_ptg->m_tangents.at(*t);
+			if (rt.source() == rt.target()) continue;
 			auto pl = rt.polyline();
 			auto plCS = polylineToCSPolyline(pl);
 			std::vector<OneRootPoint> ipts;
-			intersectionPoints(plCS, circleToCSPolygon(circle), std::back_inserter(ipts));
+			try {
+				intersectionPoints(plCS, circleToCSPolygon(circle), std::back_inserter(ipts));
+			} catch (...) {
+				continue;
+			}
 
 			// intersect pl with circle
 			if (ipts.empty()) continue;
@@ -72,13 +81,21 @@ void PseudotriangulationCertificatesPainting::paint(GeometryRenderer &renderer) 
 		auto pl1 = rt1.polyline();
 		auto plCS1 = polylineToCSPolyline(pl1);
 		std::vector<OneRootPoint> ipts1;
-		intersectionPoints(plCS1, circleToCSPolygon(circle), std::back_inserter(ipts1));
+		try {
+			intersectionPoints(plCS1, circleToCSPolygon(circle), std::back_inserter(ipts1));
+	    } catch (...) {
+	    	continue;
+	    }
 
 		auto rt2 = m_ptg->m_tangents[t2];
 		auto pl2 = rt2.polyline();
 		auto plCS2 = polylineToCSPolyline(pl2);
 		std::vector<OneRootPoint> ipts2;
-		intersectionPoints(plCS2, circleToCSPolygon(circle), std::back_inserter(ipts2));
+		try {
+			intersectionPoints(plCS2, circleToCSPolygon(circle), std::back_inserter(ipts2));
+		} catch (...) {
+			continue;
+		}
 
 		if (ipts1.empty()) continue;
 		if (ipts2.empty()) continue;
@@ -86,7 +103,7 @@ void PseudotriangulationCertificatesPainting::paint(GeometryRenderer &renderer) 
 		auto p1 = ipts1[0];
 		auto p2 = ipts2[0];
 
-		if (tpCertificate.valid(*m_pt, *m_state, *m_stateGeometry, *m_inputInstance, m_settings)) {
+		if (tpCertificate.valid(*m_pt, *m_state, *m_ptg)) {
 			renderer.setStroke(Color(71, 142, 0), 3.0);
 		} else {
 			renderer.setStroke(Color(213, 0, 0), 3.0);
@@ -97,5 +114,21 @@ void PseudotriangulationCertificatesPainting::paint(GeometryRenderer &renderer) 
 		path.arcTo(approximate(center), false, approximateOneRootPoint(p2));
 		renderer.draw(path);
 	}
+}
+
+void CertificateFailurePainting::paint(GeometryRenderer &renderer) const {
+	auto ptSP = std::make_shared<Pseudotriangulation>(m_pt);
+	auto ptgSP = std::make_shared<PseudotriangulationGeometry>(m_ptg);
+	auto stateSP = std::make_shared<State>(m_state);
+	auto inputInstanceSP = std::make_shared<InputInstance>(m_inputInstance);
+
+	StateGeometryPainting stateGeometryP(m_stateGeometry);
+	PseudotriangulationPainting ptP(ptgSP);
+	PseudotriangulationCertificatesPainting ptcP(ptSP, ptgSP, stateSP, inputInstanceSP, m_settings);
+	renderer.setStrokeOpacity(100);
+	stateGeometryP.paint(renderer);
+	ptP.paint(renderer);
+	ptcP.paint(renderer);
+	renderer.setStrokeOpacity(255);
 }
 }

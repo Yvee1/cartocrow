@@ -164,4 +164,9 @@ void PaintingRenderer::setVerticalTextAlignment(VerticalTextAlignment alignment)
 	m_style.m_verticalTextAlignment = alignment;
     m_objects.push_back(m_style);
 }
+
+void PaintingRenderer::clear() {
+	m_objects.clear();
+	m_styleStack = {};
+}
 } // namespace cartocrow::renderer

@@ -295,7 +295,7 @@ void RoutingGraph::removeNonProperlyIntersectedTangents(GraphV u, GraphV v, cons
     }
 }
 
-std::pair<State, std::shared_ptr<StateGeometry>> routeEdges(const InputInstance& input, const Settings& settings, GeometryRenderer& renderer) {
+std::pair<std::shared_ptr<State>, std::shared_ptr<StateGeometry>> routeEdges(const InputInstance& input, const Settings& settings, GeometryRenderer& renderer) {
     // Initial graph is now done, we start routing
     RoutingGraph graph(input, settings);
 
@@ -331,11 +331,11 @@ std::pair<State, std::shared_ptr<StateGeometry>> routeEdges(const InputInstance&
         }
     }
 
-    State state;
+    auto state = std::make_shared<State>();
     auto stateGeometry = std::make_shared<StateGeometry>();
-    state.msts = std::vector<MST>(input.numCategories());
-    state.pointIdToEdges = std::vector<std::list<MSTEdge>>(input.size());
-    state.pointIdToElbows = std::vector<std::list<ElbowId>>(input.size());
+    state->msts = std::vector<MST>(input.numCategories());
+    state->pointIdToEdges = std::vector<std::list<MSTEdge>>(input.size());
+    state->pointIdToElbows = std::vector<std::list<ElbowId>>(input.size());
 
     for (int i = 0; i < input.size(); ++i) {
         stateGeometry->vertexGeometry[i] = RationalRadiusCircle(input[i].point, settings.vertexRadius);
@@ -390,18 +390,19 @@ std::pair<State, std::shared_ptr<StateGeometry>> routeEdges(const InputInstance&
                 }
             }
 
-            auto topo = extractTopology(cheapestPath, g, settings);
-            auto& mstE = state.msts[cheapestK].emplace_back(topo.source, topo.target);
-            state.edgeTopology[mstE] = topo;
-            state.pointIdToEdges[mstE.first].push_back(mstE);
-            state.pointIdToEdges[mstE.second].push_back(mstE);
+            auto topoOld = extractTopology(cheapestPath, g, settings);
+            auto& mstE = state->msts[cheapestK].emplace_back(topoOld.source, topoOld.target);
+            state->edgeTopology[mstE] = std::move(topoOld);
+			auto& topo = state->edgeTopology[mstE];
+            state->pointIdToEdges[mstE.first].push_back(mstE);
+            state->pointIdToEdges[mstE.second].push_back(mstE);
             stateGeometry->edgeGeometry[mstE] = EdgeGeometry(topo, input, settings);
             auto& geometry = stateGeometry->edgeGeometry[mstE];
 
             for (auto orbitIt = topo.orbits.begin(); orbitIt != topo.orbits.end(); ++orbitIt) {
                 const auto& orbit = *orbitIt;
 				auto pId = orbit.pointId;
-                state.pointIdToElbows[pId].emplace_back(mstE, orbitIt);
+                state->pointIdToElbows[pId].emplace_back(mstE, orbitIt);
 				// Remove all edges and vertices on the orbit
 				for (const auto& v : graph.m_circleVertices[pId]) {
 					graph.m_pointToVertex.erase(g[v].point);

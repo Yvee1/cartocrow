@@ -35,6 +35,39 @@ struct State {
 		}
 		return {straightSource, straightTarget};
 	}
+
+	State() = default;
+
+	State(const State& state) {
+		msts = state.msts;
+		edgeTopology = state.edgeTopology;
+		pointIdToEdges = state.pointIdToEdges;
+		pointIdToElbows = std::vector<std::list<ElbowId>>(state.pointIdToElbows.size());
+		for (int pId = 0; pId < state.pointIdToElbows.size(); ++pId) {
+			for (const auto& [edge, oldOrbitIt] : state.pointIdToElbows[pId]) {
+				auto& oldOrbits = state.edgeTopology.at(edge).orbits;
+				auto& newOrbits = edgeTopology[edge].orbits;
+				auto it = std::next(newOrbits.begin(), std::distance(oldOrbits.begin(), oldOrbitIt));
+				pointIdToElbows[pId].emplace_back(edge, it);
+			}
+		}
+	}
+
+	State& operator=(const State& state) {
+		msts = state.msts;
+		edgeTopology = state.edgeTopology;
+		pointIdToEdges = state.pointIdToEdges;
+		pointIdToElbows = std::vector<std::list<ElbowId>>(state.pointIdToElbows.size());
+		for (int pId = 0; pId < state.pointIdToElbows.size(); ++pId) {
+			for (const auto& [edge, oldOrbitIt] : state.pointIdToElbows[pId]) {
+				auto& oldOrbits = state.edgeTopology.at(edge).orbits;
+				auto& newOrbits = edgeTopology[edge].orbits;
+				auto it = std::next(newOrbits.begin(), std::distance(oldOrbits.begin(), oldOrbitIt));
+				pointIdToElbows[pId].emplace_back(edge, it);
+			}
+		}
+		return *this;
+	}
 };
 }
 
