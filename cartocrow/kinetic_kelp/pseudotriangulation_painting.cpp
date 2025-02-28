@@ -86,7 +86,7 @@ void PseudotriangulationCertificatesPainting::paint(GeometryRenderer &renderer) 
 		auto p1 = ipts1[0];
 		auto p2 = ipts2[0];
 
-		if (tpCertificate.valid(*m_state, *m_stateGeometry, *m_inputInstance, m_settings)) {
+		if (tpCertificate.valid(*m_pt, *m_state, *m_stateGeometry, *m_inputInstance, m_settings)) {
 			renderer.setStroke(Color(71, 142, 0), 3.0);
 		} else {
 			renderer.setStroke(Color(213, 0, 0), 3.0);

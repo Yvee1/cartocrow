@@ -193,7 +193,7 @@ bool KineticKelpDemo::update(double time) {
 	while (!allGood) {
 		bool foundInvalidCertificate = false;
 		for (auto& c : m_pt->m_tangentEndpointCertificates) {
-			if (!c.valid(*m_state, *m_stateGeometry, *m_inputInstance, m_settings)) {
+			if (!c.valid(*m_pt, *m_state, *m_stateGeometry, *m_inputInstance, m_settings)) {
 				m_pt->fix(c, *m_state, m_settings);
 				foundInvalidCertificate = true;
 				noIssues = false;

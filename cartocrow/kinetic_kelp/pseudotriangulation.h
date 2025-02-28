@@ -53,9 +53,11 @@ struct hash<cartocrow::kinetic_kelp::RationalCircularArc>
 namespace cartocrow::kinetic_kelp {
 bool circlePointLiesOnArc(const Point<Exact> &point, const RationalCircularArc &arc);
 
+class Pseudotriangulation;
+
 struct Certificate {
-	virtual bool valid(const State& state, const InputInstance& input, const Settings& settings) = 0;
-	virtual bool valid(const State& state, const StateGeometry& stateGeometry, const InputInstance& input, const Settings& settings) = 0;
+	virtual bool valid(Pseudotriangulation& pt, const State& state, const InputInstance& input, const Settings& settings) = 0;
+	virtual bool valid(Pseudotriangulation& pt, const State& state, const StateGeometry& stateGeometry, const InputInstance& input, const Settings& settings) = 0;
 };
 
 class Pseudotriangulation {
@@ -79,6 +81,38 @@ public:
         TangentObject(PointId pointId, StraightId straightId, bool one) : pointId(pointId), straightId(straightId), type(one ? CircleStraight1 : CircleStraight2) {};
 
         bool operator==(const TangentObject& other) const = default;
+        std::optional<Orbit> elbowPoint(const State& state) {
+            if (!straightId.has_value()) return std::nullopt;
+            auto [edge, orbitIt] = *straightId;
+            if (pointId == edge.first || pointId == edge.second) return std::nullopt;
+            auto [sId, tId] = state.straightEndpoints(*straightId);
+            if (pointId == sId) {
+                --orbitIt;
+            }
+            auto orbit = *orbitIt;
+            if (orbit.dir == CGAL::COUNTERCLOCKWISE) {
+                if (pointId == tId) {
+                    if (type == CircleStraight2) {
+                        return orbit;
+                    }
+                } else {
+                    if (type == CircleStraight1) {
+                        return orbit;
+                    }
+                }
+            } else {
+                if (pointId == tId) {
+                    if (type == CircleStraight1) {
+                        return orbit;
+                    }
+                } else {
+                    if (type == CircleStraight2) {
+                        return orbit;
+                    }
+                }
+            }
+            return std::nullopt;
+        }
     };
     struct Tangent {
         TangentType type;
@@ -113,37 +147,6 @@ public:
 			return target ? this->source : this->target;
 		}
 
-		CGAL::Orientation sourceOrientation() const {
-			// todo incorrect
-			if (type == Outer1 || type == Inner1) {
-				return CGAL::COUNTERCLOCKWISE;
-			}
-			if (type == Outer2 || type == Inner2) {
-				return CGAL::CLOCKWISE;
-			}
-            return CGAL::COLLINEAR; /// todo
-			throw std::invalid_argument("Unimplemented enum type");
-		}
-
-		CGAL::Orientation targetOrientation() const {
-			if (type == Outer1 || type == Inner2 || type == PointCircle1) {
-				return CGAL::CLOCKWISE;
-			}
-			if (type == Outer2 || type == Inner1 || type == PointCircle2) {
-				return CGAL::COUNTERCLOCKWISE;
-			}
-            return CGAL::COLLINEAR;
-			throw std::invalid_argument("Unimplemented enum type");
-		}
-
-		CGAL::Orientation orientation(bool target) const {
-			return target ? targetOrientation() : sourceOrientation();
-		}
-
-		CGAL::Orientation orientation(PointId pId) const {
-			return source->pointId == pId ? sourceOrientation() : targetOrientation();
-		}
-
 		bool circleBitangent() const {
 			return type == Outer1 || type == Outer2 || type == Inner1 || type == Inner2;
 		}
@@ -157,7 +160,7 @@ public:
 
     typedef CGAL::Circulator_from_container<std::list<std::shared_ptr<Tangent>>> TangentCirculator;
 
-    /// Certifies that determinant of tangents of t1 and t2 is positive?
+    /// Certifies that consecutive tangents t1 and t2 are in the correct order on pointId.
 	struct TangentEndpointCertificate : public Certificate {
 		PointId pointId;
 		std::shared_ptr<Tangent> t1;
@@ -169,8 +172,9 @@ public:
 
 		bool t1SubsetOft2;
 
-		bool valid(const State& state, const InputInstance& input, const Settings& settings) override;
-		bool valid(const State& state, const StateGeometry& stateGeometry, const InputInstance& input, const Settings& settings) override;
+        void setPseudotriangulation(Pseudotriangulation* pseudotriangulationPointer);
+		bool valid(Pseudotriangulation& pt, const State& state, const InputInstance& input, const Settings& settings) override;
+		bool valid(Pseudotriangulation& pt, const State& state, const StateGeometry& stateGeometry, const InputInstance& input, const Settings& settings) override;
 
 		TangentEndpointCertificate(PointId pointId, std::shared_ptr<Tangent> t1, std::shared_ptr<Tangent> t2)
 		    : pointId(pointId), t1(t1), t2(t2) {};
@@ -179,11 +183,61 @@ public:
 	std::vector<TangentEndpointCertificate> m_tangentEndpointCertificates;
 	void fix(TangentEndpointCertificate& certificate, State& state, const Settings& settings);
 	void removeTangent(std::shared_ptr<Tangent> t);
-	void maybeAddCertificate(PointId pId, const std::shared_ptr<Tangent>& t1, const std::shared_ptr<Tangent>& t2);
+	void maybeAddCertificate(PointId pId, const std::shared_ptr<Tangent>& t1, const std::shared_ptr<Tangent>& t2, const State& state);
     std::pair<std::shared_ptr<Pseudotriangulation::Tangent>, std::shared_ptr<Pseudotriangulation::Tangent>> neighbouringTangents(PointId pId, const std::shared_ptr<Tangent>& t);
     std::shared_ptr<Pseudotriangulation::Tangent> previousTangent(PointId pId, const std::shared_ptr<Tangent>& t);
     std::shared_ptr<Pseudotriangulation::Tangent> nextTangent(PointId pId, const std::shared_ptr<Tangent>& t);
+    std::optional<std::shared_ptr<Tangent>> edgeOfStraight(const std::shared_ptr<Tangent>& t);
 	TangentCirculator tangentCirculator(PointId pId, const std::shared_ptr<Tangent>& t);
+
+    CGAL::Orientation sourceOrientation(const std::shared_ptr<Tangent>& t, const State& state) {
+        if (t->source->elbowPoint(state).has_value() && edgeOfStraight(t).has_value()) {
+            if (t->source->type == CircleStraight2) {
+                return CGAL::CLOCKWISE;
+            } else {
+                assert(t->source->type == CircleStraight1);
+                return CGAL::COUNTERCLOCKWISE;
+            }
+        }
+
+        // todo incorrect
+        if (t->type == Outer1 || t->type == Inner1) {
+            return CGAL::COUNTERCLOCKWISE;
+        }
+        if (t->type == Outer2 || t->type == Inner2) {
+            return CGAL::CLOCKWISE;
+        }
+        return CGAL::COLLINEAR; /// todo
+        throw std::invalid_argument("Unimplemented enum type");
+    }
+
+    CGAL::Orientation targetOrientation(const std::shared_ptr<Tangent>& t, const State& state) {
+        if (t->target->elbowPoint(state).has_value() && edgeOfStraight(t).has_value()) {
+            if (t->target->type == CircleStraight2) {
+                return CGAL::CLOCKWISE;
+            } else {
+                assert(t->target->type == CircleStraight1);
+                return CGAL::COUNTERCLOCKWISE;
+            }
+        }
+
+        if (t->type == Outer1 || t->type == Inner2 || t->type == PointCircle1) {
+            return CGAL::CLOCKWISE;
+        }
+        if (t->type == Outer2 || t->type == Inner1 || t->type == PointCircle2) {
+            return CGAL::COUNTERCLOCKWISE;
+        }
+        return CGAL::COLLINEAR;
+        throw std::invalid_argument("Unimplemented enum type");
+    }
+
+    CGAL::Orientation orientation(const std::shared_ptr<Tangent>& t, bool target, const State& state) {
+        return target ? targetOrientation(t, state) : sourceOrientation(t, state);
+    }
+
+    CGAL::Orientation orientation(const std::shared_ptr<Tangent>& t, PointId pId, const State& state) {
+        return t->source->pointId == pId ? sourceOrientation(t, state) : targetOrientation(t, state);
+    }
 };
 }
 
