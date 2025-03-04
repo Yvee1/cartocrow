@@ -161,12 +161,12 @@ void stateGeometrytoKelps(const StateGeometry& stateGeometry, const InputInstanc
         roughKelp.join(circleToCSPolygon(circle.circle()));
     }
     for (const auto& roughKelp : roughKelps) {
-        std::vector<CSPolygonWithHoles> polygons;
-        roughKelp.polygons_with_holes(std::back_inserter(polygons));
-        if (polygons.size() != 1) {
-            throw std::runtime_error("MST geometry cannot consist of more than one part!");
-        }
-        *out++ = Kelp(polygons[0], smoothing);
+//        std::vector<CSPolygonWithHoles> polygons;
+//        roughKelp.polygons_with_holes(std::back_inserter(polygons));
+//        if (polygons.size() != 1) {
+//            throw std::runtime_error("MST geometry cannot consist of more than one part!");
+//        }
+        *out++ = Kelp(roughKelp, smoothing);
     }
 }
 }

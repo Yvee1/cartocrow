@@ -5,7 +5,7 @@
 
 namespace cartocrow::kinetic_kelp {
 struct Settings {
-    Number<Exact> vertexRadius = 1.0;
+    Number<Exact> kelpRadius = 1.0;
     Number<Exact> edgeWidth = 0.3;
 };
 }

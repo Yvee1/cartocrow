@@ -57,8 +57,11 @@ private:
     std::optional<qint64> m_pausedTime;
     TimeControlToolBar* m_timeControl;
     QSpinBox* m_interpolationTimeSpinBox;
+    QSlider* m_kelpRadius;
 
     std::filesystem::path m_filePath;
+
+    bool m_justPoints = false;
 
     bool m_recompute = false;
 
@@ -75,13 +78,13 @@ private:
 	std::shared_ptr<Pseudotriangulation> m_brokenPt;
 	std::shared_ptr<State> m_brokenState;
 
-	std::optional<Pseudotriangulation::TangentEndpointCertificate> m_failedCertificate = std::nullopt;
+	std::optional<std::shared_ptr<Pseudotriangulation::Certificate>> m_failedCertificate;
 
     void fitToScreen();
     void resizeEvent(QResizeEvent *event) override;
     void initialize();
     bool update(double time);
-	std::optional<std::pair<Pseudotriangulation::TangentEndpointCertificate, CertificateFailurePainting>> updateDebug(double time);
+	std::optional<std::pair<std::shared_ptr<Pseudotriangulation::Certificate>, CertificateFailurePainting>> updateDebug(double time);
 };
 
 #endif //CARTOCROW_KINETIC_KELP_DEMO_H

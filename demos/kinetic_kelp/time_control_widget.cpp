@@ -1,12 +1,13 @@
 #include "time_control_widget.h"
 #include <QApplication>
 #include <QStyle>
+#include <iostream>
 
 void TimeControlToolBar::tick() {
 	++m_ticks;
 	m_time += m_speed * m_intervalMs / 1000.0;
-	int timeScrubber = m_time * 1000 / *m_endTime;
     if (m_scrubber != nullptr && m_endTime.has_value()) {
+        int timeScrubber = (m_time - m_startTime) / *m_endTime * 1000.0;
         m_scrubber->setValue(timeScrubber);
     }
 	emit ticked(m_ticks, m_time);
@@ -21,8 +22,8 @@ double TimeControlToolBar::time() const {
     return m_time;
 }
 
-TimeControlToolBar::TimeControlToolBar(QWidget* parent, std::optional<double> endTimeSecond, int intervalMs) :
-QToolBar(parent), m_intervalMs(intervalMs), m_endTime(endTimeSecond) {
+TimeControlToolBar::TimeControlToolBar(QWidget* parent, double startTimeSecond, std::optional<double> endTimeSecond, int intervalMs) :
+QToolBar(parent), m_intervalMs(intervalMs), m_startTime(startTimeSecond), m_endTime(endTimeSecond) {
 	m_speedButton = new QToolButton(this);
 	m_speedButton->setText("1x");
 	addWidget(m_speedButton);
@@ -56,7 +57,7 @@ QToolBar(parent), m_intervalMs(intervalMs), m_endTime(endTimeSecond) {
     connect(m_playPauseButton, &QToolButton::clicked, this, &TimeControlToolBar::playOrPause);
     connect(m_restartButton, &QToolButton::clicked, this, &TimeControlToolBar::restart);
 	connect(m_speedButton, &QToolButton::clicked, this, [this]() {
-		std::vector<double> speeds({0.25, 0.5, 1.0, 1.5, 2.0});
+		std::vector<double> speeds({0.25, 0.5, 1.0, 1.5, 2.0, 100.0});
 		auto it = std::lower_bound(speeds.begin(), speeds.end(), m_speed);
 		++it;
 		if (it == speeds.end()) {
@@ -71,7 +72,7 @@ QToolBar(parent), m_intervalMs(intervalMs), m_endTime(endTimeSecond) {
 
 void TimeControlToolBar::restart() {
 	m_ticks = 0;
-	m_time = 0;
+	m_time = m_startTime;
 	m_timer->stop();
 	m_active = false;
 	if (m_scrubber != nullptr) {
@@ -84,7 +85,7 @@ void TimeControlToolBar::restart() {
 
 void TimeControlToolBar::start() {
 	m_ticks = 0;
-	m_time = 0;
+	m_time = m_startTime;
 	m_timer->start(m_intervalMs);
 }
 
@@ -96,7 +97,7 @@ void TimeControlToolBar::playOrPause() {
 	} else {
 		if (!m_paused) {
 			m_ticks = 0;
-			m_time = 0;
+			m_time = m_startTime;
 			emit restarted();
 		}
 		m_timer->start(m_intervalMs);
@@ -123,6 +124,10 @@ void TimeControlToolBar::resized() {
 
 void TimeControlToolBar::resizeEvent(QResizeEvent* e) {
     resized();
+}
+
+void TimeControlToolBar::setStartTime(double startTimeInSeconds) {
+    m_startTime = startTimeInSeconds;
 }
 
 void TimeControlToolBar::setEndTime(double endTimeInSeconds) {

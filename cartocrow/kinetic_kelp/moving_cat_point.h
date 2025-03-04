@@ -12,6 +12,7 @@ struct MovingCatPoint {
 	Trajectory trajectory;
 	MovingCatPoint(unsigned int category, Trajectory trajectory) : category(category), trajectory(std::move(trajectory)) {};
 	bool operator==(const MovingCatPoint&) const = default;
+    MovingCatPoint transform(CGAL::Aff_transformation_2<Inexact>& t) const { return {category, trajectory.transform(t)}; }
 };
 }
 

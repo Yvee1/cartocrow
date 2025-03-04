@@ -25,7 +25,7 @@ CGAL::Orientation opposite(CGAL::Orientation orientation) {
 void RoutingGraph::makeRoutingObjects() {
     for (int i = 0; i < m_input.catPoints().size(); ++i) {
         auto p = m_input[i].point;
-        m_objects.push_back(std::make_shared<Object>(RationalRadiusCircle(p, m_settings.vertexRadius + m_settings.edgeWidth / 2), i));
+        m_objects.push_back(std::make_shared<Object>(RationalRadiusCircle(p, m_settings.kelpRadius + m_settings.edgeWidth / 2), i));
         m_objects.push_back(std::make_shared<Object>(p, i));
     }
 }
@@ -338,7 +338,7 @@ std::pair<std::shared_ptr<State>, std::shared_ptr<StateGeometry>> routeEdges(con
     state->pointIdToElbows = std::vector<std::list<ElbowId>>(input.size());
 
     for (int i = 0; i < input.size(); ++i) {
-        stateGeometry->vertexGeometry[i] = RationalRadiusCircle(input[i].point, settings.vertexRadius);
+        stateGeometry->vertexGeometry[i] = RationalRadiusCircle(input[i].point, settings.kelpRadius);
     }
 
     // Iteratively find the cheapest edge

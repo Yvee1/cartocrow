@@ -47,7 +47,7 @@ std::vector<CatPoint> parseCatPoints(const std::string& s) {
 	return result;
 }
 
-std::vector<MovingCatPoint> parseMovingPoints(const std::filesystem::path& filePath, double secondsBetweenVertices) {
+std::vector<MovingCatPoint> parseIpeAsMovingPoints(const std::filesystem::path& filePath, double secondsBetweenVertices) {
     auto doc = IpeReader::loadIpeFile(filePath);
     auto cascade = doc->cascade();
 
@@ -108,5 +108,34 @@ std::vector<MovingCatPoint> parseMovingPoints(const std::filesystem::path& fileP
     }
 
     return movingCatPoints;
+}
+
+std::vector<MovingCatPoint> parseCSVAsMovingPoints(const std::filesystem::path& filePath, double seconds) {
+    std::stringstream ss;
+    std::ifstream file(filePath);
+    if (!file.good()) {
+        throw std::runtime_error("Failed to read input");
+    }
+    ss << file.rdbuf();
+
+    std::vector<MovingCatPoint> result;
+
+    while (ss) {
+        auto parts = splitIntoTokens(getNextLine(ss), ',');
+        if (parts.size() < 2) continue;
+        auto cat = stoi(parts[0]);
+        assert(parts.size() % 3 == 1);
+        auto nSteps = parts.size() / 3;
+        Trajectory traj;
+        for (int i = 0; i < nSteps; ++i) {
+            auto t = stod(parts[3 * i + 1]) * seconds;
+            auto x = stod(parts[3 * i + 2]);
+            auto y = stod(parts[3 * i + 3]);
+            traj.m_points.emplace_back(t, Point<Inexact>(x, y));
+        }
+        result.emplace_back(cat, std::move(traj));
+    }
+
+    return result;
 }
 }

@@ -13,6 +13,8 @@
 
 #include <CGAL/Boolean_set_operations_2.h>
 
+#include <utility>
+
 namespace cartocrow::kinetic_kelp {
 enum TangentType {
 	Outer1,
@@ -21,6 +23,8 @@ enum TangentType {
 	Inner2,
 	PointCircle1,
 	PointCircle2,
+    CirclePoint1,
+    CirclePoint2,
     PointPoint,
 };
 
@@ -54,11 +58,6 @@ namespace cartocrow::kinetic_kelp {
 bool circlePointLiesOnArc(const Point<Exact> &point, const RationalCircularArc &arc);
 
 class Pseudotriangulation;
-
-struct Certificate {
-	virtual bool valid(Pseudotriangulation& pt, const State& state, const InputInstance& input, const Settings& settings) = 0;
-};
-
 class PseudotriangulationGeometry;
 
 class Pseudotriangulation {
@@ -75,8 +74,9 @@ public:
         PointId pointId;
         std::optional<StraightId> straightId;
 
-        bool circleStraight() { return type == CircleStraight1 || type == CircleStraight2; }
-		bool circleTangent() { return type == Circle; }
+        bool circleStraight() const { return type == CircleStraight1 || type == CircleStraight2; }
+		bool circleTangent() const { return type == Circle; }
+        bool point() const { return type != Circle; }
 
         TangentObject(PointId pointId) : pointId(pointId), type(Circle), straightId(std::nullopt) {};
         TangentObject(PointId pointId, StraightId straightId, bool one) : pointId(pointId), straightId(straightId), type(one ? CircleStraight1 : CircleStraight2) {};
@@ -89,9 +89,6 @@ public:
 				auto [edge, oldOrbitIt] = *obj.straightId;
 				auto& oldOrbits = oldState.edgeTopology.at(edge).orbits;
 				auto& newOrbits = newState.edgeTopology.at(edge).orbits;
-				if (oldOrbits.end() == oldOrbitIt) {
-					std::cout << "!!!" << std::endl;
-				}
 				auto i = std::distance(oldOrbits.begin(), oldOrbitIt);
 				auto newOrbitIt = std::next(newOrbits.begin(), i);
 				straightId = {edge, newOrbitIt};
@@ -137,7 +134,7 @@ public:
         std::shared_ptr<TangentObject> source;
         std::shared_ptr<TangentObject> target;
 
-		std::shared_ptr<TangentObject> endpoint(PointId pointId) {
+		std::shared_ptr<TangentObject>& endpoint(PointId pointId) {
 			if (source->pointId == pointId) {
 				return source;
 			}
@@ -147,7 +144,7 @@ public:
 			throw std::invalid_argument("The provided pointId is not an endpoint of the tangent.");
 		}
 
-		std::shared_ptr<TangentObject> otherEndpoint(PointId pointId) {
+		std::shared_ptr<TangentObject>& otherEndpoint(PointId pointId) {
 			if (source->pointId == pointId) {
 				return target;
 			}
@@ -157,11 +154,11 @@ public:
 			throw std::invalid_argument("The provided pointId is not an endpoint of the tangent.");
 		}
 
-		std::shared_ptr<TangentObject> endpoint(bool target) {
+		std::shared_ptr<TangentObject>& endpoint(bool target) {
 			return target ? this->target : this->source;
 		}
 
-		std::shared_ptr<TangentObject> otherEndpoint(bool target) {
+		std::shared_ptr<TangentObject>& otherEndpoint(bool target) {
 			return target ? this->source : this->target;
 		}
 
@@ -179,28 +176,45 @@ public:
     typedef CGAL::Circulator_from_container<std::list<std::shared_ptr<Tangent>>> TangentCirculator;
 
     /// Certifies that consecutive tangents t1 and t2 are in the correct order on pointId.
-	struct TangentEndpointCertificate : public Certificate {
+	struct ConsecutiveCertificate {
 		PointId pointId;
 		std::shared_ptr<Tangent> t1;
 		std::shared_ptr<Tangent> t2;
 
-		bool operator==(const TangentEndpointCertificate& other) {
-			return pointId == other.pointId && *t1 == *other.t1 && *t2 == *other.t2;
-		}
+        ConsecutiveCertificate(PointId pointId, std::shared_ptr<Tangent> t1, std::shared_ptr<Tangent> t2) :
+            pointId(pointId), t1(std::move(t1)), t2(std::move(t2)) {};
 
 		bool t1SubsetOft2;
 
-        void setPseudotriangulation(Pseudotriangulation* pseudotriangulationPointer);
-		bool valid(Pseudotriangulation& pt, const State& state, const InputInstance& input, const Settings& settings) override;
-		bool valid(Pseudotriangulation& pt, const State& state, const PseudotriangulationGeometry& ptg);
-		bool valid(Pseudotriangulation& pt, const State& state, const RationalTangent& t1G, const RationalTangent& t2G);
-
-		TangentEndpointCertificate(PointId pointId, std::shared_ptr<Tangent> t1, std::shared_ptr<Tangent> t2)
-		    : pointId(pointId), t1(t1), t2(t2) {};
+		bool valid(Pseudotriangulation& pt, const State& state, const InputInstance& input, const Settings& settings);
+		bool valid(Pseudotriangulation& pt, const State& state, const RationalTangent& t1G, const RationalTangent& t2G, const Point<Exact>& point);
+        bool valid(Pseudotriangulation& pt, const State& state, const PseudotriangulationGeometry& ptg, const InputInstance& input);
+        bool usesTangent(const std::shared_ptr<Tangent>& tangent) const { return t1 == tangent || t2 == tangent; }
 	};
 
-	std::vector<TangentEndpointCertificate> m_tangentEndpointCertificates;
-	void fix(TangentEndpointCertificate& certificate, State& state, const Settings& settings);
+    /// Certifies that the endpoint of t on pointId is an intersection point, not a tangent point of the circle.
+    struct PointCertificate {
+        PointId pointId;
+        std::shared_ptr<Tangent> t;
+        PointCertificate(PointId pointId, std::shared_ptr<Tangent> t) : pointId(pointId), t(std::move(t)) {};
+        bool operator==(const PointCertificate& other) const = default;
+        bool valid(const PseudotriangulationGeometry& ptg, const InputInstance& input);
+        bool valid(const RationalTangent& tG, const Point<Exact>& point);
+        bool valid(Pseudotriangulation& pt, const State& state, const PseudotriangulationGeometry& ptg, const InputInstance& input);
+        bool usesTangent(const std::shared_ptr<Tangent>& tangent) const { return t == tangent; }
+    };
+
+    using Certificate = std::variant<ConsecutiveCertificate, PointCertificate>;
+
+    static bool usesTangent(const Certificate& certificate, const std::shared_ptr<Tangent>& t);
+    bool valid(Certificate& certificate, const State& state, const PseudotriangulationGeometry& ptg, const InputInstance& input);
+
+//	std::vector<TangentEndpointCertificate> m_tangentEndpointCertificates;
+//    std::vector<PointCertificate> m_pointCertificates;
+    std::vector<Certificate> m_certificates;
+    void fix(Certificate& certificate, State& state, const Settings& settings);
+	void fix(ConsecutiveCertificate& certificate, State& state, const Settings& settings);
+    void fix(PointCertificate& certificate, State& state, const Settings& settings);
 	void removeTangent(std::shared_ptr<Tangent> t);
 	void maybeAddCertificate(PointId pId, const std::shared_ptr<Tangent>& t1, const std::shared_ptr<Tangent>& t2, const State& state);
     std::pair<std::shared_ptr<Pseudotriangulation::Tangent>, std::shared_ptr<Pseudotriangulation::Tangent>> neighbouringTangents(PointId pId, const std::shared_ptr<Tangent>& t);
@@ -220,15 +234,13 @@ public:
             }
         }
 
-        // todo incorrect
         if (t->type == Outer1 || t->type == Inner1) {
             return CGAL::COUNTERCLOCKWISE;
         }
         if (t->type == Outer2 || t->type == Inner2) {
             return CGAL::CLOCKWISE;
         }
-        return CGAL::COLLINEAR; /// todo
-        throw std::invalid_argument("Unimplemented enum type");
+        return CGAL::COLLINEAR;
     }
 
     CGAL::Orientation targetOrientation(const std::shared_ptr<Tangent>& t, const State& state) {
@@ -248,7 +260,6 @@ public:
             return CGAL::COUNTERCLOCKWISE;
         }
         return CGAL::COLLINEAR;
-        throw std::invalid_argument("Unimplemented enum type");
     }
 
     CGAL::Orientation orientation(const std::shared_ptr<Tangent>& t, bool target, const State& state) {
@@ -288,7 +299,6 @@ public:
 			};
 		};
 
-		std::cout << "Copying" << std::endl;
 		std::unordered_map<TangentObject, std::shared_ptr<TangentObject>, HashTangentObject> objMap;
 		for (const auto& obj : pt.m_tangentObjects) {
 			m_tangentObjects.push_back(std::make_shared<TangentObject>(*obj, oldState, newState));
@@ -307,10 +317,17 @@ public:
 				newTs.push_back(tMap[*t]);
 			}
 		}
-		for (const auto& c : pt.m_tangentEndpointCertificates) {
-			auto& t1 = tMap[*c.t1];
-			auto& t2 = tMap[*c.t2];
-			m_tangentEndpointCertificates.emplace_back(c.pointId, t1, t2);
+		for (const auto& c : pt.m_certificates) {
+            if (auto ccP = std::get_if<ConsecutiveCertificate>(&c)) {
+                auto& t1 = tMap[*ccP->t1];
+                auto& t2 = tMap[*ccP->t2];
+                m_certificates.emplace_back(ConsecutiveCertificate(ccP->pointId, t1, t2));
+            } else if (auto pcP = std::get_if<PointCertificate>(&c)) {
+                auto& t = tMap[*pcP->t];
+                m_certificates.emplace_back(PointCertificate(pcP->pointId, t));
+            } else {
+                throw std::runtime_error("Unhandled certificate type.");
+            }
 		}
 	}
 };

@@ -112,7 +112,7 @@ StateGeometry::StateGeometry(const State& state, const InputInstance& input, con
         edgeGeometry[mstEdge] = EdgeGeometry(topology, input, settings);
     }
     for (int i = 0; i < input.size(); ++i) {
-        auto circle = RationalRadiusCircle(input[i].point, settings.vertexRadius);
+        auto circle = RationalRadiusCircle(input[i].point, settings.kelpRadius);
         vertexGeometry[i] = circle;
     }
 }

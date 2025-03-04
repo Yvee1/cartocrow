@@ -43,4 +43,12 @@ Polyline<Inexact> Trajectory::polyline() const {
 std::pair<double, double> Trajectory::timespan() const {
     return {m_points.front().time, m_points.back().time};
 }
+
+Trajectory Trajectory::transform(CGAL::Aff_transformation_2<Inexact>& t) const {
+    Trajectory tt;
+    for (const auto& tp : m_points) {
+        tt.m_points.emplace_back(tp.transform(t));
+    }
+    return tt;
+}
 }

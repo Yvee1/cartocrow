@@ -50,7 +50,7 @@ void RenderStateDemo::recalculate() {
 	m_renderer->clear();
 
 	Settings settings;
-	settings.vertexRadius = 10.0;
+	settings.kelpRadius = 10.0;
 	settings.edgeWidth = 5.0;
 
 	std::vector<CatPoint> catPoints;

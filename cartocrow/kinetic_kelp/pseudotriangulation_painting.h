@@ -33,7 +33,7 @@ class PseudotriangulationCertificatesPainting : public renderer::GeometryPaintin
 
 class CertificateFailurePainting : public renderer::GeometryPainting {
   public:
-	CertificateFailurePainting(Pseudotriangulation::TangentEndpointCertificate certificate,
+	CertificateFailurePainting(std::shared_ptr<Pseudotriangulation::Certificate> certificate,
 	                           Pseudotriangulation pt, PseudotriangulationGeometry ptg,
 	                           State state, std::shared_ptr<StateGeometry> stateGeometry, InputInstance inputInstance, Settings settings) :
 	      m_certificate(std::move(certificate)), m_pt(std::move(pt)), m_ptg(std::move(ptg)), m_state(std::move(state)),
@@ -41,7 +41,7 @@ class CertificateFailurePainting : public renderer::GeometryPainting {
 	void paint(renderer::GeometryRenderer &renderer) const override;
 
   private:
-	Pseudotriangulation::TangentEndpointCertificate m_certificate;
+	std::shared_ptr<Pseudotriangulation::Certificate> m_certificate;
 	Pseudotriangulation m_pt;
 	PseudotriangulationGeometry m_ptg;
 	State m_state;

@@ -32,7 +32,7 @@ void PseudotriangulationCertificatesPainting::paint(GeometryRenderer &renderer) 
 	for (int pId = 0; pId < m_pt->m_pointIdToTangents.size(); ++pId) {
 		auto& ts = m_pt->m_pointIdToTangents[pId];
 
-		auto r = m_settings.vertexRadius + (static_cast<int>(m_state->pointIdToElbows[pId].size()) + 0.5) * m_settings.edgeWidth;
+		auto r = m_settings.kelpRadius + (static_cast<int>(m_state->pointIdToElbows[pId].size()) + 0.5) * m_settings.edgeWidth;
 		auto center = (*m_inputInstance)[pId].point;
 		Circle<Exact> circle(center, r * r);
 
@@ -47,18 +47,20 @@ void PseudotriangulationCertificatesPainting::paint(GeometryRenderer &renderer) 
 			auto pl = rt.polyline();
 			auto plCS = polylineToCSPolyline(pl);
 			std::vector<OneRootPoint> ipts;
-			try {
-				intersectionPoints(plCS, circleToCSPolygon(circle), std::back_inserter(ipts));
-			} catch (...) {
-				continue;
-			}
+			intersectionPoints(plCS, circleToCSPolygon(circle), std::back_inserter(ipts));
 
 			// intersect pl with circle
-			if (ipts.empty()) continue;
+            Point<Inexact> interP;
+			if (!ipts.empty()) {
+                interP = approximateOneRootPoint(ipts[0]);
+            } else {
+                bool rev = t->target->pointId == pId;
+                interP = approximate(rev ? rt.source() : rt.target());
+            }
 			if (path.commands().empty()) {
-				path.moveTo(approximateOneRootPoint(ipts[0]));
+				path.moveTo(interP);
 			} else {
-				path.lineTo(approximateOneRootPoint(ipts[0]));
+				path.lineTo(interP);
 			}
 		}
 		path.close();
@@ -68,12 +70,14 @@ void PseudotriangulationCertificatesPainting::paint(GeometryRenderer &renderer) 
 		renderer.draw(path);
 	}
 
-	for (auto tpCertificate : m_pt->m_tangentEndpointCertificates) {
+	for (auto certificate : m_pt->m_certificates) {
+        if (!std::holds_alternative<Pseudotriangulation::ConsecutiveCertificate>(certificate)) continue;
+        auto& tpCertificate = std::get<Pseudotriangulation::ConsecutiveCertificate>(certificate);
 		auto pId = tpCertificate.pointId;
 		auto& t1 = *(tpCertificate.t1);
 		auto& t2 = *(tpCertificate.t2);
 
-		auto r = m_settings.vertexRadius + (static_cast<int>(m_state->pointIdToElbows[pId].size()) + 0.5) * m_settings.edgeWidth;
+		auto r = m_settings.kelpRadius + (static_cast<int>(m_state->pointIdToElbows[pId].size()) + 0.5) * m_settings.edgeWidth;
 		auto center = (*m_inputInstance)[pId].point;
 		Circle<Exact> circle(center, r * r);
 
@@ -81,37 +85,38 @@ void PseudotriangulationCertificatesPainting::paint(GeometryRenderer &renderer) 
 		auto pl1 = rt1.polyline();
 		auto plCS1 = polylineToCSPolyline(pl1);
 		std::vector<OneRootPoint> ipts1;
-		try {
-			intersectionPoints(plCS1, circleToCSPolygon(circle), std::back_inserter(ipts1));
-	    } catch (...) {
-	    	continue;
-	    }
+		intersectionPoints(plCS1, circleToCSPolygon(circle), std::back_inserter(ipts1));
 
 		auto rt2 = m_ptg->m_tangents[t2];
 		auto pl2 = rt2.polyline();
 		auto plCS2 = polylineToCSPolyline(pl2);
 		std::vector<OneRootPoint> ipts2;
-		try {
-			intersectionPoints(plCS2, circleToCSPolygon(circle), std::back_inserter(ipts2));
-		} catch (...) {
-			continue;
-		}
+		intersectionPoints(plCS2, circleToCSPolygon(circle), std::back_inserter(ipts2));
 
-		if (ipts1.empty()) continue;
-		if (ipts2.empty()) continue;
+        Point<Inexact> p1;
+		if (!ipts1.empty()) {
+            p1 = approximateOneRootPoint(ipts1[0]);
+        } else {
+            bool rev = t1.target->pointId == pId;
+            p1 = approximate(rev ? pl1.source() : pl1.target());
+        }
+        Point<Inexact> p2;
+		if (!ipts2.empty()) {
+            p2 = approximateOneRootPoint(ipts2[0]);
+        } else {
+            bool rev = t2.target->pointId == pId;
+            p1 = approximate(rev ? pl2.source() : pl2.target());
+        }
 
-		auto p1 = ipts1[0];
-		auto p2 = ipts2[0];
-
-		if (tpCertificate.valid(*m_pt, *m_state, *m_ptg)) {
+		if (tpCertificate.valid(*m_pt, *m_state, *m_ptg, *m_inputInstance)) {
 			renderer.setStroke(Color(71, 142, 0), 3.0);
 		} else {
 			renderer.setStroke(Color(213, 0, 0), 3.0);
 		}
 		RenderPath path;
 
-		path.moveTo(approximateOneRootPoint(p1));
-		path.arcTo(approximate(center), false, approximateOneRootPoint(p2));
+		path.moveTo(p1);
+		path.arcTo(approximate(center), false, p2);
 		renderer.draw(path);
 	}
 }
@@ -129,6 +134,21 @@ void CertificateFailurePainting::paint(GeometryRenderer &renderer) const {
 	stateGeometryP.paint(renderer);
 	ptP.paint(renderer);
 	ptcP.paint(renderer);
-	renderer.setStrokeOpacity(255);
+
+    renderer.setStrokeOpacity(255);
+    renderer.setStroke(Color{255, 0, 0}, 3.0);
+    if (auto cc = std::get_if<Pseudotriangulation::ConsecutiveCertificate>(&*m_certificate)) {
+        auto pl1 = m_ptg.m_tangents.at(*cc->t1).polyline();
+        auto pl2 = m_ptg.m_tangents.at(*cc->t2).polyline();
+        renderer.setMode(GeometryRenderer::stroke);
+        renderer.draw(pl1);
+        renderer.draw(pl2);
+    } else if (auto pc = std::get_if<Pseudotriangulation::PointCertificate>(&*m_certificate)) {
+        auto pl = m_ptg.m_tangents.at(*pc->t).polyline();
+        renderer.setMode(GeometryRenderer::stroke);
+        renderer.draw(pl);
+    } else {
+        throw std::runtime_error("Unhandled certificate type!");
+    }
 }
 }

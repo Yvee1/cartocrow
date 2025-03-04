@@ -15,7 +15,7 @@ void KineticKelpPainting::paint(renderer::GeometryRenderer &renderer) const {
     renderer.setStroke(Color(0, 0, 0), m_drawSettings.strokeWidth, true);
     for (int k = 0; k < m_input->numCategories(); ++k) {
         renderer.setFill(m_drawSettings.colors[k]);
-        renderer.draw(renderPath(m_kelps->at(k).polygon()));
+        renderer.draw(renderPath(m_kelps->at(k).polygonSet()));
     }
     for (const auto& cp : m_input->catPoints()) {
         renderer.setFill(Color(0, 0, 0));

@@ -11,6 +11,7 @@ public:
     Point<Inexact> point;
     TimePoint(double t, Point<Inexact> p) : time(t), point(p) {}
     bool operator==(const TimePoint&) const = default;
+    TimePoint transform(CGAL::Aff_transformation_2<Inexact>& t) const { return {time, point.transform(t)}; }
 };
 
 class Trajectory {
@@ -26,6 +27,8 @@ public:
 
     Polyline<Inexact> polyline() const;
     std::pair<double, double> timespan() const;
+
+    Trajectory transform(CGAL::Aff_transformation_2<Inexact>& t) const;
 };
 }
 

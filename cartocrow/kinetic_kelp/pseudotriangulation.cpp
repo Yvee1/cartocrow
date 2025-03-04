@@ -92,8 +92,7 @@ std::pair<Pseudotriangulation, PseudotriangulationGeometry> PseudotriangulationG
         auto& incidentEdges = state.pointIdToEdges[pId];
         for (const auto& edge : incidentEdges) {
 			auto& orbits = state.edgeTopology.at(edge).orbits;
-            auto& edgeG = stateGeometry.edgeGeometry.at(edge);
-            auto orbitsIt = edge.first == pId ? orbits.begin() : (--orbits.end());
+            auto orbitsIt = edge.first == pId ? orbits.begin() : orbits.end();
             auto straightId = std::pair(edge, orbitsIt);
             auto straight = stateGeometry.straight(straightId, state);
             std::vector<OneRootPoint> ipts;
@@ -317,7 +316,7 @@ std::pair<Pseudotriangulation, PseudotriangulationGeometry> PseudotriangulationG
         ptg.m_tangents[t] = tg;
     }
 
-	// Sort tangents around each point
+	// Sort tangents around each point, and make certificates
 	for (int pId = 0; pId < pt.m_pointIdToTangents.size(); ++pId) {
 		auto& tangents = pt.m_pointIdToTangents[pId];
 		auto& point = stateGeometry.vertexGeometry.at(pId).center;
@@ -351,6 +350,15 @@ std::pair<Pseudotriangulation, PseudotriangulationGeometry> PseudotriangulationG
 			pt.maybeAddCertificate(pId, t1, t2, state);
 		}
 	}
+
+    for (int pId = 0; pId < pt.m_pointIdToTangents.size(); ++pId) {
+        auto& tangents = pt.m_pointIdToTangents[pId];
+        for (const auto& t : tangents) {
+            if (!t->endpoint(pId)->point()) continue;
+            if (pt.edgeOfStraight(t).has_value()) continue;
+            pt.m_certificates.emplace_back(Pseudotriangulation::PointCertificate(pId, t));
+        }
+    }
 
     return {pt, ptg};
 }
@@ -440,6 +448,18 @@ PseudotriangulationGeometry::geometry(const Tangent& tangent, const TangentObjec
         }
     }
 
+    if (auto p2P = std::get_if<Point<Exact>>(&target)) {
+        auto p2 = *p2P;
+        auto c1 = std::get<RationalRadiusCircle>(source);
+        auto ts = rationalTangents(c1, p2);
+        if (tangent.type == CirclePoint1) {
+            return ts->first;
+        }
+        if (tangent.type == CirclePoint2) {
+            return ts->second;
+        }
+    }
+
     throw std::runtime_error("Unexpected tangent type.");
 }
 
@@ -478,7 +498,31 @@ PseudotriangulationGeometry::PseudotriangulationGeometry(const Pseudotriangulati
 }
 
 bool
-Pseudotriangulation::TangentEndpointCertificate::valid(Pseudotriangulation& pt, const State& state, const RationalTangent& t1G, const RationalTangent& t2G) {
+Pseudotriangulation::PointCertificate::valid(const RationalTangent& tG, const Point<Exact>& point) {
+    bool tR = t->target->pointId == pointId;
+    auto v = tG.target() - tG.source();
+    if (tR) {
+        v = -v;
+    }
+
+    auto perp = ((tR ? tG.target() : tG.source()) - point).perpendicular(CGAL::CLOCKWISE);
+    return CGAL::determinant(perp, v) > 0;
+}
+
+bool
+Pseudotriangulation::PointCertificate::valid(const PseudotriangulationGeometry& ptg, const InputInstance& input) {
+    auto tG = ptg.m_tangents.at(*t);
+    auto& point = input[pointId].point;
+    return valid(tG, point);
+}
+
+bool
+Pseudotriangulation::PointCertificate::valid(Pseudotriangulation& pt, const State& state, const PseudotriangulationGeometry& ptg, const InputInstance& input) {
+    return valid(ptg, input);
+}
+
+bool
+Pseudotriangulation::ConsecutiveCertificate::valid(Pseudotriangulation& pt, const State& state, const RationalTangent& t1G, const RationalTangent& t2G, const Point<Exact>& point) {
 	bool t1R = t1->target->pointId == pointId;
 	bool t2R = t2->target->pointId == pointId;
 	auto v1 = t1G.target() - t1G.source();
@@ -497,19 +541,31 @@ Pseudotriangulation::TangentEndpointCertificate::valid(Pseudotriangulation& pt, 
         auto straightId2 = *t2->otherEndpoint(pointId)->straightId;
         auto [s1, t1] = state.straightEndpoints(straightId1);
         auto [s2, t2] = state.straightEndpoints(straightId2);
-        if (t1 == s2 || t2 == s1) {
+        if (straightId1.first == straightId2.first && t1 == s2 || t2 == s1) {
             special = true;
         }
     }
 
+    auto q = t1R ? t1G.target() : t1G.source();
+    auto r = t2R ? t2G.target() : t2G.source();
     bool valid;
-	if (pt.orientation(t1, t1R, state) == CGAL::CLOCKWISE && pt.orientation(t2, t2R, state) == CGAL::COUNTERCLOCKWISE ||
-	    pt.orientation(t2, t2R, state) == CGAL::CLOCKWISE && pt.orientation(t1, t1R, state) == CGAL::COUNTERCLOCKWISE ||
-        special) {
-		valid = CGAL::determinant(v1, v2) < 0;
-	} else {
-		valid = CGAL::determinant(v1, v2) > 0;
-	}
+    // Endpoints of tangents in correct order around the circle?
+    auto endpointOrientation = CGAL::orientation(point, q, r);
+    if (endpointOrientation == CGAL::COUNTERCLOCKWISE) {
+        valid = true;
+    } else if (endpointOrientation == CGAL::CLOCKWISE) {
+        valid = false;
+    } else {
+        // In this case, the two tangents have the same endpoint on this circle.
+        // Do the targets have the right orientation?
+	    if (pt.orientation(t1, t1R, state) == CGAL::CLOCKWISE && pt.orientation(t2, t2R, state) == CGAL::COUNTERCLOCKWISE ||
+	        pt.orientation(t2, t2R, state) == CGAL::CLOCKWISE && pt.orientation(t1, t1R, state) == CGAL::COUNTERCLOCKWISE ||
+            special) {
+	    	valid = CGAL::determinant(v1, v2) < 0;
+	    } else {
+	    	valid = CGAL::determinant(v1, v2) > 0;
+	    }
+    }
 
 	t1SubsetOft2 = v1.squared_length() < v2.squared_length();
 
@@ -517,23 +573,31 @@ Pseudotriangulation::TangentEndpointCertificate::valid(Pseudotriangulation& pt, 
 }
 
 bool
-Pseudotriangulation::TangentEndpointCertificate::valid(Pseudotriangulation& pt, const State& state, const InputInstance& input, const Settings& settings) {
+Pseudotriangulation::ConsecutiveCertificate::valid(Pseudotriangulation& pt, const State& state, const InputInstance& input, const Settings& settings) {
 	StateGeometry stateGeometry(state, input, settings);
 	auto t1G = PseudotriangulationGeometry::geometry(*t1, state, stateGeometry, input);
 	auto t2G = PseudotriangulationGeometry::geometry(*t2, state, stateGeometry, input);
+    auto& point = input[pointId].point;
 	if (!t1G.has_value()) {
 		throw std::runtime_error("Tangent does not exist!");
 	}
 	if (!t2G.has_value()) {
 		throw std::runtime_error("Tangent does not exist!");
 	}
-	return valid(pt, state, *t1G, *t2G);
+	return valid(pt, state, *t1G, *t2G, point);
 }
 
-bool Pseudotriangulation::TangentEndpointCertificate::valid(Pseudotriangulation& pt, const State& state, const PseudotriangulationGeometry& ptg) {
+bool Pseudotriangulation::ConsecutiveCertificate::valid(Pseudotriangulation& pt, const State& state, const PseudotriangulationGeometry& ptg, const InputInstance& input) {
 	auto t1G = ptg.m_tangents.at(*t1);
 	auto t2G = ptg.m_tangents.at(*t2);
-	return valid(pt, state, t1G, t2G);
+    auto& point = input[pointId].point;
+
+	return valid(pt, state, t1G, t2G, point);
+}
+
+bool Pseudotriangulation::valid(Pseudotriangulation::Certificate& certificate, const State& state,
+                                const PseudotriangulationGeometry& ptg, const InputInstance& input) {
+    return std::visit([&](auto& c) { return c.valid(*this, state, ptg, input); }, certificate);
 }
 
 std::string name(TangentType tt) {
@@ -550,6 +614,10 @@ std::string name(TangentType tt) {
 		return "PointCircle1";
 	case PointCircle2:
 		return "PointCircle2";
+    case CirclePoint1:
+        return "CirclePoint1";
+    case CirclePoint2:
+        return "CirclePoint2";
 	case PointPoint:
 		return "PointPoint";
 	}
@@ -561,10 +629,16 @@ std::ostream& operator<<(std::ostream& os, const Pseudotriangulation::Tangent& t
 	return os;
 }
 
-std::ostream& operator<<(std::ostream& os, const Pseudotriangulation::TangentEndpointCertificate& c)
+std::ostream& operator<<(std::ostream& os, const Pseudotriangulation::ConsecutiveCertificate& c)
 {
 	os << "pId: " << c.pointId << " t1(" << *c.t1 << ") t2(" << *c.t2 << ")";
 	return os;
+}
+
+bool Pseudotriangulation::usesTangent(const Pseudotriangulation::Certificate& certificate, const std::shared_ptr<Pseudotriangulation::Tangent>& t) {
+    return std::visit([&t](const auto& c) {
+        return c.usesTangent(t);
+    }, certificate);
 }
 
 void Pseudotriangulation::removeTangent(std::shared_ptr<Tangent> t) {
@@ -575,10 +649,10 @@ void Pseudotriangulation::removeTangent(std::shared_ptr<Tangent> t) {
 		std::cerr << "Could not find tangent to delete" << std::endl;
 	}
 	m_tangents.erase(it, m_tangents.end());
-	auto itC = std::remove_if(m_tangentEndpointCertificates.begin(), m_tangentEndpointCertificates.end(), [&t](const TangentEndpointCertificate& tP) {
-		return *tP.t1 == *t || *tP.t2 == *t;
+	auto itC = std::remove_if(m_certificates.begin(), m_certificates.end(), [&t](const Certificate& c) {
+        return usesTangent(c, t);
 	});
-	m_tangentEndpointCertificates.erase(itC, m_tangentEndpointCertificates.end());
+	m_certificates.erase(itC, m_certificates.end());
 
 	auto& tsS = m_pointIdToTangents[t->source->pointId];
 	tsS.erase(std::remove(tsS.begin(), tsS.end(), t), tsS.end());
@@ -605,6 +679,12 @@ TangentType tangentType(CGAL::Orientation or1, CGAL::Orientation or2) {
 	if (or1 == CGAL::COLLINEAR && or2 == CGAL::COUNTERCLOCKWISE) {
 		return PointCircle2;
 	}
+    if (or1 == CGAL::CLOCKWISE && or2 == CGAL::COLLINEAR) {
+        return CirclePoint2;
+    }
+    if (or1 == CGAL::COUNTERCLOCKWISE && or2 == CGAL::COLLINEAR) {
+        return CirclePoint1;
+    }
 	if (or1 == CGAL::COLLINEAR && or2 == CGAL::COLLINEAR) {
 		return PointPoint;
 	}
@@ -621,7 +701,7 @@ void Pseudotriangulation::maybeAddCertificate(PointId pId, const std::shared_ptr
 		assert(t1->endpoint(pId)->type == Pseudotriangulation::CircleStraight2);
 		return;
 	}
-	m_tangentEndpointCertificates.emplace_back(pId, t1, t2);
+	m_certificates.emplace_back(ConsecutiveCertificate(pId, t1, t2));
 }
 
 Pseudotriangulation::TangentCirculator Pseudotriangulation::tangentCirculator(PointId pId, const std::shared_ptr<Tangent>& t) {
@@ -676,7 +756,33 @@ std::shared_ptr<Pseudotriangulation::TangentObject> Pseudotriangulation::circleT
 	});
 }
 
-void Pseudotriangulation::fix(TangentEndpointCertificate& certificate, State& state, const Settings& settings) {
+void Pseudotriangulation::fix(Certificate& certificate, State& state, const Settings& settings) {
+    std::visit([&](auto& c) { this->fix(c, state, settings); }, certificate);
+}
+
+void Pseudotriangulation::fix(PointCertificate& certificate, State& state, const Settings& settings) {
+    auto& t = certificate.t;
+    auto& pId = certificate.pointId;
+    auto obj = t->endpoint(pId);
+    auto other = t->otherEndpoint(pId);
+
+    assert(obj->type == CircleStraight1 || obj->type == CircleStraight2);
+
+    auto thisOri = obj->type == CircleStraight1 ? CGAL::CLOCKWISE : CGAL::COUNTERCLOCKWISE;
+    CGAL::Orientation otherOri = orientation(t, other->pointId, state);
+    t->endpoint(pId) = circleTangentObject(pId);
+    t->type = tangentType(thisOri, otherOri);
+
+    m_certificates.erase(std::remove_if(m_certificates.begin(), m_certificates.end(), [&](const Certificate& c) {
+        if (auto pcP = std::get_if<PointCertificate>(&c)) {
+            const PointCertificate& pc = *pcP;
+            return pc == certificate;
+        }
+        return false;
+    }), m_certificates.end());
+}
+
+void Pseudotriangulation::fix(ConsecutiveCertificate& certificate, State& state, const Settings& settings) {
 	std::cout << "Fixing certificate " << certificate << std::endl;
 
 	const auto t1 = certificate.t1;
@@ -693,10 +799,48 @@ void Pseudotriangulation::fix(TangentEndpointCertificate& certificate, State& st
 	bool t1R = t1->target->pointId == pId0;
 	bool t2R = t2->target->pointId == pId0;
 
+    auto fixTangentType = [&state, pId0, this](std::shared_ptr<Tangent> t) {
+        if (t->otherEndpoint(pId0)->point()) {
+            t->type = PointPoint;
+        } else {
+            CGAL::Orientation ori;
+            if (!t->source->point()) {
+                ori = sourceOrientation(t, state);
+                auto tT = t->target;
+                t->target = t->source;
+                t->source = tT;
+            } else {
+                ori = targetOrientation(t, state);
+            }
+            assert(ori != CGAL::COLLINEAR);
+            if (ori == CGAL::CLOCKWISE) {
+                t->type = PointCircle1;
+            } else {
+                t->type = PointCircle2;
+            }
+        }
+    };
+
+    if (t2->endpoint(pId0)->point() && !t1->endpoint(pId0)->point()) {
+        t1->endpoint(pId0) = t2->endpoint(pId0);
+        fixTangentType(t1);
+        return;
+    }
+    if (t1->endpoint(pId0)->point() && !t2->endpoint(pId0)->point()) {
+        t2->endpoint(pId0) = t1->endpoint(pId0);
+        fixTangentType(t2);
+        return;
+    }
+
     bool angleZero = orientation(t1, t1R, state) == orientation(t2, t2R, state) || t1->endpoint(pId0)->circleStraight() && t1->endpoint(pId0) == t2->endpoint(pId0);
 
     auto handle = [&](const std::shared_ptr<Tangent>& oldTangent, const std::shared_ptr<Tangent>& newTangent) {
 		std::cout << "New tangent: " << *newTangent << std::endl;
+        for (auto& ntEndpoint : {newTangent->source, newTangent->target}) {
+            if (ntEndpoint->point()) {
+                m_certificates.push_back(PointCertificate(ntEndpoint->pointId, newTangent));
+            }
+        }
 
         auto [prev0, next0] = neighbouringTangents(pId0, oldTangent);
 
@@ -727,9 +871,12 @@ void Pseudotriangulation::fix(TangentEndpointCertificate& certificate, State& st
 		maybeAddCertificate(pId1, *prev1, newTangent, state);
 		maybeAddCertificate(pId1, newTangent, *next1, state);
 
-		m_tangentEndpointCertificates.erase(std::remove_if(m_tangentEndpointCertificates.begin(), m_tangentEndpointCertificates.end(), [&](const TangentEndpointCertificate& c) {
-			return c.t1 == *prev1 && c.t2 == *next1;
-		}), m_tangentEndpointCertificates.end());
+		m_certificates.erase(std::remove_if(m_certificates.begin(), m_certificates.end(), [&](const Certificate& c) {
+            if (auto ccP = std::get_if<ConsecutiveCertificate>(&c)) {
+                return ccP->t1 == *prev1 && ccP->t2 == *next1;
+            }
+            return false;
+		}), m_certificates.end());
 
 		auto prev2 = newCirc2;
 		--prev2;
@@ -740,17 +887,20 @@ void Pseudotriangulation::fix(TangentEndpointCertificate& certificate, State& st
 		maybeAddCertificate(pId2, newTangent, *next2, state);
 		maybeAddCertificate(pId0, prev0, next0, state);
 
-		m_tangentEndpointCertificates.erase(std::remove_if(m_tangentEndpointCertificates.begin(), m_tangentEndpointCertificates.end(), [&](const TangentEndpointCertificate& c) {
-			return c.t1 == *prev2 && c.t2 == *next2;
-		}), m_tangentEndpointCertificates.end());
+		m_certificates.erase(std::remove_if(m_certificates.begin(), m_certificates.end(), [&](const Certificate& c) {
+            if (auto ccP = std::get_if<ConsecutiveCertificate>(&c)) {
+			    return ccP->t1 == *prev2 && ccP->t2 == *next2;
+            }
+            return false;
+		}), m_certificates.end());
 	};
 
-	std::cout << "Before fixing" << std::endl;
-	for (const auto& c : m_tangentEndpointCertificates) {
-		if (c.pointId == pId0 || c.pointId == pId1 || c.pointId == pId2) {
-			std::cout << "Certificate " << c << std::endl;
-		}
-	}
+//	std::cout << "Before fixing" << std::endl;
+//	for (const auto& c : m_certificates) {
+//		if (c.pointId == pId0 || c.pointId == pId1 || c.pointId == pId2) {
+//			std::cout << "Certificate " << c << std::endl;
+//		}
+//	}
 
 	std::cout << "angleZero: " << angleZero << std::endl;
 	auto& longer = certificate.t1SubsetOft2 ? t2 : t1;
@@ -759,7 +909,7 @@ void Pseudotriangulation::fix(TangentEndpointCertificate& certificate, State& st
         auto& shorter = longer == t2 ? t1 : t2;
 		auto maybeOtherEdge = edgeOfStraight(longer);
 		if (maybeOtherEdge.has_value()) {
-			std::cout << "Hit edge of straight!" << std::endl;
+//			std::cout << "Hit edge of straight!" << std::endl;
 			auto& otherEdge = *maybeOtherEdge;
 			// Yes, subT is an edge of a straight.
 			// We want to split maybeOtherEdge into two tangents.
@@ -775,8 +925,8 @@ void Pseudotriangulation::fix(TangentEndpointCertificate& certificate, State& st
 			Orbit newOrbit;
 			newOrbit.pointId = obstaclePId;
 			if (currentObstacleOrbits.empty()) {
-				newOrbit.innerRadius = settings.vertexRadius;
-				newOrbit.outerRadius = settings.vertexRadius + settings.edgeWidth;
+				newOrbit.innerRadius = settings.kelpRadius;
+				newOrbit.outerRadius = settings.kelpRadius + settings.edgeWidth;
 			} else {
 				auto lastOrbit = currentObstacleOrbits.back();
 				newOrbit.innerRadius = lastOrbit.second->outerRadius;
@@ -809,7 +959,7 @@ void Pseudotriangulation::fix(TangentEndpointCertificate& certificate, State& st
 					auto connectee = one ? (longer->endpoint(otherId)->type == CircleStraight2 ? longer->endpoint(otherId) : otherEdge->endpoint(otherId))
 					    				 : (longer->endpoint(otherId)->type == CircleStraight1 ? longer->endpoint(otherId) : otherEdge->endpoint(otherId));
 					auto straightEdge = std::make_shared<Tangent>(PointPoint, tObj, connectee);
-					std::cout << "Adding tangent " << *straightEdge << std::endl;
+//					std::cout << "Adding tangent " << *straightEdge << std::endl;
 					m_tangents.push_back(straightEdge);
 
                     if (connectee == longer->endpoint(otherId) && one) {
@@ -977,11 +1127,11 @@ void Pseudotriangulation::fix(TangentEndpointCertificate& certificate, State& st
 		handle(t2, newTangent);
 	}
 
-	std::cout << "After fixing" << std::endl;
-	for (auto c : m_tangentEndpointCertificates) {
-		if (c.pointId == pId0 || c.pointId == pId1 || c.pointId == pId2) {
-			std::cout << "Certificate: " << c << std::endl;
-		}
-	}
+//	std::cout << "After fixing" << std::endl;
+//	for (auto c : m_certificates) {
+//		if (c.pointId == pId0 || c.pointId == pId1 || c.pointId == pId2) {
+//			std::cout << "Certificate: " << c << std::endl;
+//		}
+//	}
 }
 }

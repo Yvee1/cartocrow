@@ -14,9 +14,10 @@ public:
     void tick();
     double time() const;
 
-    TimeControlToolBar(QWidget* parent = nullptr, std::optional<double> endTimeSecond = std::nullopt, int intervalMs = 17);
+    TimeControlToolBar(QWidget* parent = nullptr, double startTimeSecond = 0, std::optional<double> endTimeSecond = std::nullopt, int intervalMs = 17);
 
     void resized();
+    void setStartTime(double endTimeInSeconds);
     void setEndTime(double endTimeInSeconds);
 	void setInterval(int intervalMs);
 	void setPlayPauseEnabled(bool enabled);
@@ -35,6 +36,7 @@ private:
     unsigned long m_ticks = 0;
 	double m_time = 0;
 	double m_speed = 1;
+    double m_startTime;
     std::optional<double> m_endTime;
     QSlider* m_scrubber = nullptr;
 	QIcon m_playIcon;
