@@ -13,6 +13,8 @@ struct Orbit {
 	Number<Exact> innerRadius;
 	Number<Exact> outerRadius;
 	CGAL::Orientation dir;
+
+	bool operator==(const Orbit& other) const = default;
 //	RationalRadiusCircle outerCircle(const InputInstance& input) const {
 //		return {input[pointId].point, outerRadius};
 //	}
