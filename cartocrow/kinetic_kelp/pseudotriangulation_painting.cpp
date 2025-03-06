@@ -71,53 +71,87 @@ void PseudotriangulationCertificatesPainting::paint(GeometryRenderer &renderer) 
 	}
 
 	for (auto certificate : m_pt->m_certificates) {
-        if (!std::holds_alternative<Pseudotriangulation::ConsecutiveCertificate>(certificate)) continue;
-        auto& tpCertificate = std::get<Pseudotriangulation::ConsecutiveCertificate>(certificate);
-		auto pId = tpCertificate.pointId;
-		auto& t1 = *(tpCertificate.t1);
-		auto& t2 = *(tpCertificate.t2);
+        if (auto ccP = std::get_if<Pseudotriangulation::ConsecutiveCertificate>(&certificate)) {
+            auto &tpCertificate = *ccP;
+            auto pId = tpCertificate.pointId;
+            auto &t1 = *(tpCertificate.t1);
+            auto &t2 = *(tpCertificate.t2);
 
-		auto r = m_settings.kelpRadius + (static_cast<int>(m_state->pointIdToElbows[pId].size()) + 0.5) * m_settings.edgeWidth;
-		auto center = (*m_inputInstance)[pId].point;
-		Circle<Exact> circle(center, r * r);
+            auto r = m_settings.kelpRadius + (static_cast<int>(m_state->pointIdToElbows[pId].size()) + 0.5) * m_settings.edgeWidth;
+            auto center = (*m_inputInstance)[pId].point;
+            Circle<Exact> circle(center, r * r);
 
-		auto rt1 = m_ptg->m_tangents[t1];
-		auto pl1 = rt1.polyline();
-		auto plCS1 = polylineToCSPolyline(pl1);
-		std::vector<OneRootPoint> ipts1;
-		intersectionPoints(plCS1, circleToCSPolygon(circle), std::back_inserter(ipts1));
+            auto rt1 = m_ptg->m_tangents[t1];
+            auto pl1 = rt1.polyline();
+            auto plCS1 = polylineToCSPolyline(pl1);
+            std::vector<OneRootPoint> ipts1;
+            intersectionPoints(plCS1, circleToCSPolygon(circle), std::back_inserter(ipts1));
 
-		auto rt2 = m_ptg->m_tangents[t2];
-		auto pl2 = rt2.polyline();
-		auto plCS2 = polylineToCSPolyline(pl2);
-		std::vector<OneRootPoint> ipts2;
-		intersectionPoints(plCS2, circleToCSPolygon(circle), std::back_inserter(ipts2));
+            auto rt2 = m_ptg->m_tangents[t2];
+            auto pl2 = rt2.polyline();
+            auto plCS2 = polylineToCSPolyline(pl2);
+            std::vector<OneRootPoint> ipts2;
+            intersectionPoints(plCS2, circleToCSPolygon(circle), std::back_inserter(ipts2));
 
-        Point<Inexact> p1;
-		if (!ipts1.empty()) {
-            p1 = approximateOneRootPoint(ipts1[0]);
-        } else {
-            bool rev = t1.target->pointId == pId;
-            p1 = approximate(rev ? pl1.source() : pl1.target());
+            Point<Inexact> p1;
+            if (!ipts1.empty()) {
+                p1 = approximateOneRootPoint(ipts1[0]);
+            } else {
+                bool rev = t1.target->pointId == pId;
+                p1 = approximate(rev ? pl1.source() : pl1.target());
+            }
+            Point<Inexact> p2;
+            if (!ipts2.empty()) {
+                p2 = approximateOneRootPoint(ipts2[0]);
+            } else {
+                bool rev = t2.target->pointId == pId;
+                p1 = approximate(rev ? pl2.source() : pl2.target());
+            }
+
+            if (tpCertificate.valid(*m_pt, *m_state, *m_ptg, *m_inputInstance)) {
+                renderer.setStroke(Color(71, 142, 0), 3.0);
+            } else {
+                renderer.setStroke(Color(213, 0, 0), 3.0);
+            }
+            RenderPath path;
+
+            path.moveTo(p1);
+            path.arcTo(approximate(center), false, p2);
+            renderer.draw(path);
+        } else if (auto pcP = std::get_if<Pseudotriangulation::PointCertificate>(&certificate)) {
+            auto t = *pcP->t;
+            auto rt = m_ptg->m_tangents[t];
+
+            auto pId = pcP->pointId;
+
+            auto r = m_settings.kelpRadius + (static_cast<int>(m_state->pointIdToElbows[pId].size()) + 0.5) * m_settings.edgeWidth;
+            auto center = (*m_inputInstance)[pId].point;
+            Circle<Exact> circle(center, r * r);
+
+            bool reversed = t.target->pointId == pId;
+
+            auto pl = rt.polyline();
+            auto plCS = polylineToCSPolyline(pl);
+            std::vector<OneRootPoint> ipts;
+            intersectionPoints(plCS, circleToCSPolygon(circle), std::back_inserter(ipts));
+
+            renderer.setMode(GeometryRenderer::stroke);
+
+            Point<Inexact> p;
+            if (!ipts.empty()) {
+                p = approximateOneRootPoint(ipts[0]);
+            } else {
+                p = approximate(reversed ? pl.source() : pl.target());
+            }
+
+            if (pcP->valid(*m_pt, *m_state, *m_ptg, *m_inputInstance)) {
+                renderer.setStroke(Color(71, 142, 0), 3.0);
+            } else {
+                renderer.setStroke(Color(213, 0, 0), 3.0);
+            }
+            auto rtEndpoint = approximate(reversed ? pl.target() : pl.source());
+            renderer.draw(Segment<Inexact>(rtEndpoint, p));
         }
-        Point<Inexact> p2;
-		if (!ipts2.empty()) {
-            p2 = approximateOneRootPoint(ipts2[0]);
-        } else {
-            bool rev = t2.target->pointId == pId;
-            p1 = approximate(rev ? pl2.source() : pl2.target());
-        }
-
-		if (tpCertificate.valid(*m_pt, *m_state, *m_ptg, *m_inputInstance)) {
-			renderer.setStroke(Color(71, 142, 0), 3.0);
-		} else {
-			renderer.setStroke(Color(213, 0, 0), 3.0);
-		}
-		RenderPath path;
-
-		path.moveTo(p1);
-		path.arcTo(approximate(center), false, p2);
-		renderer.draw(path);
 	}
 }
 

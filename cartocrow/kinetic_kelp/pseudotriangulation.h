@@ -96,6 +96,9 @@ public:
 		}
 
         bool operator==(const TangentObject& other) const = default;
+
+        // If this tangent object is a circle-straight intersection point that lies on the outer part of an elbow
+        // then the function returns the orbit that corresponds to that elbow.
         std::optional<Orbit> elbowPoint(const State& state) {
             if (!straightId.has_value()) return std::nullopt;
             auto [edge, orbitIt] = *straightId;
@@ -184,6 +187,7 @@ public:
         ConsecutiveCertificate(PointId pointId, std::shared_ptr<Tangent> t1, std::shared_ptr<Tangent> t2) :
             pointId(pointId), t1(std::move(t1)), t2(std::move(t2)) {};
 
+        bool operator==(const ConsecutiveCertificate& other) const = default;
 		bool t1SubsetOft2;
 
 		bool valid(Pseudotriangulation& pt, const State& state, const InputInstance& input, const Settings& settings);

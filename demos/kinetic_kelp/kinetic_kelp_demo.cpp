@@ -335,8 +335,8 @@ bool KineticKelpDemo::update(double time) {
     m_kelps->clear();
     try {
         stateGeometrytoKelps(*m_stateGeometry, *m_inputInstance, m_drawSettings.smoothing, std::back_inserter(*m_kelps));
-    } catch(const std::runtime_error& error) {
-        std::cerr << error.what() << std::endl;
+    } catch(const std::exception& exception) {
+        std::cerr << exception.what() << std::endl;
     }
 
 	return noIssues;

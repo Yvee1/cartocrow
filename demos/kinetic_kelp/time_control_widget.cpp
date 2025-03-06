@@ -7,7 +7,7 @@ void TimeControlToolBar::tick() {
 	++m_ticks;
 	m_time += m_speed * m_intervalMs / 1000.0;
     if (m_scrubber != nullptr && m_endTime.has_value()) {
-        int timeScrubber = (m_time - m_startTime) / *m_endTime * 1000.0;
+        int timeScrubber = (m_time - m_startTime) / (*m_endTime - m_startTime) * 1000.0;
         m_scrubber->setValue(timeScrubber);
     }
 	emit ticked(m_ticks, m_time);

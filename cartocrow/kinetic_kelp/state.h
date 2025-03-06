@@ -24,7 +24,7 @@ struct State {
 		if (orbitIt == orbits.end()) {
 			straightTarget = edge.second;
 		} else {
-			straightTarget = orbits.back().pointId;
+			straightTarget = orbitIt->pointId;
 		}
 		PointId straightSource;
 		if (orbitIt == orbits.begin()) {
