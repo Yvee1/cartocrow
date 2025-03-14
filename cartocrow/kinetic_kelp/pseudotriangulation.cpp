@@ -871,6 +871,7 @@ std::shared_ptr<Pseudotriangulation::TangentObject> Pseudotriangulation::circleT
 
 void Pseudotriangulation::addTangent(const std::shared_ptr<Tangent>& t) {
     std::cout << "[fix] Adding tangent " << *t << std::endl;
+	assert(!t->source->elbowPoint(state) && !t->target->elbowPoint(state));
     m_tangents.push_back(t);
     m_certificates.push_front(ExistenceCertificate(t));
 }
@@ -994,13 +995,38 @@ void Pseudotriangulation::fix(IncidentStraightsOutsideCircleCertificate& certifi
     addTangentObject(tObj2);
     (*curr)->endpoint(pId) = tObj2;
 
-    auto newTangent = std::make_shared<Tangent>(PointPoint, (*curr)->otherEndpoint(pId), tObj1, false);
+	auto connectee = (*curr)->otherEndpoint(pId);
+	auto newTangent = std::make_shared<Tangent>(PointPoint, connectee, tObj1, false);
+	if (connectee->elbowPoint(state)) {
+		auto sOri = sourceOrientation(newTangent, state);
+		auto tOri = targetOrientation(newTangent, state);
+		newTangent->type = tangentType(sOri, tOri, false, false);
+		newTangent->source = circleTangentObject(connectee->pointId);
+	}
     addTangent(newTangent);
     m_pointIdToTangents[pId].insert(curr.current_iterator(), newTangent);
-    maybeAddCertificate(pId, newTangent, *curr, state);
+	auto cCirc = tangentCirculator(connectee->pointId, *curr);
+	auto cPrev = *cCirc;
+	++cCirc;
+	auto cNext = *cCirc;
+	m_pointIdToTangents[connectee->pointId].insert(cCirc.current_iterator(), newTangent);
+	maybeAddCertificate(connectee->pointId, cPrev, newTangent, state);
+	maybeAddCertificate(connectee->pointId, newTangent, cNext, state);
+
+
+	auto next = *curr;
+    maybeAddCertificate(pId, newTangent, next, state);
     --curr;
     --curr;
-    maybeAddCertificate(pId, *curr, newTangent, state);
+	auto prev = *curr;
+    maybeAddCertificate(pId, prev, newTangent, state);
+
+	m_certificates.erase(std::remove_if(m_certificates.begin(), m_certificates.end(), [&](const Certificate& c) {
+		if (auto ccP = std::get_if<ConsecutiveCertificate>(&c)) {
+			return ccP->t1 == prev && ccP->t2 == next || ccP->t1 == cPrev && ccP->t2 == cNext;
+		}
+		return false;
+	}), m_certificates.end());
 
     removeTangentObject(tObj);
 }
