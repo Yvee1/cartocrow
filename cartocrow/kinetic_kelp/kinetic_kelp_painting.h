@@ -9,12 +9,12 @@
 namespace cartocrow::kinetic_kelp {
 class KineticKelpPainting : public renderer::GeometryPainting {
 public:
-    KineticKelpPainting(std::shared_ptr<std::vector<Kelp>> kelps, std::shared_ptr<InputInstance> input, DrawSettings ds);
+    KineticKelpPainting(std::shared_ptr<std::vector<Kelp>> kelps, std::shared_ptr<InputInstance> input, std::shared_ptr<DrawSettings> ds);
     void paint(renderer::GeometryRenderer &renderer) const override;
 private:
     std::shared_ptr<InputInstance> m_input;
     std::shared_ptr<std::vector<Kelp>> m_kelps;
-    DrawSettings m_drawSettings;
+    std::shared_ptr<DrawSettings> m_drawSettings;
 };
 }
 

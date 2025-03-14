@@ -49,10 +49,13 @@ const std::vector<PointId>& Input::category(int k) const {
     return m_cats[k];
 }
 
-InputInstance Input::instance(double time) const {
+InputInstance Input::instance(double time, bool snap) const {
 	std::vector<CatPoint> catPoints;
 	for (const auto& mcp : m_movingCatPoints) {
-		catPoints.emplace_back(mcp.category, pretendExact(mcp.trajectory.posAtTime(time)));
+        auto [tStart, tEnd] = mcp.trajectory.timespan();
+        if (snap || tStart <= time && time <= tEnd) {
+            catPoints.emplace_back(mcp.category, pretendExact(mcp.trajectory.posAtTime(time)));
+        }
 	}
 	return {catPoints};
 }

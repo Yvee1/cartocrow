@@ -4,6 +4,7 @@
 #include <QMainWindow>
 #include <QToolBar>
 #include <QSpinBox>
+#include <QCheckBox>
 
 #include "cartocrow/core/core.h"
 #include "cartocrow/renderer/painting_renderer.h"
@@ -49,7 +50,7 @@ private:
     GeometryWidget* m_renderer;
     Input m_input;
     Settings m_settings;
-    DrawSettings m_drawSettings;
+    std::shared_ptr<DrawSettings> m_drawSettings;
     std::vector<DT> m_dts;
     std::vector<std::list<TGEdge>> m_msts;
     Box m_bbox;
@@ -58,6 +59,8 @@ private:
     TimeControlToolBar* m_timeControl;
     QSpinBox* m_interpolationTimeSpinBox;
     QSlider* m_kelpRadius;
+    QCheckBox* m_smoothCheckBox;
+    QCheckBox* m_insertDelete;
 
     std::filesystem::path m_filePath;
 

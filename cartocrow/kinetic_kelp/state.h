@@ -36,6 +36,18 @@ struct State {
 		return {straightSource, straightTarget};
 	}
 
+    /// Return the two straights incident to an elbow.
+    /// First is the one before the elbow, second is the one after.
+    std::pair<StraightId, StraightId> incidentStraights(const ElbowId& elbowId) const {
+        auto [edge, orbitIt] = elbowId;
+        auto& orbits = edgeTopology.at(edge).orbits;
+        StraightId straight1(edge, orbitIt);
+        auto nextIt = orbitIt;
+        ++nextIt;
+        StraightId straight2(edge, nextIt);
+        return {straight1, straight2};
+    }
+
 	State() = default;
 
 	State(const State& state) {

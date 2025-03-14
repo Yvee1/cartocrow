@@ -11,31 +11,55 @@ Color light_orange(253,191,111);
 Color orange(255,127,0);
 Color light_purple(202,178,214);
 Color purple(106,61,154);
+std::vector<Color> lights({
+    CB::light_blue, CB::light_red, CB::light_green, CB::light_purple, CB::light_orange
+});
 }
 
-namespace cartocrow::diseasome {
-std::vector<Color> colors({
-    {0xB9E1EE},
-    {0x9AC019},
-    {0xCD6814},
-    {0xE53389},
-    {0xC1BC56},
-    {0x923B8B},
-    {0xFBD2AA},
-    {0x999999},
-    {0xFECD0F},
-    {0xCB9A03},
-    {0xF3983B},
-    {0x4B8EC7},
-    {0x2E9A67},
-    {0xE95937},
-    {0xF8EE82},
-    {0xE74646},
-    {0xCBBC9D},
-    {0x6699CD},
-    {0x6FC4C6},
-    {0xF1979A},
-    {0x8F5A9C},
-    {0xBB3087},
+namespace cartocrow::tableau {
+std::vector<Color> alternatingDarkLight({
+    {0x4E79A7}, // dark blue
+    {0xA0CBE8}, // light blue
+    {0xF28E2B}, // dark orange
+    {0xFFBE7D}, // light orange
+    {0x59A14F}, // dark green
+    {0x8CD17D}, // light green
+    {0xB6992D}, // dark yellow
+    {0xF1CE63}, // light yellow
+    {0x499894}, // dark turquoise
+    {0x86BCB6}, // light turquoise
+    {0xE15759}, // (dark) red
+    {0xFF9D9A}, // light red (pink)
+    {0x79706E}, // dark gray
+    {0xBAB0AC}, // light gray
+    {0xD37295}, // dark magenta
+    {0xFABFD2}, // light magenta
+    {0xB07AA1}, // dark violet
+    {0xD4A6C8}, // light violet
+    {0x9D7660}, // dark brown
+    {0xD7B5A6}, // light brown
+});
+
+std::vector<Color> firstLightThenDark({
+    {0xA0CBE8}, // light blue
+    {0xFFBE7D}, // light orange
+    {0x8CD17D}, // light green
+    {0xF1CE63}, // light yellow
+    {0x86BCB6}, // light turquoise
+    {0xFF9D9A}, // light red (pink)
+    {0xBAB0AC}, // light gray
+    {0xFABFD2}, // light magenta
+    {0xD4A6C8}, // light violet
+    {0xD7B5A6}, // light brown
+    {0x4E79A7}, // dark blue
+    {0xF28E2B}, // dark orange
+    {0x59A14F}, // dark green
+    {0xB6992D}, // dark yellow
+    {0x499894}, // dark turquoise
+    {0xE15759}, // (dark) red
+    {0x79706E}, // dark gray
+    {0xD37295}, // dark magenta
+    {0xB07AA1}, // dark violet
+    {0x9D7660}, // dark brown
 });
 }

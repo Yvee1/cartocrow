@@ -14,6 +14,12 @@ namespace cartocrow::CB {
     extern Color orange;
     extern Color light_purple;
     extern Color purple;
+    extern std::vector<Color> lights;
+}
+
+namespace cartocrow::tableau {
+    extern std::vector<Color> alternatingLightDark;
+    extern std::vector<Color> firstLightThenDark;
 }
 
 #endif //CARTOCROW_COLORS_H

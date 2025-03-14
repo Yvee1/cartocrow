@@ -6,11 +6,11 @@
 namespace cartocrow::kinetic_kelp {
 class Kelp {
 public:
-    Kelp(const CSPolygonSet& polygonSet, double smoothing);
+    Kelp(const CSPolygonSet& polygonSet, std::optional<double> smoothing = std::nullopt);
     CSPolygonSet polygonSet() const;
 
 private:
-    CSPolygonSet m_smoothedPolygonSet;
+    CSPolygonSet m_kelp;
 };
 }
 

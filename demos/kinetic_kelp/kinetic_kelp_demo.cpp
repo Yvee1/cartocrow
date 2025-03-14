@@ -3,9 +3,9 @@
 #include <QApplication>
 #include <QTimer>
 #include <QElapsedTimer>
+#include <QComboBox>
 #include <QDockWidget>
 #include <QHBoxLayout>
-#include <QCheckBox>
 #include <QPushButton>
 #include <QFileDialog>
 #include <QLabel>
@@ -92,7 +92,7 @@ KineticKelpDemo::KineticKelpDemo() {
     vLayout->addWidget(interpolationTimeLabel);
     vLayout->addWidget(m_interpolationTimeSpinBox);
 
-    m_filePath = "data/kinetic_kelp/collide.ipe";
+    m_filePath = "data/kinetic_kelp/disjoint-fails-2.ipe";
     m_input = Input(parseIpeAsMovingPoints(m_filePath, m_interpolationTimeSpinBox->value()));
 
     m_timeControl = new TimeControlToolBar(m_renderer, m_input.timespan().first, m_input.timespan().second, std::round(1000.0 / fps->value()));
@@ -129,6 +129,18 @@ KineticKelpDemo::KineticKelpDemo() {
     m_kelpRadius->setValue(100);
     m_kelpRadius->setOrientation(Qt::Horizontal);
 
+    m_smoothCheckBox = new QCheckBox("Smooth");
+    vLayout->addWidget(m_smoothCheckBox);
+
+    m_insertDelete = new QCheckBox("Insert/delete?");
+    vLayout->addWidget(m_insertDelete);
+
+    auto* colorsSelector = new QComboBox();
+    colorsSelector->addItem("ColorBrewer");
+    colorsSelector->addItem("Tableau 20; light then dark");
+    colorsSelector->setCurrentIndex(0);
+    vLayout->addWidget(colorsSelector);
+
     connect(m_interpolationTimeSpinBox, QOverload<int>::of(&QSpinBox::valueChanged), [this]() {
         m_input = Input(parseIpeAsMovingPoints(m_filePath, m_interpolationTimeSpinBox->value()));
         m_timeControl->restart();
@@ -148,7 +160,7 @@ KineticKelpDemo::KineticKelpDemo() {
         if (m_filePath.extension() == ".ipe") {
             m_input = Input(parseIpeAsMovingPoints(m_filePath, m_interpolationTimeSpinBox->value()));
         } else if (m_filePath.extension() == ".csv") {
-            auto mcps = parseCSVAsMovingPoints(m_filePath, 0.00000001);
+            auto mcps = parseCSVAsMovingPoints(m_filePath, 0.0001);
             auto inputBounds = bounds(mcps);
             Rectangle<Inexact> outputBounds(0.0, 0.0, 1000.0, 1000.0);
             auto trans = fitInto(inputBounds, outputBounds);
@@ -169,7 +181,9 @@ KineticKelpDemo::KineticKelpDemo() {
         m_recompute = recomputeCheckBox->isChecked();
     });
 
-	m_drawSettings.colors = {CB::light_blue, CB::light_red, CB::light_green, CB::light_purple, CB::light_orange};
+    m_drawSettings = std::make_shared<DrawSettings>();
+	m_drawSettings->colors = CB::lights;
+//    m_drawSettings.colors = tableau::firstLightThenDark;
     m_renderer->fitInView(bounds(m_input.movingCatPoints()));
 
     initialize();
@@ -249,6 +263,41 @@ KineticKelpDemo::KineticKelpDemo() {
     connect(m_kelpRadius, &QSlider::valueChanged, [this]() {
         initialize();
     });
+
+    connect(m_smoothCheckBox, &QCheckBox::stateChanged, [this]() {
+        m_kelps->clear();
+        try {
+            stateGeometryToKelps(*m_stateGeometry, *m_inputInstance,
+                                 m_smoothCheckBox->isChecked() ? std::optional(m_drawSettings->smoothing) :
+                                 std::nullopt, std::back_inserter(*m_kelps));
+        } catch(const std::exception& exception) {
+            std::cerr << exception.what() << std::endl;
+        }
+        repaint();
+    });
+
+    connect(m_insertDelete, &QCheckBox::stateChanged, [this]() {
+        initialize();
+        repaint();
+    });
+
+    connect(colorsSelector, &QComboBox::currentTextChanged, [this, colorsSelector]() {
+        switch (colorsSelector->currentIndex()) {
+            case 0: {
+                m_drawSettings->colors = CB::lights;
+                break;
+            };
+            case 1: {
+                m_drawSettings->colors = tableau::firstLightThenDark;
+                break;
+            };
+            default: {
+                std::cerr << "Unknown colors: " << colorsSelector->currentText().toStdString() << std::endl;
+                break;
+            }
+        }
+        repaint();
+    });
 }
 
 void KineticKelpDemo::initialize() {
@@ -257,11 +306,11 @@ void KineticKelpDemo::initialize() {
     m_settings.kelpRadius = m_kelpRadius->value() / 10.0;
     m_settings.edgeWidth = m_settings.kelpRadius / 2;
 
-    m_drawSettings.markRadius = CGAL::to_double(m_settings.kelpRadius / 10);
-    m_drawSettings.strokeWidth = CGAL::to_double(m_settings.kelpRadius / 10);
-    m_drawSettings.smoothing = CGAL::to_double(m_settings.kelpRadius / 2);
+    m_drawSettings->markRadius = CGAL::to_double(m_settings.kelpRadius / 10);
+    m_drawSettings->strokeWidth = CGAL::to_double(m_settings.kelpRadius / 10);
+    m_drawSettings->smoothing = CGAL::to_double(m_settings.kelpRadius / 2);
 
-    m_inputInstance = std::make_shared<InputInstance>(m_input.instance(m_timeControl->time()));
+    m_inputInstance = std::make_shared<InputInstance>(m_input.instance(m_timeControl->time(), !m_insertDelete->isChecked()));
 
     if (!m_justPoints) {
         auto pr = std::make_shared<PaintingRenderer>();
@@ -295,7 +344,8 @@ void KineticKelpDemo::initialize() {
 
     m_kelps = std::make_shared<std::vector<Kelp>>();
     try {
-        stateGeometrytoKelps(*m_stateGeometry, *m_inputInstance, m_drawSettings.smoothing, std::back_inserter(*m_kelps));
+        stateGeometryToKelps(*m_stateGeometry, *m_inputInstance, m_smoothCheckBox->isChecked() ? std::optional(m_drawSettings->smoothing) :
+                                                                 std::nullopt, std::back_inserter(*m_kelps));
     } catch (...) {}
     m_kkPainting = std::make_shared<KineticKelpPainting>(m_kelps, m_inputInstance, m_drawSettings);
     m_renderer->addPainting(m_kkPainting, "KineticKelp");
@@ -304,7 +354,7 @@ void KineticKelpDemo::initialize() {
 bool KineticKelpDemo::update(double time) {
 	bool noIssues = true;
 
-    auto newInputInstance = m_input.instance(time);
+    auto newInputInstance = m_input.instance(time, !m_insertDelete->isChecked());
 	auto newStateGeometry = StateGeometry(*m_state, newInputInstance, m_settings);
     if (!m_justPoints) {
         auto newPtg = PseudotriangulationGeometry(*m_pt, *m_state, newStateGeometry, newInputInstance);
@@ -334,7 +384,8 @@ bool KineticKelpDemo::update(double time) {
 
     m_kelps->clear();
     try {
-        stateGeometrytoKelps(*m_stateGeometry, *m_inputInstance, m_drawSettings.smoothing, std::back_inserter(*m_kelps));
+        stateGeometryToKelps(*m_stateGeometry, *m_inputInstance,m_smoothCheckBox->isChecked() ? std::optional(m_drawSettings->smoothing) :
+                                                                std::nullopt, std::back_inserter(*m_kelps));
     } catch(const std::exception& exception) {
         std::cerr << exception.what() << std::endl;
     }
@@ -343,7 +394,7 @@ bool KineticKelpDemo::update(double time) {
 }
 
 std::optional<std::pair<std::shared_ptr<Pseudotriangulation::Certificate>, CertificateFailurePainting>> KineticKelpDemo::updateDebug(double time) {
-	auto newInputInstance = m_input.instance(time);
+	auto newInputInstance = m_input.instance(time, !m_insertDelete->isChecked());
 	auto newStateGeometry = std::make_shared<StateGeometry>(*m_brokenState, newInputInstance, m_settings);
 	auto newPtg = PseudotriangulationGeometry(*m_brokenPt, *m_brokenState, *newStateGeometry, newInputInstance);
 
@@ -364,7 +415,8 @@ std::optional<std::pair<std::shared_ptr<Pseudotriangulation::Certificate>, Certi
 	*m_ptg = std::move(copiedPtg);
 	m_kelps->clear();
 	try {
-		stateGeometrytoKelps(*m_stateGeometry, *m_inputInstance, m_drawSettings.smoothing, std::back_inserter(*m_kelps));
+        stateGeometryToKelps(*m_stateGeometry, *m_inputInstance, m_smoothCheckBox->isChecked() ? std::optional(m_drawSettings->smoothing) :
+                                                                std::nullopt, std::back_inserter(*m_kelps));
 	} catch(const std::exception& exception) {
 		std::cerr << exception.what() << std::endl;
 	}

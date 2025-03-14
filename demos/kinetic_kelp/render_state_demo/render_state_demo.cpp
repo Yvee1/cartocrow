@@ -68,7 +68,7 @@ void RenderStateDemo::recalculate() {
     m_renderer->addPainting(stateGeometryP, "State geometry");
 
     auto pr1 = std::make_shared<PaintingRenderer>();
-    auto [pt, ptg] = PseudotriangulationGeometry::pseudotriangulationTangents(stateTopology, *stateGeometry);
+    auto [pt, ptg] = PseudotriangulationGeometry::pseudotriangulationTangents(*stateTopology, *stateGeometry);
 
 	auto ptP = std::make_shared<Pseudotriangulation>(pt);
 	auto ptgP = std::make_shared<PseudotriangulationGeometry>(ptg);
@@ -84,7 +84,7 @@ void RenderStateDemo::recalculate() {
 
 	try {
 		auto kelps = std::make_shared<std::vector<Kelp>>();
-		stateGeometrytoKelps(*stateGeometry, *input, ds.smoothing, std::back_inserter(*kelps));
+        stateGeometryToKelps(*stateGeometry, *input, ds.smoothing, std::back_inserter(*kelps));
 
 		auto kkPainting = std::make_shared<KineticKelpPainting>(kelps, input, ds);
 		m_renderer->addPainting(kkPainting, "KineticKelp");

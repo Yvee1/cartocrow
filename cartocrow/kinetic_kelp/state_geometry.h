@@ -133,7 +133,7 @@ public:
 };
 
 template <class OutputIterator>
-void stateGeometrytoKelps(const StateGeometry& stateGeometry, const InputInstance& input, double smoothing, OutputIterator out) {
+void stateGeometryToKelps(const StateGeometry& stateGeometry, const InputInstance& input, std::optional<double> smoothing, OutputIterator out) {
     std::vector<CSPolygonSet> roughKelps;
     while (roughKelps.size() < input.numCategories()) {
         roughKelps.emplace_back();
