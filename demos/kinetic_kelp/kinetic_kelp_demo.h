@@ -58,6 +58,7 @@ private:
     std::optional<qint64> m_pausedTime;
     TimeControlToolBar* m_timeControl;
     QSpinBox* m_interpolationTimeSpinBox;
+	QDoubleSpinBox* m_timeMultiplierSpinBox;
     QSlider* m_kelpRadius;
     QCheckBox* m_smoothCheckBox;
     QCheckBox* m_insertDelete;

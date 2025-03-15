@@ -312,9 +312,12 @@ public:
 	void removeTangent(std::shared_ptr<Tangent> t);
     void removeTangentObject(std::shared_ptr<TangentObject> tObj);
 	void maybeAddCertificate(PointId pId, const std::shared_ptr<Tangent>& t1, const std::shared_ptr<Tangent>& t2, const State& state);
-    std::pair<std::shared_ptr<Pseudotriangulation::Tangent>, std::shared_ptr<Pseudotriangulation::Tangent>> neighbouringTangents(PointId pId, const std::shared_ptr<Tangent>& t);
-    std::shared_ptr<Pseudotriangulation::Tangent> previousTangent(PointId pId, const std::shared_ptr<Tangent>& t);
-    std::shared_ptr<Pseudotriangulation::Tangent> nextTangent(PointId pId, const std::shared_ptr<Tangent>& t);
+	void removeTangentAndAddCertificates(std::shared_ptr<Tangent> t);
+	std::pair<std::shared_ptr<Tangent>, std::shared_ptr<Tangent>> elbowTangents(PointId pId, const State& state);
+    std::pair<std::shared_ptr<Tangent>, std::shared_ptr<Tangent>> neighbouringTangents(PointId pId, const std::shared_ptr<Tangent>& t);
+	void insertTangentAndAddCertificates(PointId pId, TangentCirculator pos, const std::shared_ptr<Tangent>& newTangent, const State& state);
+    std::shared_ptr<Tangent> previousTangent(PointId pId, const std::shared_ptr<Tangent>& t);
+    std::shared_ptr<Tangent> nextTangent(PointId pId, const std::shared_ptr<Tangent>& t);
     std::optional<std::shared_ptr<Tangent>> otherEdgeOfStraight(const std::shared_ptr<Tangent>& t);
 	TangentCirculator tangentCirculator(PointId pId, const std::shared_ptr<Tangent>& t);
     TangentCirculator tangentsCirculator(PointId pId);

@@ -8,9 +8,10 @@ using namespace cartocrow::renderer;
 namespace cartocrow::kinetic_kelp {
 void PseudotriangulationPainting::paint(GeometryRenderer &renderer) const {
 	renderer.setMode(GeometryRenderer::stroke);
-	renderer.setStroke(Color(0, 102, 202), 3.0);
-	for (const auto& [_, t] : m_ptg->m_tangents) {
-		renderer.draw(t.polyline());
+	for (const auto& [t, tg] : m_ptg->m_tangents) {
+		Color color = t.edgeOfStraight ? Color(172, 31, 172) : Color(0, 102, 202);
+		renderer.setStroke(color, 3.0);
+		renderer.draw(tg.polyline());
 	}
 
 	renderer.setStroke(Color(0, 0, 0), 3.0);
@@ -25,10 +26,6 @@ void PseudotriangulationPainting::paint(GeometryRenderer &renderer) const {
 }
 
 void PseudotriangulationCertificatesPainting::paint(GeometryRenderer &renderer) const {
-	for (int pId = 0; pId < m_inputInstance->size(); ++pId) {
-		renderer.drawText((*m_inputInstance)[pId].point, std::to_string(pId));
-	}
-
 	for (int pId = 0; pId < m_pt->m_pointIdToTangents.size(); ++pId) {
 		auto& ts = m_pt->m_pointIdToTangents[pId];
 

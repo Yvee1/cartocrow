@@ -18,6 +18,7 @@
 #include "cartocrow/kinetic_kelp/route_edges.h"
 #include "cartocrow/kinetic_kelp/pseudotriangulation_painting.h"
 #include "cartocrow/kinetic_kelp/state_geometry_painting.h"
+#include "cartocrow/kinetic_kelp/point_id_painting.h"
 
 #include "cartocrow/renderer/painting_renderer.h"
 #include "colors/colors.h"
@@ -92,7 +93,19 @@ KineticKelpDemo::KineticKelpDemo() {
     vLayout->addWidget(interpolationTimeLabel);
     vLayout->addWidget(m_interpolationTimeSpinBox);
 
-    m_filePath = "data/kinetic_kelp/disjoint-fails-2.ipe";
+	auto* timeMultiplierLabel = new QLabel("CSV time multiplier");
+	m_timeMultiplierSpinBox = new QDoubleSpinBox();
+	m_timeMultiplierSpinBox->setMinimum(0);
+	m_timeMultiplierSpinBox->setMaximum(10);
+	// reasonable values:
+	// 0.00000001 for carnivores
+	// 0.0001 for PUBG
+	m_timeMultiplierSpinBox->setDecimals(10);
+	m_timeMultiplierSpinBox->setValue(0.00000001);
+	vLayout->addWidget(timeMultiplierLabel);
+	vLayout->addWidget(m_timeMultiplierSpinBox);
+
+    m_filePath = "data/kinetic_kelp/disjoint-fails.ipe";
     m_input = Input(parseIpeAsMovingPoints(m_filePath, m_interpolationTimeSpinBox->value()));
 
     m_timeControl = new TimeControlToolBar(m_renderer, m_input.timespan().first, m_input.timespan().second, std::round(1000.0 / fps->value()));
@@ -160,7 +173,7 @@ KineticKelpDemo::KineticKelpDemo() {
         if (m_filePath.extension() == ".ipe") {
             m_input = Input(parseIpeAsMovingPoints(m_filePath, m_interpolationTimeSpinBox->value()));
         } else if (m_filePath.extension() == ".csv") {
-            auto mcps = parseCSVAsMovingPoints(m_filePath, 0.0001);
+			auto mcps = parseCSVAsMovingPoints(m_filePath, m_timeMultiplierSpinBox->value());
             auto inputBounds = bounds(mcps);
             Rectangle<Inexact> outputBounds(0.0, 0.0, 1000.0, 1000.0);
             auto trans = fitInto(inputBounds, outputBounds);
@@ -169,6 +182,8 @@ KineticKelpDemo::KineticKelpDemo() {
                 transformed.push_back(mcp.transform(trans));
             }
             m_input = Input(transformed);
+			Vector<Inexact> testing = Vector<Inexact>(1, 0).transform(trans);
+			std::cout << "Scaled by: " << sqrt(testing.squared_length()) << std::endl;
         }
         m_timeControl->setStartTime(m_input.timespan().first);
         m_timeControl->setEndTime(m_input.timespan().second);
@@ -250,9 +265,10 @@ KineticKelpDemo::KineticKelpDemo() {
 		}
 	});
 
-    connect(m_timeControl, &TimeControlToolBar::restarted, [this]() {
+    connect(m_timeControl, &TimeControlToolBar::restarted, [this, fixButton]() {
         initialize();
 	  	m_timeControl->setPlayPauseEnabled(true);
+		fixButton->setEnabled(false);
     });
 
     connect(justPoints, &QCheckBox::stateChanged, [this, justPoints]() {
@@ -337,7 +353,12 @@ void KineticKelpDemo::initialize() {
         auto ptCPainting = std::make_shared<PseudotriangulationCertificatesPainting>(m_pt, m_ptg, m_state,
                                                                                      m_inputInstance, m_settings);
         m_renderer->addPainting(ptCPainting, "Certificates");
+	}
 
+	auto pointIdPainting = std::make_shared<PointIdPainting>(m_inputInstance);
+	m_renderer->addPainting(pointIdPainting, "Point IDs");
+
+	if (!m_justPoints) {
         m_failurePainting = std::make_shared<PaintingRenderer>();
         m_renderer->addPainting(m_failurePainting, "Certificate failure");
     }

@@ -6,6 +6,7 @@
 #include <QTimer>
 #include <QWidget>
 #include <QSlider>
+#include <QLabel>
 
 class TimeControlToolBar : public QToolBar {
 Q_OBJECT;
@@ -44,7 +45,9 @@ private:
 	QToolButton* m_playPauseButton;
 	QToolButton* m_restartButton;
 	QToolButton* m_speedButton;
+	QLabel* m_currentTimeLabel;
 	void done();
+	void setTime(double time);
 signals:
     void ticked(int tick, double time);
     void restarted();

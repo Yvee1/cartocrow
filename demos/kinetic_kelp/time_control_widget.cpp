@@ -5,7 +5,7 @@
 
 void TimeControlToolBar::tick() {
 	++m_ticks;
-	m_time += m_speed * m_intervalMs / 1000.0;
+	setTime(m_time + m_speed * m_intervalMs / 1000.0);
     if (m_scrubber != nullptr && m_endTime.has_value()) {
         int timeScrubber = (m_time - m_startTime) / (*m_endTime - m_startTime) * 1000.0;
         m_scrubber->setValue(timeScrubber);
@@ -22,8 +22,20 @@ double TimeControlToolBar::time() const {
     return m_time;
 }
 
+void TimeControlToolBar::setTime(double time) {
+	m_time = time;
+	std::stringstream ss;
+	ss << std::fixed << std::setprecision(2) << time;
+	m_currentTimeLabel->setText(QString::fromStdString(ss.str()));
+}
+
 TimeControlToolBar::TimeControlToolBar(QWidget* parent, double startTimeSecond, std::optional<double> endTimeSecond, int intervalMs) :
 QToolBar(parent), m_intervalMs(intervalMs), m_startTime(startTimeSecond), m_endTime(endTimeSecond) {
+	m_currentTimeLabel = new QLabel("");
+	addWidget(m_currentTimeLabel);
+	setTime(m_startTime);
+
+	// Documentation says a tool button should be added via addAction
 	m_speedButton = new QToolButton(this);
 	m_speedButton->setText("1x");
 	addWidget(m_speedButton);
@@ -65,14 +77,14 @@ QToolBar(parent), m_intervalMs(intervalMs), m_startTime(startTimeSecond), m_endT
 		}
 		m_speed = *it;
 		std::stringstream ss;
-		ss << std::setprecision(2) << m_speed << "x";
+		ss << std::fixed << std::setprecision(2) << m_speed << "x";
 		m_speedButton->setText(ss.str().c_str());
 	});
 }
 
 void TimeControlToolBar::restart() {
 	m_ticks = 0;
-	m_time = m_startTime;
+	setTime(m_startTime);
 	m_timer->stop();
 	m_active = false;
 	if (m_scrubber != nullptr) {
@@ -85,7 +97,7 @@ void TimeControlToolBar::restart() {
 
 void TimeControlToolBar::start() {
 	m_ticks = 0;
-	m_time = m_startTime;
+	setTime(m_startTime);
 	m_timer->start(m_intervalMs);
 }
 
@@ -97,7 +109,7 @@ void TimeControlToolBar::playOrPause() {
 	} else {
 		if (!m_paused) {
 			m_ticks = 0;
-			m_time = m_startTime;
+			setTime(m_startTime);
 			emit restarted();
 		}
 		m_timer->start(m_intervalMs);
