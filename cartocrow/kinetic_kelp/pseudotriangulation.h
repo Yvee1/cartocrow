@@ -278,7 +278,8 @@ public:
         bool usesTangentObject(const std::shared_ptr<TangentObject>& tangentObject) const { return false; }
     };
 
-    struct IncidentStraightsOutsideCircleCertificate {
+	/// Certifies that a TangentObject of type IncidentStraight lies outside the corresponding circle.
+	struct IncidentStraightsOutsideCircleCertificate {
         std::shared_ptr<TangentObject> tObj;
         IncidentStraightsOutsideCircleCertificate(std::shared_ptr<TangentObject> tObj) : tObj(std::move(tObj)) {}
         bool operator==(const IncidentStraightsOutsideCircleCertificate& other) const = default;
@@ -287,7 +288,25 @@ public:
         bool valid(Pseudotriangulation& pt, const State& state, const PseudotriangulationGeometry& ptg, const InputInstance& input);
     };
 
-    using Certificate = std::variant<ConsecutiveCertificate, PointCertificate, ExistenceCertificate, IncidentStraightsOutsideCircleCertificate>;
+	/// Certifies that two tangents defining an 'inner elbow' have a ccw angle greater than pi.
+	struct InnerElbowCertificate {
+		PointId pointId;
+		std::shared_ptr<Tangent> t1;
+		std::shared_ptr<Tangent> t2;
+
+		InnerElbowCertificate(PointId pointId, std::shared_ptr<Tangent> t1, std::shared_ptr<Tangent> t2) :
+		      pointId(pointId), t1(std::move(t1)), t2(std::move(t2)) {};
+
+		bool operator==(const InnerElbowCertificate& other) const = default;
+
+		bool valid(const RationalTangent& t1G, const RationalTangent& t2G);
+		bool valid(Pseudotriangulation& pt, const State& state, const PseudotriangulationGeometry& ptg, const InputInstance& input);
+		bool usesTangent(const std::shared_ptr<Tangent>& tangent) const { return t1 == tangent || t2 == tangent; }
+		bool usesTangentObject(const std::shared_ptr<TangentObject>& tangentObject) const { return false; }
+	};
+
+    using Certificate = std::variant<ConsecutiveCertificate, PointCertificate, ExistenceCertificate,
+	                                 IncidentStraightsOutsideCircleCertificate, InnerElbowCertificate>;
 
     static bool usesTangent(const Certificate& certificate, const std::shared_ptr<Tangent>& t);
     static bool usesTangentObject(const Certificate& certificate, const std::shared_ptr<TangentObject>& tObj);
@@ -303,12 +322,13 @@ public:
     void fix(PointCertificate& certificate, State& state, const Settings& settings);
     void fix(ExistenceCertificate& certificate, State& state, const Settings& settings);
     void fix(IncidentStraightsOutsideCircleCertificate& certificate, State& state, const Settings& settings);
+	void fix(InnerElbowCertificate& certificate, State& state, const Settings& settings);
     void addAndRemove(ConsecutiveCertificate& certificate, State& state, const std::shared_ptr<Tangent>& oldTangent, const std::shared_ptr<Tangent>& newTangent);
     /// Snap endpoint t1->endpoint(pId0)
     void snapTangentToPoint(State& state, PointId pId0, const std::shared_ptr<Tangent>& t1, const std::shared_ptr<Tangent>& t2);
     void handleIntersectingIncidentStraights(ConsecutiveCertificate& certificate, State& state);
     void splitStraight(State& state, const Settings& settings, const std::shared_ptr<Tangent>& longer, const std::shared_ptr<Tangent>& shorter, const std::shared_ptr<Tangent>& otherEdge, PointId pId0, StraightId oldStraight);
-    void collapseElbow(ConsecutiveCertificate& certificate, State& state);
+	void collapseElbow(PointId pId0, std::shared_ptr<Tangent> t1, std::shared_ptr<Tangent> t2, State& state);
 	void removeTangent(std::shared_ptr<Tangent> t);
     void removeTangentObject(std::shared_ptr<TangentObject> tObj);
 	void maybeAddCertificate(PointId pId, const std::shared_ptr<Tangent>& t1, const std::shared_ptr<Tangent>& t2, const State& state);
@@ -430,7 +450,11 @@ public:
             } else if (auto isoccP = std::get_if<IncidentStraightsOutsideCircleCertificate>(&c)) {
                 auto& tObj = objMap[*isoccP->tObj];
                 m_certificates.emplace_back(IncidentStraightsOutsideCircleCertificate(tObj));
-            } else {
+            } else if (auto iecP = std::get_if<InnerElbowCertificate>(&c)) {
+				auto& t1 = tMap[*iecP->t1];
+				auto& t2 = tMap[*iecP->t2];
+				m_certificates.emplace_back(InnerElbowCertificate(iecP->pointId, t1, t2));
+			} else {
                 throw std::runtime_error("Unhandled certificate type.");
             }
 		}

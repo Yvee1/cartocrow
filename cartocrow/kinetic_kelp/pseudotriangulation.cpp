@@ -617,6 +617,26 @@ Pseudotriangulation::IncidentStraightsOutsideCircleCertificate::valid(Pseudotria
 }
 
 bool
+Pseudotriangulation::InnerElbowCertificate::valid(Pseudotriangulation& pt, const State& state, const PseudotriangulationGeometry& ptg, const InputInstance& input) {
+	return valid(ptg.m_tangents.at(*t1), ptg.m_tangents.at(*t2));
+}
+
+bool
+Pseudotriangulation::InnerElbowCertificate::valid(const RationalTangent& t1G, const RationalTangent& t2G) {
+	bool t1R = t1->target->pointId == pointId;
+	bool t2R = t2->target->pointId == pointId;
+	auto v1 = t1G.target() - t1G.source();
+	auto v2 = t2G.target() - t2G.source();
+	if (t1R) {
+		v1 = -v1;
+	}
+	if (t2R) {
+		v2 = -v2;
+	}
+	return CGAL::determinant(v1, v2) < 0;
+}
+
+bool
 Pseudotriangulation::ConsecutiveCertificate::valid(Pseudotriangulation& pt, const State& state, const RationalTangent& t1G, const RationalTangent& t2G, const Point<Exact>& point) {
 	bool t1R = t1->target->pointId == pointId;
 	bool t2R = t2->target->pointId == pointId;
@@ -1034,6 +1054,17 @@ void Pseudotriangulation::fix(IncidentStraightsOutsideCircleCertificate& certifi
 	}), m_certificates.end());
 
     removeTangentObject(tObj);
+}
+
+void Pseudotriangulation::fix(InnerElbowCertificate& certificate, State& state, const Settings& settings) {
+	std::cout << "[fix] Inner elbow collapses." << std::endl;
+
+	auto pId = certificate.pointId;
+	auto t1 = certificate.t1;
+	auto t2 = certificate.t2;
+
+	// todo: need to adapt collapseElbow so that it can handle collapse of inner elbows.
+	collapseElbow(pId, t1, t2, state);
 }
 
 void Pseudotriangulation::addAndRemove(ConsecutiveCertificate& certificate, State& state, const std::shared_ptr<Tangent>& oldTangent, const std::shared_ptr<Tangent>& newTangent) {
@@ -1478,12 +1509,13 @@ void Pseudotriangulation::splitStraight(State& state, const Settings& settings, 
 		createNewTangents(ebt1, ori1);
 	if (exists2)
 		createNewTangents(ebt2, ori2);
+
+	if (exists1 && exists2) {
+		m_certificates.push_back(InnerElbowCertificate(obstaclePId, ebt2, ebt1));
+	}
 }
 
-void Pseudotriangulation::collapseElbow(ConsecutiveCertificate& certificate, State& state) {
-    const auto t1 = certificate.t1;
-    const auto t2 = certificate.t2;
-    auto pId0 = certificate.pointId;
+void Pseudotriangulation::collapseElbow(PointId pId0, std::shared_ptr<Tangent> t1, std::shared_ptr<Tangent> t2, State& state) {
     auto obj0 = t1->endpoint(pId0);
     auto obj1 = t1->otherEndpoint(pId0);
     auto obj2 = t2->otherEndpoint(pId0);
@@ -1492,8 +1524,6 @@ void Pseudotriangulation::collapseElbow(ConsecutiveCertificate& certificate, Sta
     auto& ts0 = m_pointIdToTangents[pId0];
     auto& ts1 = m_pointIdToTangents[pId1];
     auto& ts2 = m_pointIdToTangents[pId2];
-    bool t1R = t1->target->pointId == pId0;
-    bool t2R = t2->target->pointId == pId0;
 
     auto elbowObj1 = t1->endpoint(pId0);
     auto elbowObj2 = t2->endpoint(pId0);
@@ -1502,6 +1532,7 @@ void Pseudotriangulation::collapseElbow(ConsecutiveCertificate& certificate, Sta
     auto s2 = elbowObj2->straightId;
     auto edge = s1->first;
 
+	// todo: rewrite elbowPoint so that it returns orbits of inner elbows?
     auto orbit = *t1->endpoint(pId0)->elbowPoint(state);
 
     // Other edge of straight s1
@@ -1767,6 +1798,13 @@ void Pseudotriangulation::collapseElbow(ConsecutiveCertificate& certificate, Sta
 	};
 	handleDuplicates(ebt1);
 	handleDuplicates(ebt2);
+
+	m_certificates.erase(std::remove_if(m_certificates.begin(), m_certificates.end(), [&](const Certificate& c) {
+		if (auto iecP = std::get_if<InnerElbowCertificate>(&c)) {
+			return iecP->t1 == ebt2 && iecP->t2 == ebt1;
+		}
+		return false;
+	}), m_certificates.end());
 }
 
 void Pseudotriangulation::fix(ConsecutiveCertificate& certificate, State& state, const Settings& settings) {
@@ -1898,7 +1936,7 @@ void Pseudotriangulation::fix(ConsecutiveCertificate& certificate, State& state,
 		addAndRemove(certificate, state, t1, newTangent);
 	} else if (t1->endpoint(pId0)->elbowPoint(state) && t2->endpoint(pId0)->elbowPoint(state)) {
         std::cout << "[fix] Elbow collapsed" << std::endl;
-		collapseElbow(certificate, state);
+		collapseElbow(pId0, t1, t2, state);
 	} else {
         std::cout << "[fix] Non-corner angle became smaller than pi radians" << std::endl;
 		//      t1

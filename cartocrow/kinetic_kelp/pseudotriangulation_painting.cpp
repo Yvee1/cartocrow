@@ -186,7 +186,18 @@ void PseudotriangulationCertificatesPainting::paint(GeometryRenderer &renderer) 
             }
             auto rtEndpoint = approximate(reversed ? pl.target() : pl.source());
             renderer.draw(Segment<Inexact>(rtEndpoint, p));
-        }
+        } else if (auto iec = std::get_if<Pseudotriangulation::InnerElbowCertificate>(&certificate)) {
+			auto rt1 = m_ptg->m_tangents.at(*iec->t1);
+			auto rt2 = m_ptg->m_tangents.at(*iec->t2);
+			auto rev1 = iec->t1->target->pointId == iec->pointId;
+			auto rev2 = iec->t2->target->pointId == iec->pointId;
+			if (iec->valid(*m_pt, *m_state, *m_ptg, *m_inputInstance)) {
+				renderer.setStroke(Color(71, 142, 0), 3.0);
+			} else {
+				renderer.setStroke(Color(213, 0, 0), 3.0);
+			}
+			renderer.draw(Segment<Exact>(rev1 ? rt1.target() : rt1.source(), rev2 ? rt2.target() : rt2.source()));
+		}
 	}
 }
 
@@ -219,7 +230,16 @@ void CertificateFailurePainting::paint(GeometryRenderer &renderer) const {
         auto pl = m_ptg.m_tangents.at(*pc->t).polyline();
         renderer.setMode(GeometryRenderer::stroke);
         renderer.draw(pl);
-    } else {
+    } else if (auto iec = std::get_if<Pseudotriangulation::InnerElbowCertificate>(&*m_certificate)) {
+		auto pl1 = m_ptg.m_tangents.at(*iec->t1).polyline();
+		auto pl2 = m_ptg.m_tangents.at(*iec->t2).polyline();
+		renderer.setMode(GeometryRenderer::stroke);
+		renderer.draw(pl1);
+		renderer.draw(pl2);
+	} else if (auto isocc = std::get_if<Pseudotriangulation::IncidentStraightsOutsideCircleCertificate>(&*m_certificate)) {
+		auto p = std::get<Point<Exact>>(m_ptg.m_tangentObject.at(*isocc->tObj));
+		renderer.draw(p);
+	} else {
         // we don't draw other certificates for now.
 //        throw std::runtime_error("Unhandled certificate type!");
     }
