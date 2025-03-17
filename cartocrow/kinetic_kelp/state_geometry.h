@@ -106,25 +106,25 @@ public:
 	Elbow& elbow(ElbowId elbowId, const State& state) {
 		auto& [edge, it] = elbowId;
         const std::list<Orbit>& orbits = state.edgeTopology.at(edge).orbits;
-        auto i = std::distance(orbits.begin(), it);
+        auto i = std::distance<std::list<Orbit>::const_iterator>(orbits.begin(), it);
 		return edgeGeometry[edge].elbows[i];
 	}
 	Straight& straight(StraightId straightId, const State& state) {
 		auto& [edge, it] = straightId;
         const std::list<Orbit>& orbits = state.edgeTopology.at(edge).orbits;
-        auto i = std::distance(orbits.begin(), it);
+        auto i = std::distance<std::list<Orbit>::const_iterator>(orbits.begin(), it);
 		return edgeGeometry[edge].straights[i];
 	}
 	const Elbow& elbow(ElbowId elbowId, const State& state) const {
         auto& [edge, it] = elbowId;
         const std::list<Orbit>& orbits = state.edgeTopology.at(edge).orbits;
-        auto i = std::distance(orbits.begin(), it);
+        auto i = std::distance<std::list<Orbit>::const_iterator>(orbits.begin(), it);
         return edgeGeometry.at(edge).elbows.at(i);
     }
 	const Straight& straight(StraightId straightId, const State& state) const {
         auto& [edge, it] = straightId;
         const std::list<Orbit>& orbits = state.edgeTopology.at(edge).orbits;
-        auto i = std::distance(orbits.begin(), it);
+        auto i = std::distance<std::list<Orbit>::const_iterator>(orbits.begin(), it);
         return edgeGeometry.at(edge).straights.at(i);
     }
 

@@ -59,7 +59,7 @@ struct State {
 			for (const auto& [edge, oldOrbitIt] : state.pointIdToElbows[pId]) {
 				auto& oldOrbits = state.edgeTopology.at(edge).orbits;
 				auto& newOrbits = edgeTopology[edge].orbits;
-				auto it = std::next(newOrbits.cbegin(), std::distance(oldOrbits.cbegin(), oldOrbitIt));
+				auto it = std::next(newOrbits.begin(), std::distance<std::list<Orbit>::const_iterator>(oldOrbits.cbegin(), oldOrbitIt));
 				pointIdToElbows[pId].emplace_back(edge, it);
 			}
 		}
@@ -74,7 +74,7 @@ struct State {
 			for (const auto& [edge, oldOrbitIt] : state.pointIdToElbows[pId]) {
 				auto& oldOrbits = state.edgeTopology.at(edge).orbits;
 				auto& newOrbits = edgeTopology[edge].orbits;
-				auto it = std::next(newOrbits.cbegin(), std::distance(oldOrbits.cbegin(), oldOrbitIt));
+				auto it = std::next(newOrbits.begin(), std::distance<std::list<Orbit>::const_iterator>(oldOrbits.cbegin(), oldOrbitIt));
 				pointIdToElbows[pId].emplace_back(edge, it);
 			}
 		}

@@ -83,7 +83,7 @@ public:
         TangentObject(PointId pointId) : pointId(pointId), type(Circle), straightId(std::nullopt) {};
         TangentObject(PointId pointId, StraightId straightId, bool one) : pointId(pointId), straightId(straightId), type(one ? CircleStraight1 : CircleStraight2) {};
         TangentObject(PointId pointId, StraightId straightId, StraightId otherStraightId) : pointId(pointId), straightId(straightId), otherStraightId(otherStraightId), type(IncidentStraights) {};
-		TangentObject(const TangentObject& obj, const State& oldState, const State& newState) {
+		TangentObject(const TangentObject& obj, const State& oldState, State& newState) {
 			type = obj.type;
 			pointId = obj.pointId;
 			if (!obj.straightId.has_value()) {
@@ -92,7 +92,7 @@ public:
 				auto [edge, oldOrbitIt] = *obj.straightId;
 				auto& oldOrbits = oldState.edgeTopology.at(edge).orbits;
 				auto& newOrbits = newState.edgeTopology.at(edge).orbits;
-				auto i = std::distance(oldOrbits.begin(), oldOrbitIt);
+				auto i = std::distance<std::list<Orbit>::const_iterator>(oldOrbits.begin(), oldOrbitIt);
 				auto newOrbitIt = std::next(newOrbits.begin(), i);
 				straightId = {edge, newOrbitIt};
 			}
@@ -102,7 +102,7 @@ public:
                 auto [edge, oldOrbitIt] = *obj.otherStraightId;
                 auto& oldOrbits = oldState.edgeTopology.at(edge).orbits;
                 auto& newOrbits = newState.edgeTopology.at(edge).orbits;
-                auto i = std::distance(oldOrbits.begin(), oldOrbitIt);
+                auto i = std::distance<std::list<Orbit>::const_iterator>(oldOrbits.begin(), oldOrbitIt);
                 auto newOrbitIt = std::next(newOrbits.begin(), i);
                 otherStraightId = {edge, newOrbitIt};
             }
@@ -123,6 +123,43 @@ public:
             }
             // check whether this is the outer elbow.
             if (state.pointIdToElbows[pointId].back().second != orbitIt) return std::nullopt;
+            auto orbit = *orbitIt;
+            if (orbit.dir == CGAL::COUNTERCLOCKWISE) {
+                if (pointId == tId) {
+                    if (type == CircleStraight2) {
+                        return orbit;
+                    }
+                } else {
+                    if (type == CircleStraight1) {
+                        return orbit;
+                    }
+                }
+            } else {
+                if (pointId == tId) {
+                    if (type == CircleStraight1) {
+                        return orbit;
+                    }
+                } else {
+                    if (type == CircleStraight2) {
+                        return orbit;
+                    }
+                }
+            }
+            return std::nullopt;
+        }
+
+        // If this tangent object is a circle-straight intersection point part of an elbow
+        // then the function returns the orbit that corresponds to that elbow.
+        std::optional<Orbit> elbowOrbit(const State& state) {
+            if (!straightId.has_value()) return std::nullopt;
+            if (otherStraightId.has_value()) return std::nullopt;
+            auto [edge, orbitIt] = *straightId;
+            if (pointId == edge.first || pointId == edge.second) return std::nullopt;
+            auto [sId, tId] = state.straightEndpoints(*straightId);
+            if (pointId == sId) {
+                --orbitIt;
+            }
+            // check whether this is the outer elbow.
             auto orbit = *orbitIt;
             if (orbit.dir == CGAL::COUNTERCLOCKWISE) {
                 if (pointId == tId) {
@@ -391,7 +428,7 @@ public:
 
 	Pseudotriangulation() = default;
 
-	Pseudotriangulation(const Pseudotriangulation& pt, const State& oldState, const State& newState) {
+	Pseudotriangulation(const Pseudotriangulation& pt, const State& oldState, State& newState) {
 		struct HashTangentObject {
 			std::size_t operator()(const cartocrow::kinetic_kelp::Pseudotriangulation::TangentObject& to) const
 			{
@@ -621,7 +658,7 @@ class PseudotriangulationGeometry {
 		throw std::invalid_argument("The provided pointId is not an endpoint of the tangent.");
 	}
 
-    static std::pair<Pseudotriangulation, PseudotriangulationGeometry> pseudotriangulationTangents(const State& state, const StateGeometry& stateGeometry);
+    static std::pair<Pseudotriangulation, PseudotriangulationGeometry> pseudotriangulationTangents(State& state, const StateGeometry& stateGeometry);
     PseudotriangulationGeometry() = default;
     PseudotriangulationGeometry(const Pseudotriangulation& pt, const State& state, const StateGeometry& stateGeometry, const InputInstance& input);
 };

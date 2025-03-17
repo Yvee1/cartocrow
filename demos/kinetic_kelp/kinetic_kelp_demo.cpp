@@ -143,6 +143,7 @@ KineticKelpDemo::KineticKelpDemo() {
     m_kelpRadius->setOrientation(Qt::Horizontal);
 
     m_smoothCheckBox = new QCheckBox("Smooth");
+    m_smoothCheckBox->setChecked(true);
     vLayout->addWidget(m_smoothCheckBox);
 
     m_insertDelete = new QCheckBox("Insert/delete?");

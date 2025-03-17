@@ -29,8 +29,8 @@ struct EdgeTopology {
 	std::list<Orbit> orbits;
 };
 
-using ElbowId = std::pair<MSTEdge, std::list<Orbit>::const_iterator>;
-using StraightId = std::pair<MSTEdge, std::list<Orbit>::const_iterator>;
+using ElbowId = std::pair<MSTEdge, std::list<Orbit>::iterator>;
+using StraightId = std::pair<MSTEdge, std::list<Orbit>::iterator>;
 }
 
 namespace std {
