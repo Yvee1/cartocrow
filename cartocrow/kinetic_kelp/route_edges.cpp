@@ -333,6 +333,9 @@ std::pair<std::shared_ptr<State>, std::shared_ptr<StateGeometry>> routeEdges(con
 
     auto state = std::make_shared<State>();
     auto stateGeometry = std::make_shared<StateGeometry>();
+    for (const auto& cp : input.catPoints()) {
+        state->pointIdToCat.push_back(cp.category);
+    }
     state->msts = std::vector<MST>(input.numCategories());
     state->pointIdToEdges = std::vector<std::list<MSTEdge>>(input.size());
     state->pointIdToElbows = std::vector<std::list<ElbowId>>(input.size());

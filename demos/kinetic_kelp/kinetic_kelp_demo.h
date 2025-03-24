@@ -58,6 +58,7 @@ private:
     std::optional<qint64> m_pausedTime;
     TimeControlToolBar* m_timeControl;
     QSpinBox* m_interpolationTimeSpinBox;
+    QSpinBox* m_kSpinBox;
 	QDoubleSpinBox* m_timeMultiplierSpinBox;
     QSlider* m_kelpRadius;
     QCheckBox* m_smoothCheckBox;
@@ -72,23 +73,25 @@ private:
     std::shared_ptr<InputInstance> m_inputInstance;
     std::shared_ptr<State> m_state;
     std::shared_ptr<StateGeometry> m_stateGeometry;
-    std::shared_ptr<Pseudotriangulation> m_pt;
-    std::shared_ptr<PseudotriangulationGeometry> m_ptg;
+    std::shared_ptr<Pseudotriangulations> m_pts;
+    std::shared_ptr<PseudotriangulationGeometries> m_ptgs;
 
     std::shared_ptr<std::vector<Kelp>> m_kelps;
     std::shared_ptr<KineticKelpPainting> m_kkPainting;
 	std::shared_ptr<PaintingRenderer> m_failurePainting;
 
-	std::shared_ptr<Pseudotriangulation> m_brokenPt;
+	std::shared_ptr<Pseudotriangulations> m_brokenPts;
 	std::shared_ptr<State> m_brokenState;
 
 	std::optional<std::shared_ptr<Pseudotriangulation::Certificate>> m_failedCertificate;
+    std::optional<int> m_failedCategory; // category of pseudotriangulation to which failedCertificate belongs.
+    std::optional<CertificateFailurePainting> m_certificateFailurePainting;
 
     void fitToScreen();
     void resizeEvent(QResizeEvent *event) override;
     void initialize();
     bool update(double time);
-	std::optional<std::pair<std::shared_ptr<Pseudotriangulation::Certificate>, CertificateFailurePainting>> updateDebug(double time);
+	std::optional<std::tuple<int, std::shared_ptr<Pseudotriangulation::Certificate>, CertificateFailurePainting>> updateDebug(double time);
 };
 
 #endif //CARTOCROW_KINETIC_KELP_DEMO_H

@@ -68,7 +68,7 @@ void RenderStateDemo::recalculate() {
     m_renderer->addPainting(stateGeometryP, "State geometry");
 
     auto pr1 = std::make_shared<PaintingRenderer>();
-    auto [pt, ptg] = PseudotriangulationGeometry::pseudotriangulationTangents(*stateTopology, *stateGeometry);
+    auto [pt, ptg] = PseudotriangulationGeometry::initialize(*stateTopology, *stateGeometry);
 
 	auto ptP = std::make_shared<Pseudotriangulation>(pt);
 	auto ptgP = std::make_shared<PseudotriangulationGeometry>(ptg);

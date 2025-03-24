@@ -198,50 +198,77 @@ void PseudotriangulationCertificatesPainting::paint(GeometryRenderer &renderer) 
 			}
 			renderer.draw(Segment<Exact>(rev1 ? rt1.target() : rt1.source(), rev2 ? rt2.target() : rt2.source()));
 		}
+//        else if (auto ec = std::get_if<Pseudotriangulation::ExistenceCertificate>(&certificate)) {
+//            if (ec->valid(*m_pt, *m_state, *m_ptg, *m_inputInstance)) {
+//                auto rt = m_ptg->m_tangents.at(*ec->t);
+//                renderer.setMode(GeometryRenderer::stroke);
+//                renderer.setStroke(Color(0, 0, 0), 3.0);
+//                renderer.draw(rt.polyline());
+//            }
+//
+//        }
 	}
 }
 
 void CertificateFailurePainting::paint(GeometryRenderer &renderer) const {
-	auto ptSP = std::make_shared<Pseudotriangulation>(m_pt);
-	auto ptgSP = std::make_shared<PseudotriangulationGeometry>(m_ptg);
+	auto ptsSP = std::make_shared<Pseudotriangulations>(m_pts);
+	auto ptgsSP = std::make_shared<PseudotriangulationGeometries>(m_ptgs);
 	auto stateSP = std::make_shared<State>(m_state);
 	auto inputInstanceSP = std::make_shared<InputInstance>(m_inputInstance);
 
 	StateGeometryPainting stateGeometryP(m_stateGeometry);
-	PseudotriangulationPainting ptP(ptgSP);
-	PseudotriangulationCertificatesPainting ptcP(ptSP, ptgSP, stateSP, inputInstanceSP, m_settings);
+	PseudotriangulationsPainting ptsP(ptgsSP, m_kSpinBox);
+	PseudotriangulationsCertificatesPainting ptcP(ptsSP, ptgsSP, stateSP, inputInstanceSP, m_settings, m_kSpinBox);
 	renderer.setStrokeOpacity(100);
 	stateGeometryP.paint(renderer);
-	ptP.paint(renderer);
+	ptsP.paint(renderer);
 	ptcP.paint(renderer);
 
+    if (m_certificateK != m_kSpinBox->value()) return;
+    auto& ptg = m_ptgs.c.at(m_certificateK);
     renderer.setStrokeOpacity(255);
     renderer.setStroke(Color{255, 0, 0}, 3.0);
     if (auto cc = std::get_if<Pseudotriangulation::ConsecutiveCertificate>(&*m_certificate)) {
-        if (!m_ptg.m_tangents.contains(*cc->t1)) return;
-        if (!m_ptg.m_tangents.contains(*cc->t2)) return;
-        auto pl1 = m_ptg.m_tangents.at(*cc->t1).polyline();
-        auto pl2 = m_ptg.m_tangents.at(*cc->t2).polyline();
+        if (!ptg.m_tangents.contains(*cc->t1)) return;
+        if (!ptg.m_tangents.contains(*cc->t2)) return;
+        auto pl1 = ptg.m_tangents.at(*cc->t1).polyline();
+        auto pl2 = ptg.m_tangents.at(*cc->t2).polyline();
         renderer.setMode(GeometryRenderer::stroke);
         renderer.draw(pl1);
         renderer.draw(pl2);
     } else if (auto pc = std::get_if<Pseudotriangulation::PointCertificate>(&*m_certificate)) {
-        if (!m_ptg.m_tangents.contains(*pc->t)) return;
-        auto pl = m_ptg.m_tangents.at(*pc->t).polyline();
+        if (!ptg.m_tangents.contains(*pc->t)) return;
+        auto pl = ptg.m_tangents.at(*pc->t).polyline();
         renderer.setMode(GeometryRenderer::stroke);
         renderer.draw(pl);
     } else if (auto iec = std::get_if<Pseudotriangulation::InnerElbowCertificate>(&*m_certificate)) {
-		auto pl1 = m_ptg.m_tangents.at(*iec->t1).polyline();
-		auto pl2 = m_ptg.m_tangents.at(*iec->t2).polyline();
+		auto pl1 = ptg.m_tangents.at(*iec->t1).polyline();
+		auto pl2 = ptg.m_tangents.at(*iec->t2).polyline();
 		renderer.setMode(GeometryRenderer::stroke);
 		renderer.draw(pl1);
 		renderer.draw(pl2);
 	} else if (auto isocc = std::get_if<Pseudotriangulation::IncidentStraightsOutsideCircleCertificate>(&*m_certificate)) {
-		auto p = std::get<Point<Exact>>(m_ptg.m_tangentObject.at(*isocc->tObj));
+		auto p = std::get<Point<Exact>>(ptg.m_tangentObject.at(*isocc->tObj));
 		renderer.draw(p);
 	} else {
         // we don't draw other certificates for now.
 //        throw std::runtime_error("Unhandled certificate type!");
+    }
+}
+
+void PseudotriangulationsPainting::paint(GeometryRenderer &renderer) const {
+    int k = m_kSpinBox->value();
+    if (k >= 0 && k < m_ptgs->c.size()) {
+        PseudotriangulationPainting(std::make_shared<PseudotriangulationGeometry>(m_ptgs->c.at(k))).paint(renderer);
+    }
+}
+
+void PseudotriangulationsCertificatesPainting::paint(GeometryRenderer &renderer) const {
+    int k = m_kSpinBox->value();
+    if (k >= 0 && k < m_inputInstance->numCategories()) {
+        PseudotriangulationCertificatesPainting(std::make_shared<Pseudotriangulation>(m_pts->c.at(k)),
+                                                std::make_shared<PseudotriangulationGeometry>(m_ptgs->c.at(k)),
+                                                m_state, m_inputInstance, m_settings).paint(renderer);
     }
 }
 }

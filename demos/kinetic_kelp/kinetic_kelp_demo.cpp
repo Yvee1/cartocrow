@@ -105,7 +105,7 @@ KineticKelpDemo::KineticKelpDemo() {
 	vLayout->addWidget(timeMultiplierLabel);
 	vLayout->addWidget(m_timeMultiplierSpinBox);
 
-    m_filePath = "data/kinetic_kelp/disjoint-fails.ipe";
+    m_filePath = "data/kinetic_kelp/tests/overlapping.ipe";
     m_input = Input(parseIpeAsMovingPoints(m_filePath, m_interpolationTimeSpinBox->value()));
 
     m_timeControl = new TimeControlToolBar(m_renderer, m_input.timespan().first, m_input.timespan().second, std::round(1000.0 / fps->value()));
@@ -155,6 +155,25 @@ KineticKelpDemo::KineticKelpDemo() {
     colorsSelector->setCurrentIndex(0);
     vLayout->addWidget(colorsSelector);
 
+    auto* drawSettings = new QLabel("<h3>Draw settings</h3>");
+    vLayout->addWidget(drawSettings);
+
+
+    auto* spinBoxLabel = new QLabel("Pseudotriangulation category");
+    vLayout->addWidget(spinBoxLabel);
+    m_kSpinBox = new QSpinBox();
+    m_kSpinBox->setMinimum(0);
+    m_kSpinBox->setMaximum(m_input.numCategories() - 1);
+    vLayout->addWidget(m_kSpinBox);
+
+    connect(m_kSpinBox, QOverload<int>::of(&QSpinBox::valueChanged), [this]() {
+        if (m_certificateFailurePainting.has_value()) {
+            m_failurePainting->clear();
+            m_certificateFailurePainting->paint(*m_failurePainting);
+        }
+        m_renderer->repaint();
+    });
+
     connect(m_interpolationTimeSpinBox, QOverload<int>::of(&QSpinBox::valueChanged), [this]() {
         m_input = Input(parseIpeAsMovingPoints(m_filePath, m_interpolationTimeSpinBox->value()));
         m_timeControl->restart();
@@ -189,6 +208,7 @@ KineticKelpDemo::KineticKelpDemo() {
         m_timeControl->setStartTime(m_input.timespan().first);
         m_timeControl->setEndTime(m_input.timespan().second);
         m_timeControl->restart();
+        m_kSpinBox->setMaximum(m_input.numCategories() - 1);
         std::cout << "Time span: " << m_input.timespan().first << " -- " << m_input.timespan().second << std::endl;
         initialize();
     });
@@ -199,7 +219,6 @@ KineticKelpDemo::KineticKelpDemo() {
 
     m_drawSettings = std::make_shared<DrawSettings>();
 	m_drawSettings->colors = CB::lights;
-//    m_drawSettings.colors = tableau::firstLightThenDark;
     m_renderer->fitInView(bounds(m_input.movingCatPoints()));
 
     initialize();
@@ -213,13 +232,16 @@ KineticKelpDemo::KineticKelpDemo() {
 				update(time);
 			} else {
 				*m_brokenState = *m_state;
-				auto newPt = Pseudotriangulation(*m_pt, *m_state, *m_brokenState);
-				*m_brokenPt = std::move(newPt);
+				auto newPts = Pseudotriangulations(*m_pts, *m_state, *m_brokenState);
+				*m_brokenPts = std::move(newPts);
 				auto result = updateDebug(time);
 				if (result.has_value()) {
 					m_timeControl->playOrPause();
-					auto [c, painting] = *result;
+					auto [k, c, painting] = *result;
 					m_failedCertificate = c;
+                    m_failedCategory = k;
+                    m_certificateFailurePainting = painting;
+                    m_kSpinBox->setValue(k);
 					fixButton->setEnabled(true);
 					m_failurePainting->clear();
 					painting.paint(*m_failurePainting);
@@ -245,8 +267,10 @@ KineticKelpDemo::KineticKelpDemo() {
 	connect(fixButton, &QPushButton::clicked, [this, pauseOnEventCheckBox, fixButton]() {
 		if (m_failedCertificate.has_value()) {
 			auto time = m_timeControl->time();
-			m_brokenPt->fix(**m_failedCertificate, *m_brokenState, m_settings);
+			m_brokenPts->c.at(*m_failedCategory).fix(**m_failedCertificate, *m_brokenState, m_settings, *m_brokenPts);
 			m_failedCertificate = std::nullopt;
+            m_failedCategory = std::nullopt;
+            m_certificateFailurePainting = std::nullopt;
 			m_timeControl->setPlayPauseEnabled(true);
 			m_failurePainting->clear();
 			fixButton->setEnabled(false);
@@ -255,8 +279,11 @@ KineticKelpDemo::KineticKelpDemo() {
 			} else {
 				auto result = updateDebug(time);
 				if (result.has_value()) {
-					auto [c, painting] = *result;
+					auto [k, c, painting] = *result;
 					m_failedCertificate = c;
+                    m_failedCategory = k;
+                    m_certificateFailurePainting = painting;
+                    m_kSpinBox->setValue(k);
 					fixButton->setEnabled(true);
 					painting.paint(*m_failurePainting);
 					m_timeControl->setPlayPauseEnabled(false);
@@ -345,14 +372,15 @@ void KineticKelpDemo::initialize() {
 
     if (!m_justPoints) {
         auto pr1 = std::make_shared<PaintingRenderer>();
-        auto [pt, ptg] = PseudotriangulationGeometry::pseudotriangulationTangents(*m_state, *m_stateGeometry);
-        m_pt = std::make_shared<Pseudotriangulation>(pt);
-        m_brokenPt = std::make_shared<Pseudotriangulation>(pt);
-        m_ptg = std::make_shared<PseudotriangulationGeometry>(ptg);
-        auto ptPainting = std::make_shared<PseudotriangulationPainting>(m_ptg);
+        auto [pts, ptgs] = PseudotriangulationGeometries::initialize(*m_inputInstance, *m_state, *m_stateGeometry);
+        m_pts = std::make_shared<Pseudotriangulations>(pts);
+        m_brokenPts = std::make_shared<Pseudotriangulations>(pts);
+        m_ptgs = std::make_shared<PseudotriangulationGeometries>(ptgs);
+        auto ptPainting = std::make_shared<PseudotriangulationsPainting>(m_ptgs, m_kSpinBox);
         m_renderer->addPainting(ptPainting, "Pseudotriangulation");
-        auto ptCPainting = std::make_shared<PseudotriangulationCertificatesPainting>(m_pt, m_ptg, m_state,
-                                                                                     m_inputInstance, m_settings);
+        auto ptCPainting = std::make_shared<PseudotriangulationsCertificatesPainting>(m_pts, m_ptgs, m_state,
+                                                                                      m_inputInstance, m_settings,
+                                                                                      m_kSpinBox);
         m_renderer->addPainting(ptCPainting, "Certificates");
 	}
 
@@ -379,26 +407,32 @@ bool KineticKelpDemo::update(double time) {
     auto newInputInstance = m_input.instance(time, !m_insertDelete->isChecked());
 	auto newStateGeometry = StateGeometry(*m_state, newInputInstance, m_settings);
     if (!m_justPoints) {
-        auto newPtg = PseudotriangulationGeometry(*m_pt, *m_state, newStateGeometry, newInputInstance);
+        auto newPtgs = PseudotriangulationGeometries(*m_pts, *m_state, newStateGeometry, newInputInstance);
 
         bool allGood = false;
         while (!allGood) {
             bool foundInvalidCertificate = false;
-            for (auto &c: m_pt->m_certificates) {
-                if (!m_pt->valid(c, *m_state, newPtg, newInputInstance)) {
-                    m_pt->fix(c, *m_state, m_settings);
-                    newStateGeometry = StateGeometry(*m_state, newInputInstance, m_settings);
-                    newPtg = PseudotriangulationGeometry(*m_pt, *m_state, newStateGeometry, newInputInstance);
-                    foundInvalidCertificate = true;
-                    noIssues = false;
-                    break;
+            for (int k = 0; k < newInputInstance.numCategories(); ++k) {
+                auto& pt = m_pts->c.at(k);
+                auto& newPtg = newPtgs.c[k];
+                for (auto& c: pt.m_certificates) {
+                    if (!pt.valid(c, *m_state, newPtg, newInputInstance)) {
+                        pt.fix(c, *m_state, m_settings, *m_pts);
+                        newStateGeometry = StateGeometry(*m_state, newInputInstance, m_settings);
+                        // can be made more efficient by selectively updating
+                        newPtgs = PseudotriangulationGeometries(*m_pts, *m_state, newStateGeometry, newInputInstance);
+                        foundInvalidCertificate = true;
+                        noIssues = false;
+                        break;
+                    }
                 }
+                if (foundInvalidCertificate) break;
             }
             if (!foundInvalidCertificate)
                 allGood = true;
         }
 
-        *m_ptg = std::move(newPtg);
+        *m_ptgs = std::move(newPtgs);
     }
 
     *m_inputInstance = std::move(newInputInstance);
@@ -415,26 +449,30 @@ bool KineticKelpDemo::update(double time) {
 	return noIssues;
 }
 
-std::optional<std::pair<std::shared_ptr<Pseudotriangulation::Certificate>, CertificateFailurePainting>> KineticKelpDemo::updateDebug(double time) {
+std::optional<std::tuple<int, std::shared_ptr<Pseudotriangulation::Certificate>, CertificateFailurePainting>> KineticKelpDemo::updateDebug(double time) {
 	auto newInputInstance = m_input.instance(time, !m_insertDelete->isChecked());
 	auto newStateGeometry = std::make_shared<StateGeometry>(*m_brokenState, newInputInstance, m_settings);
-	auto newPtg = PseudotriangulationGeometry(*m_brokenPt, *m_brokenState, *newStateGeometry, newInputInstance);
+	auto newPtgs = PseudotriangulationGeometries(*m_brokenPts, *m_brokenState, *newStateGeometry, newInputInstance);
 
-	for (auto& c : m_brokenPt->m_certificates) {
-		if (!m_brokenPt->valid(c, *m_brokenState, newPtg, newInputInstance)) {
-            auto cSP = std::make_shared<Pseudotriangulation::Certificate>(c);
-			CertificateFailurePainting cfp(cSP, *m_brokenPt, std::move(newPtg), *m_brokenState, newStateGeometry, newInputInstance, m_settings);
-			return std::pair(cSP, cfp);
-		}
-	}
+    for (int k = 0; k < newInputInstance.numCategories(); ++k) {
+        auto& brokenPt = m_brokenPts->c.at(k);
+        auto& newPtg = newPtgs.c.at(k);
+	    for (auto& c : brokenPt.m_certificates) {
+	    	if (!brokenPt.valid(c, *m_brokenState, newPtg, newInputInstance)) {
+                auto cSP = std::make_shared<Pseudotriangulation::Certificate>(c);
+	    		CertificateFailurePainting cfp(cSP, k, *m_brokenPts, std::move(newPtgs), *m_brokenState, newStateGeometry, newInputInstance, m_settings, m_kSpinBox);
+	    		return std::tuple(k, cSP, cfp);
+	    	}
+	    }
+    }
 
 	*m_state = *m_brokenState;
-	auto copiedPt = Pseudotriangulation(*m_brokenPt, *m_brokenState, *m_state);
-	*m_pt = std::move(copiedPt);
+	auto copiedPt = Pseudotriangulations(*m_brokenPts, *m_brokenState, *m_state);
+	*m_pts = std::move(copiedPt);
 	*m_inputInstance = std::move(newInputInstance);
 	*m_stateGeometry = std::move(*newStateGeometry);
-	auto copiedPtg = PseudotriangulationGeometry(*m_pt, *m_state, *m_stateGeometry, *m_inputInstance); // can be made more efficient by implementing a copy constructor
-	*m_ptg = std::move(copiedPtg);
+	auto copiedPtg = PseudotriangulationGeometries(*m_pts, *m_state, *m_stateGeometry, *m_inputInstance); // can be made more efficient by implementing a copy constructor
+	*m_ptgs = std::move(copiedPtg);
 	m_kelps->clear();
 	try {
         stateGeometryToKelps(*m_stateGeometry, *m_inputInstance, m_smoothCheckBox->isChecked() ? std::optional(m_drawSettings->smoothing) :

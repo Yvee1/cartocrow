@@ -28,6 +28,8 @@ enum TangentType {
     PointPoint,
 };
 
+TangentType reverse(TangentType type);
+
 struct RationalCircularArc {
 	RationalRadiusCircle circle;
 	Point<Exact> source;
@@ -59,6 +61,9 @@ bool circlePointLiesOnArc(const Point<Exact> &point, const RationalCircularArc &
 
 class Pseudotriangulation;
 class PseudotriangulationGeometry;
+class Pseudotriangulations;
+
+class PseudotriangulationGeometries;
 
 class Pseudotriangulation {
 public:
@@ -74,7 +79,8 @@ public:
         TangentObjectType type;
         PointId pointId;
         std::optional<StraightId> straightId;
-        std::optional<StraightId> otherStraightId;
+        std::optional<StraightId> otherStraightId; // This should be the straight that is after straightId in counter-clockwise order on pointId
+        bool deleted = false;
 
         bool circleStraight() const { return type == CircleStraight1 || type == CircleStraight2; }
 		bool circleTangent() const { return type == Circle; }
@@ -184,6 +190,10 @@ public:
             }
             return std::nullopt;
         }
+
+        TangentObjectType effectiveCircleStraightType(StraightId straight) {
+            return type == IncidentStraights ? (straight == straightId ? CircleStraight2 : CircleStraight1) : type;
+        }
     };
     struct Tangent {
         TangentType type;
@@ -270,6 +280,7 @@ public:
     std::vector<std::shared_ptr<TangentObject>> m_tangentObjects;
     std::vector<std::shared_ptr<Tangent>> m_tangents;
 	std::vector<std::list<std::shared_ptr<Tangent>>> m_pointIdToTangents; // sorted on angle
+    int m_k;
 
     typedef CGAL::Circulator_from_container<std::list<std::shared_ptr<Tangent>>> TangentCirculator;
 
@@ -354,18 +365,24 @@ public:
     std::list<Certificate> m_certificates;
     void addTangent(const std::shared_ptr<Tangent>& t);
     void addTangentObject(const std::shared_ptr<TangentObject>& tObj);
-    void fix(Certificate& certificate, State& state, const Settings& settings);
-	void fix(ConsecutiveCertificate& certificate, State& state, const Settings& settings);
-    void fix(PointCertificate& certificate, State& state, const Settings& settings);
-    void fix(ExistenceCertificate& certificate, State& state, const Settings& settings);
-    void fix(IncidentStraightsOutsideCircleCertificate& certificate, State& state, const Settings& settings);
-	void fix(InnerElbowCertificate& certificate, State& state, const Settings& settings);
-    void addAndRemove(ConsecutiveCertificate& certificate, State& state, const std::shared_ptr<Tangent>& oldTangent, const std::shared_ptr<Tangent>& newTangent);
+    void fix(Certificate& certificate, State& state, const Settings& settings, Pseudotriangulations& pts);
+	void fix(ConsecutiveCertificate& certificate, State& state, const Settings& settings, Pseudotriangulations& pts);
+    void fix(PointCertificate& certificate, State& state, const Settings& settings, Pseudotriangulations& pts);
+    void fix(ExistenceCertificate& certificate, State& state, const Settings& settings, Pseudotriangulations& pts);
+    void fix(IncidentStraightsOutsideCircleCertificate& certificate, State& state, const Settings& settings, Pseudotriangulations& pts);
+	void fix(InnerElbowCertificate& certificate, State& state, const Settings& settings, Pseudotriangulations& pts);
+    void basicAngleZero(PointId pId0, const std::shared_ptr<Tangent>& shorter, const std::shared_ptr<Tangent>& longer, const State& state);
+    void addAndRemove(PointId pId0, const std::shared_ptr<Tangent>& t1, const std::shared_ptr<Tangent>& t2, const State& state, const std::shared_ptr<Tangent>& oldTangent, const std::shared_ptr<Tangent>& newTangent);
     /// Snap endpoint t1->endpoint(pId0)
     void snapTangentToPoint(State& state, PointId pId0, const std::shared_ptr<Tangent>& t1, const std::shared_ptr<Tangent>& t2);
     void handleIntersectingIncidentStraights(ConsecutiveCertificate& certificate, State& state);
-    void splitStraight(State& state, const Settings& settings, const std::shared_ptr<Tangent>& longer, const std::shared_ptr<Tangent>& shorter, const std::shared_ptr<Tangent>& otherEdge, PointId pId0, StraightId oldStraight);
-	void collapseElbow(PointId pId0, std::shared_ptr<Tangent> t1, std::shared_ptr<Tangent> t2, State& state);
+    void splitStraight(State& state, const Settings& settings, const std::shared_ptr<Tangent>& longer, const std::shared_ptr<Tangent>& shorter, const std::shared_ptr<Tangent>& otherEdge, PointId pId0, StraightId oldStraight, Pseudotriangulations& pts);
+    void postSplitStraight(PointId obstaclePId,
+                           std::pair<std::shared_ptr<Tangent>, std::shared_ptr<Tangent>> oldElbowTangents,
+                           std::pair<CGAL::Orientation, CGAL::Orientation> oldElbowOrientations,
+                           State& state);
+    void collapseElbow(PointId pId0, std::shared_ptr<Tangent> t1, std::shared_ptr<Tangent> t2, State& state, Pseudotriangulations& pts);
+    void postCollapseElbow(PointId pId0, State& state, bool removingInnerOrbit, ElbowId nowOuterElbow);
 	void removeTangent(std::shared_ptr<Tangent> t);
     void removeTangentObject(std::shared_ptr<TangentObject> tObj);
 	void maybeAddCertificate(PointId pId, const std::shared_ptr<Tangent>& t1, const std::shared_ptr<Tangent>& t2, const State& state);
@@ -379,6 +396,11 @@ public:
 	TangentCirculator tangentCirculator(PointId pId, const std::shared_ptr<Tangent>& t);
     TangentCirculator tangentsCirculator(PointId pId);
 	std::shared_ptr<Pseudotriangulation::TangentObject> circleTangentObject(PointId pointId) const;
+
+    static bool identical(const std::shared_ptr<Tangent>& t1, const std::shared_ptr<Tangent>& t2) {
+        return t1->type == t2->type && t1->source == t2->source && t1->target == t2->target ||
+               t1->type == reverse(t2->type) && t1->source == t2->target && t1->target == t2->source;
+    }
 
     CGAL::Orientation sourceOrientation(const std::shared_ptr<Tangent>& t, const State& state) {
         if (t->source->elbowPoint(state).has_value()) {
@@ -455,6 +477,7 @@ public:
 			};
 		};
 
+        m_k = pt.m_k;
 		std::unordered_map<TangentObject, std::shared_ptr<TangentObject>, HashTangentObject> objMap;
 		for (const auto& obj : pt.m_tangentObjects) {
 			m_tangentObjects.push_back(std::make_shared<TangentObject>(*obj, oldState, newState));
@@ -496,6 +519,19 @@ public:
             }
 		}
 	}
+};
+
+class Pseudotriangulations {
+public:
+    // For simplicity we just expose the container.
+    std::vector<Pseudotriangulation> c;
+
+    Pseudotriangulations() = default;
+    Pseudotriangulations(const Pseudotriangulations& pts, const State& oldState, State& newState) {
+        for (const auto& pt : pts.c) {
+            c.emplace_back(pt, oldState, newState);
+        }
+    }
 };
 
 std::string name(TangentType tt);
@@ -658,9 +694,19 @@ class PseudotriangulationGeometry {
 		throw std::invalid_argument("The provided pointId is not an endpoint of the tangent.");
 	}
 
-    static std::pair<Pseudotriangulation, PseudotriangulationGeometry> pseudotriangulationTangents(State& state, const StateGeometry& stateGeometry);
+    static std::pair<Pseudotriangulation, PseudotriangulationGeometry> initialize(InputInstance& input, State& state, const StateGeometry& stateGeometry, int k);
     PseudotriangulationGeometry() = default;
     PseudotriangulationGeometry(const Pseudotriangulation& pt, const State& state, const StateGeometry& stateGeometry, const InputInstance& input);
+};
+
+class PseudotriangulationGeometries {
+    public:
+    // For simplicity we just expose the container.
+    std::vector<PseudotriangulationGeometry> c;
+
+    static std::pair<Pseudotriangulations, PseudotriangulationGeometries> initialize(InputInstance& input, State& state, const StateGeometry& stateGeometry);
+    PseudotriangulationGeometries() = default;
+    PseudotriangulationGeometries(const Pseudotriangulations& pts, const State& state, const StateGeometry& stateGeometry, const InputInstance& input);
 };
 }
 

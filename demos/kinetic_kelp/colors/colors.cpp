@@ -11,8 +11,9 @@ Color light_orange(253,191,111);
 Color orange(255,127,0);
 Color light_purple(202,178,214);
 Color purple(106,61,154);
+Color yellow(255, 255, 153);
 std::vector<Color> lights({
-    CB::light_blue, CB::light_red, CB::light_green, CB::light_purple, CB::light_orange
+    CB::light_blue, CB::light_red, CB::light_green, CB::light_purple, CB::light_orange, CB::yellow
 });
 }
 
