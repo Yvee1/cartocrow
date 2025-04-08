@@ -17,6 +17,29 @@ This repository consists of the following subdirectories:
 * `frontend`: the command-line frontend
 * `demos`: a collection of GUI applications serving as a demonstration of various parts of the algorithms implemented
 
+## Notes on KineticKelp implementation
+As the KineticKelp implementation does not directly match the description in the paper, we note here the main differences.
+
+_Certificates_. To simplify implementation we use a certificate structure that does not require explicit representation of pseudotriangles.
+We store only tangents and for each circle object the circular order of the tangents.
+Below we list the certificate types; see the code for details.
+- _Consecutive certificate_ certifies that the order of tangents is correct.
+- _Existence certificate_ certifies that a tangent exists (if one of the objects is a circle, then the other object should not overlap or be contained in that circle).
+- _Point certificate_ certifies that a tangent connects to a point (opposed to the incident circle object).
+- _Straight-straight_ certificate certifies that a straight-straight object exists and lies outside the corresponding circle.
+- _Inner elbow certificate_ certifies that an inner elbow has not collapsed.
+
+_Initialization_. We initialize the pseudotriangulation structure by computing all free tangents (tangents that do not cross circle objects), and one-by-one adding such a free tangent that does not cross any previously added free tangent.
+We use a similar naive approach to compute the (extended) visibility tangent graph for the initial routing of edges.
+
+_Certificate failure_. We do not compute exact failure times of certificates but instead check for certificate failure every frame.
+
+_Event handling of external events_. We do not freeze time and create a separate event queue, but instead shrink the circle obstacle instantly and afterwards handle any failed certificates one-by-one. 
+
+_Performance_. We expect that our prototype implementation can be made considerably more efficient in terms of running time with more engineering effort.
+In particular, as mentioned, the code currently initializes the combinatorial structure using naive algorithms.
+Additionally, we employ CGAL for exact arithmetic and we expect that carefully employing double precision arithmetic instead (where possible) can improve performance across the board.
+
 
 ## Dependencies
 
