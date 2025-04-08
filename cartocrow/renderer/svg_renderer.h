@@ -84,6 +84,7 @@ class SvgRenderer : public GeometryRenderer {
 	void draw(const Ray<Inexact>& r) override;
 	void draw(const Halfplane<Inexact>& h) override;
 	void draw(const RenderPath& p) override;
+    void draw(const std::filesystem::path& imagePath, const Box& box);
 	void drawText(const Point<Inexact>& p, const std::string& text, bool escape=true) override;
 
 	void pushStyle() override;

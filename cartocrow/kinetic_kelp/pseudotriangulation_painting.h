@@ -9,12 +9,13 @@
 namespace cartocrow::kinetic_kelp {
 class PseudotriangulationPainting : public renderer::GeometryPainting {
   public:
-	PseudotriangulationPainting(std::shared_ptr<PseudotriangulationGeometry> ptg) :
-	     m_ptg(std::move(ptg)) {};
+	PseudotriangulationPainting(std::shared_ptr<PseudotriangulationGeometry> ptg, double strokeWidth = 3.0) :
+	     m_ptg(std::move(ptg)), m_strokeWidth(strokeWidth) {};
 	void paint(renderer::GeometryRenderer &renderer) const override;
 
   private:
 	std::shared_ptr<PseudotriangulationGeometry> m_ptg;
+    double m_strokeWidth;
 };
 
 class PseudotriangulationsPainting : public renderer::GeometryPainting {

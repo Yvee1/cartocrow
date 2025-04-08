@@ -174,12 +174,13 @@ void RoutingGraph::createCircleEdges(PointId pointId) {
 		CSCurve curve(c.center, c.radius, CGAL::COUNTERCLOCKWISE, p1A, p2A);
 		// check intersection with objects
 		bool free = true;
-		for (const auto& objP : m_objects) {
-			if (objP->pointId != pointId && !RoutingGraph::free(curve, *objP)) {
-				free = false;
-				break;
-			}
-		}
+        // The below is needed only when orbits can overlap
+//		for (const auto& objP : m_objects) {
+//			if (objP->pointId != pointId && !RoutingGraph::free(curve, *objP)) {
+//				free = false;
+//				break;
+//			}
+//		}
 		if (free) {
 			auto e = boost::add_edge(v1, v2, g);
 			g[e.first].length = approximateLength(curve);
@@ -449,7 +450,12 @@ std::pair<std::shared_ptr<State>, std::shared_ptr<StateGeometry>> routeEdges(con
 				graph.createCircleEdges(pId);
 			}
 
-            graph.removeNonProperlyIntersectedTangents(path.front(), path.back(), geometry.csPolygon());
+            // We don't need this, this would be fixed by implementing the edge case handling described in the comment below.
+//            graph.removeNonProperlyIntersectedTangents(path.front(), path.back(), geometry.csPolygon());
+
+            // There is an edge case the code currently does not handle.
+            // Namely, after routing an edge, circle obstacles grow and may overlap previously routed edges.
+            // The code should check for overlaps and reroute edges appropriately.
 
             msts[cheapestK] += 1;
             dSets[cheapestK].link(cheapestSet1, cheapestSet2);

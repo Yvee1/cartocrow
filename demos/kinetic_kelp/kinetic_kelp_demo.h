@@ -54,8 +54,6 @@ private:
     std::vector<DT> m_dts;
     std::vector<std::list<TGEdge>> m_msts;
     Box m_bbox;
-    double m_pointRadius = 1;
-    std::optional<qint64> m_pausedTime;
     TimeControlToolBar* m_timeControl;
     QSpinBox* m_interpolationTimeSpinBox;
     QSpinBox* m_kSpinBox;
@@ -90,6 +88,7 @@ private:
     void fitToScreen();
     void resizeEvent(QResizeEvent *event) override;
     void initialize();
+    void loadFile(std::filesystem::path filePath);
     bool update(double time);
 	std::optional<std::tuple<int, std::shared_ptr<Pseudotriangulation::Certificate>, CertificateFailurePainting>> updateDebug(double time);
 };

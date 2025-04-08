@@ -10,11 +10,11 @@ void PseudotriangulationPainting::paint(GeometryRenderer &renderer) const {
 	renderer.setMode(GeometryRenderer::stroke);
 	for (const auto& [t, tg] : m_ptg->m_tangents) {
 		Color color = t.edgeOfStraight ? Color(172, 31, 172) : Color(0, 102, 202);
-		renderer.setStroke(color, 3.0);
+		renderer.setStroke(color, m_strokeWidth);
 		renderer.draw(tg.polyline());
 	}
 
-	renderer.setStroke(Color(0, 0, 0), 3.0);
+	renderer.setStroke(Color(0, 0, 0), m_strokeWidth);
 	for (const auto& [_, obj] : m_ptg->m_tangentObject) {
 		if (auto cp = std::get_if<RationalRadiusCircle>(&obj)) {
 			renderer.draw(cp->circle());

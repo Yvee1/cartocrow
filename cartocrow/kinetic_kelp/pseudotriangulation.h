@@ -363,7 +363,7 @@ public:
     /// List of certificates. Needs to be checked front to back as the ExistenceCertificates are in the front,
     /// and other certificates rely on their relevant tangents existence.
     std::list<Certificate> m_certificates;
-    void addTangent(const std::shared_ptr<Tangent>& t);
+    void addTangent(const std::shared_ptr<Tangent>& t, const State& state);
     void addTangentObject(const std::shared_ptr<TangentObject>& tObj);
     void fix(Certificate& certificate, State& state, const Settings& settings, Pseudotriangulations& pts);
 	void fix(ConsecutiveCertificate& certificate, State& state, const Settings& settings, Pseudotriangulations& pts);
@@ -390,6 +390,7 @@ public:
 	std::pair<std::shared_ptr<Tangent>, std::shared_ptr<Tangent>> elbowTangents(PointId pId, const State& state);
     std::pair<std::shared_ptr<Tangent>, std::shared_ptr<Tangent>> neighbouringTangents(PointId pId, const std::shared_ptr<Tangent>& t);
 	void insertTangentAndAddCertificates(PointId pId, TangentCirculator pos, const std::shared_ptr<Tangent>& newTangent, const State& state);
+    void insertTangentAndAddCertificates(PointId pId, std::list<std::shared_ptr<Tangent>>::iterator pos, const std::shared_ptr<Tangent>& newTangent, const State& state);
     std::shared_ptr<Tangent> previousTangent(PointId pId, const std::shared_ptr<Tangent>& t);
     std::shared_ptr<Tangent> nextTangent(PointId pId, const std::shared_ptr<Tangent>& t);
     std::optional<std::shared_ptr<Tangent>> otherEdgeOfStraight(const std::shared_ptr<Tangent>& t);

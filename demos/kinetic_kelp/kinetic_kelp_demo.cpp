@@ -9,9 +9,14 @@
 #include <QPushButton>
 #include <QFileDialog>
 #include <QLabel>
+#include <QLineEdit>
+
+#include <chrono>
+#include <fstream>
 
 #include "cartocrow/core/transform_helpers.h"
 #include "cartocrow/renderer/svg_renderer.h"
+#include "cartocrow/renderer/ipe_renderer.h"
 
 #include "cartocrow/kinetic_kelp/parse_input.h"
 #include "cartocrow/kinetic_kelp/moving_cat_point.h"
@@ -22,8 +27,6 @@
 
 #include "cartocrow/renderer/painting_renderer.h"
 #include "colors/colors.h"
-
-#include <fstream>
 
 using namespace cartocrow::renderer;
 
@@ -58,9 +61,32 @@ void drawMovingCatPoint(GeometryRenderer& renderer, const MovingCatPoint& mcp, d
     renderer.draw(mcp.trajectory.posAtTime(time));
 }
 
-KineticKelpDemo::KineticKelpDemo() {
-	bool saveToSvg = false;
+void KineticKelpDemo::loadFile(std::filesystem::path filePath) {
+    m_filePath = filePath;
+    if (m_filePath.extension() == ".ipe") {
+        m_input = Input(parseIpeAsMovingPoints(m_filePath, m_interpolationTimeSpinBox->value()));
+    } else if (m_filePath.extension() == ".csv") {
+        auto mcps = parseCSVAsMovingPoints(m_filePath, m_timeMultiplierSpinBox->value());
+        auto inputBounds = bounds(mcps);
+        Rectangle<Inexact> outputBounds(0.0, 0.0, 1000.0, 1000.0);
+        auto trans = fitInto(inputBounds, outputBounds);
+        std::vector<MovingCatPoint> transformed;
+        for (const auto& mcp : mcps) {
+            transformed.push_back(mcp.transform(trans));
+        }
+        m_input = Input(transformed);
+        Vector<Inexact> testing = Vector<Inexact>(1, 0).transform(trans);
+        std::cout << "Scaled by: " << sqrt(testing.squared_length()) << std::endl;
+    }
+    m_timeControl->setStartTime(m_input.timespan().first);
+    m_timeControl->setEndTime(m_input.timespan().second);
+    m_timeControl->restart();
+    m_kSpinBox->setMinimum(0);
+    m_kSpinBox->setMaximum(m_input.numCategories() - 1);
+    std::cout << "Time span: " << m_input.timespan().first << " -- " << m_input.timespan().second << std::endl;
+}
 
+KineticKelpDemo::KineticKelpDemo() {
     setWindowTitle("KineticKelp");
     m_renderer = new GeometryWidget();
     m_renderer->setDrawAxes(false);
@@ -97,16 +123,10 @@ KineticKelpDemo::KineticKelpDemo() {
 	m_timeMultiplierSpinBox = new QDoubleSpinBox();
 	m_timeMultiplierSpinBox->setMinimum(0);
 	m_timeMultiplierSpinBox->setMaximum(10);
-	// reasonable values:
-	// 0.00000001 for carnivores
-	// 0.0001 for PUBG
 	m_timeMultiplierSpinBox->setDecimals(10);
 	m_timeMultiplierSpinBox->setValue(0.00000001);
 	vLayout->addWidget(timeMultiplierLabel);
 	vLayout->addWidget(m_timeMultiplierSpinBox);
-
-    m_filePath = "data/kinetic_kelp/tests/overlapping.ipe";
-    m_input = Input(parseIpeAsMovingPoints(m_filePath, m_interpolationTimeSpinBox->value()));
 
     m_timeControl = new TimeControlToolBar(m_renderer, m_input.timespan().first, m_input.timespan().second, std::round(1000.0 / fps->value()));
 
@@ -158,13 +178,34 @@ KineticKelpDemo::KineticKelpDemo() {
     auto* drawSettings = new QLabel("<h3>Draw settings</h3>");
     vLayout->addWidget(drawSettings);
 
-
     auto* spinBoxLabel = new QLabel("Pseudotriangulation category");
     vLayout->addWidget(spinBoxLabel);
     m_kSpinBox = new QSpinBox();
     m_kSpinBox->setMinimum(0);
     m_kSpinBox->setMaximum(m_input.numCategories() - 1);
     vLayout->addWidget(m_kSpinBox);
+
+    auto* exportSettings = new QLabel("<h3>Export settings</h3>");
+    vLayout->addWidget(exportSettings);
+    auto* saveToSvgCheckBox = new QCheckBox("Save frames");
+    saveToSvgCheckBox->setChecked(false);
+    vLayout->addWidget(saveToSvgCheckBox);
+    auto* exportDirectory = new QLineEdit("frames");
+    vLayout->addWidget(exportDirectory);
+
+    // Flights
+//    m_kelpRadius->setValue(52);
+//    m_timeMultiplierSpinBox->setValue(0.00001);
+//    m_filePath = "data/kinetic_kelp/air-traffic-france.csv";
+//    justPoints->setChecked(true);
+//    m_justPoints = true;
+//    loadFile(m_filePath);
+
+    // Demo
+    m_kelpRadius->setValue(68);
+    m_filePath = "data/kinetic_kelp/demo.ipe";
+    justPoints->setChecked(false);
+    loadFile(m_filePath);
 
     connect(m_kSpinBox, QOverload<int>::of(&QSpinBox::valueChanged), [this]() {
         if (m_certificateFailurePainting.has_value()) {
@@ -175,9 +216,7 @@ KineticKelpDemo::KineticKelpDemo() {
     });
 
     connect(m_interpolationTimeSpinBox, QOverload<int>::of(&QSpinBox::valueChanged), [this]() {
-        m_input = Input(parseIpeAsMovingPoints(m_filePath, m_interpolationTimeSpinBox->value()));
-        m_timeControl->restart();
-        m_timeControl->setEndTime(m_input.timespan().second);
+        loadFile(m_filePath);
         initialize();
     });
 
@@ -189,27 +228,7 @@ KineticKelpDemo::KineticKelpDemo() {
         QString startDir = "data/kinetic_kelp";
         std::filesystem::path filePath = QFileDialog::getOpenFileName(this, tr("Select trajectory file"), startDir).toStdString();
         if (filePath == "") return;
-        m_filePath = filePath;
-        if (m_filePath.extension() == ".ipe") {
-            m_input = Input(parseIpeAsMovingPoints(m_filePath, m_interpolationTimeSpinBox->value()));
-        } else if (m_filePath.extension() == ".csv") {
-			auto mcps = parseCSVAsMovingPoints(m_filePath, m_timeMultiplierSpinBox->value());
-            auto inputBounds = bounds(mcps);
-            Rectangle<Inexact> outputBounds(0.0, 0.0, 1000.0, 1000.0);
-            auto trans = fitInto(inputBounds, outputBounds);
-            std::vector<MovingCatPoint> transformed;
-            for (const auto& mcp : mcps) {
-                transformed.push_back(mcp.transform(trans));
-            }
-            m_input = Input(transformed);
-			Vector<Inexact> testing = Vector<Inexact>(1, 0).transform(trans);
-			std::cout << "Scaled by: " << sqrt(testing.squared_length()) << std::endl;
-        }
-        m_timeControl->setStartTime(m_input.timespan().first);
-        m_timeControl->setEndTime(m_input.timespan().second);
-        m_timeControl->restart();
-        m_kSpinBox->setMaximum(m_input.numCategories() - 1);
-        std::cout << "Time span: " << m_input.timespan().first << " -- " << m_input.timespan().second << std::endl;
+        loadFile(filePath);
         initialize();
     });
 
@@ -223,7 +242,7 @@ KineticKelpDemo::KineticKelpDemo() {
 
     initialize();
 
-	connect(m_timeControl, &TimeControlToolBar::ticked, [saveToSvg, pauseOnEventCheckBox, fixButton, this](int tick, double time) {
+	connect(m_timeControl, &TimeControlToolBar::ticked, [this, saveToSvgCheckBox, pauseOnEventCheckBox, fixButton, exportDirectory](int tick, double time) {
         std::cout << "[update] tick: " << tick << " time: " << time << std::endl;
         if (m_recompute) {
             initialize();
@@ -251,16 +270,41 @@ KineticKelpDemo::KineticKelpDemo() {
         }
 	    repaint();
 
-        if (saveToSvg) {
+        if (saveToSvgCheckBox->isChecked()) {
             SvgRenderer svgRenderer;
+            svgRenderer.addPainting([this](GeometryRenderer& renderer) {
+                SvgRenderer* svgRenderer = dynamic_cast<SvgRenderer*>(&renderer);
+                auto mcps = parseCSVAsMovingPoints(m_filePath, m_timeMultiplierSpinBox->value());
+                auto inputBounds = bounds(mcps);
+                Rectangle<Inexact> outputBounds(0.0, 0.0, 1000.0, 1000.0);
+                auto trans = fitInto(inputBounds, outputBounds);
+                Rectangle<Inexact> rect(-25.0, 34.0, 60.0, 72.0);
+                auto rectT = rect.transform(trans);
+                Box box(rectT.xmin(), rectT.ymin(), rectT.xmax(), rectT.ymax());
+                if (m_filePath.filename() == "air-traffic-france") {
+                    svgRenderer->draw("Europe.jpg", box);
+                }
+            }, "Base_map");
             svgRenderer.addPainting(
                     [this](GeometryRenderer& renderer) {
                         m_kkPainting->paint(renderer);
                     },
                     "KineticKelp");
             std::stringstream filename;
-            filename << "frames/frame-" << std::setfill('0') << std::setw(5) << tick;
+
+            filename << exportDirectory->text().toStdString() << "/frame-" << std::setfill('0') << std::setw(5) << tick;
             svgRenderer.save(filename.str() + ".svg");
+            IpeRenderer ipeRenderer;
+            for (int k = 0; !m_justPoints && k < m_ptgs->c.size(); ++k) {
+                auto& ptg = m_ptgs->c.at(k);
+                auto ptgP = std::make_shared<PseudotriangulationPainting>(std::make_shared<PseudotriangulationGeometry>(ptg), 0.8);
+                ipeRenderer.addPainting(ptgP, "Pseudotriangulation " + std::to_string(k));
+            }
+
+            auto sgP = std::make_shared<StateGeometryPainting>(m_stateGeometry);
+            ipeRenderer.addPainting(sgP, "Structure");
+            ipeRenderer.addPainting(m_kkPainting, "KineticKelp");
+            ipeRenderer.save(filename.str() + ".ipe");
         }
 	});
 
@@ -342,6 +386,17 @@ KineticKelpDemo::KineticKelpDemo() {
         }
         repaint();
     });
+
+    connect(m_timeMultiplierSpinBox, QOverload<double>::of(&QDoubleSpinBox::valueChanged), [this]() {
+        loadFile(m_filePath);
+        initialize();
+    });
+
+    connect(m_kelpRadius, &QSlider::valueChanged, [kelpRadiusLabel, this] {
+        std::stringstream ss;
+        ss << "Kelp radius: " << (m_kelpRadius->value() / 10.0);
+        kelpRadiusLabel->setText(ss.str().c_str());
+    });
 }
 
 void KineticKelpDemo::initialize() {
@@ -358,7 +413,11 @@ void KineticKelpDemo::initialize() {
 
     if (!m_justPoints) {
         auto pr = std::make_shared<PaintingRenderer>();
+        auto begin = std::chrono::steady_clock::now();
         auto [stateTopology, stateGeometry] = routeEdges(*m_inputInstance, m_settings, *pr);
+        auto end = std::chrono::steady_clock::now();
+        auto spentSeconds = std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() / 1000000.0;
+        std::cout << "Done with routing edges " << spentSeconds << std::endl;
         m_stateGeometry = std::move(stateGeometry);
         m_state = stateTopology;
     } else {
@@ -372,7 +431,11 @@ void KineticKelpDemo::initialize() {
 
     if (!m_justPoints) {
         auto pr1 = std::make_shared<PaintingRenderer>();
+        auto begin = std::chrono::steady_clock::now();
         auto [pts, ptgs] = PseudotriangulationGeometries::initialize(*m_inputInstance, *m_state, *m_stateGeometry);
+        auto end = std::chrono::steady_clock::now();
+        auto spentSeconds = std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() / 1000000.0;
+        std::cout << "Done with pseudotriangulation " << spentSeconds << std::endl;
         m_pts = std::make_shared<Pseudotriangulations>(pts);
         m_brokenPts = std::make_shared<Pseudotriangulations>(pts);
         m_ptgs = std::make_shared<PseudotriangulationGeometries>(ptgs);

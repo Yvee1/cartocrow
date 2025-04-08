@@ -385,4 +385,7 @@ void SvgRenderer::setVerticalTextAlignment(VerticalTextAlignment alignment) {
     }
 }
 
+void SvgRenderer::draw(const std::filesystem::path& imagePath, const Box& box) {
+    m_out << "<image x=\"" << box.xmin() << "\" y=\"" << -box.ymin() - box.y_span() << "\" width=\"" << box.x_span() << "\" height=\"" << box.y_span() << "\" href=" << imagePath << " opacity=\"0.5\"" << "/>";
+}
 } // namespace cartocrow::renderer
