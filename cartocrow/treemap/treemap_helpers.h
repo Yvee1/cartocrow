@@ -2,8 +2,8 @@
 #define CARTOCROW_TREEMAP_HELPERS_H
 
 #include "tree.h"
-#include "rectangle_helpers.h"
 #include "cartocrow/core/core.h"
+#include "cartocrow/core/rectangle_helpers.h"
 #include <CGAL/Arrangement_2.h>
 #include <CGAL/Arr_non_caching_segment_traits_2.h>
 #include <CGAL/Exact_predicates_exact_constructions_kernel_with_sqrt.h>

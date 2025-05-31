@@ -5,7 +5,7 @@
 #include "treemap_painting.h"
 #include "treemap_painting.hpp"
 #include "cartocrow/core/core.h"
-#include "cartocrow/core/ipe_reader.h"
+#include "cartocrow/reader/ipe_reader.h"
 #include "cartocrow/renderer/geometry_painting.h"
 #include "cartocrow/renderer/geometry_widget.h"
 #include <QMainWindow>

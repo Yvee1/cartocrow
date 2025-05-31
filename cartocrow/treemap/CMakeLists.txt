@@ -1,7 +1,6 @@
 set(SOURCES
 	orthoconvex.cpp
 	parse_tree.cpp
-	rectangle_helpers.cpp
 	tree.cpp
 	treemap_helpers.cpp
 	treemap.cpp
@@ -14,7 +13,6 @@ set(SOURCES
 set(HEADERS
 	orthoconvex.h
 	parse_tree.h
-	rectangle_helpers.h
 	tree.h
 	treemap_helpers.h
 	treemap.h
