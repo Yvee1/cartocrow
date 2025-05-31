@@ -63,11 +63,11 @@ TreemapDemo::TreemapDemo() {
 	vLayout->addWidget(timeStepInput);
 
 	// Read a csv containing sequences of weights in a hierarchy into a tree
-//	load_file("/home/steven/Downloads/test/cartocrow/data/wb-SM.POP.NETM-net-migration.data");
-//	load_file("/home/steven/Downloads/test/cartocrow/data/convex_test_correct.data");
-	load_file("/home/steven/Downloads/test/cartocrow/data/convex_hierarchy.data");
-//	load_file("/home/steven/Downloads/test/cartocrow/data/convex_test_breaks.data");
-//	load_file("/home/steven/Downloads/test/cartocrow/data/convex_test_tiny.data");
+//	load_file("data/wb-SM.POP.NETM-net-migration.data");
+//	load_file("data/convex_test_correct.data");
+	load_file("data/convex_hierarchy.data");
+//	load_file("data/convex_test_breaks.data");
+//	load_file("data/convex_test_tiny.data");
 
 	connect(m_renderer, &GeometryWidget::clicked, [this](Point<Inexact> pt) {
 		Point<K> pt_k(pt.x(), pt.y());
@@ -112,7 +112,7 @@ TreemapDemo::TreemapDemo() {
 //			start_dir = QString::fromStdString(*m_dir);
 //		} else {
 //			start_dir = ".";
-	  start_dir = "/home/steven/Downloads/test/cartocrow/data/";
+	  start_dir = "data/";
 //		}
 
 		std::filesystem::path filePath = QFileDialog::getOpenFileName(this, tr("Select directory with input isolines"), start_dir).toStdString();
