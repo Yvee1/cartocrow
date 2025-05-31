@@ -11,11 +11,16 @@ macro(cartocrow_install_module NAME)
 endmacro(cartocrow_install_module)
 
 add_subdirectory(core)
+add_subdirectory(reader)
 add_subdirectory(renderer)
+add_subdirectory(circle_segment_helpers)
 add_subdirectory(necklace_map)
 add_subdirectory(simplification)
 add_subdirectory(flow_map)
 add_subdirectory(treemap)
+add_subdirectory(isoline_simplification)
+add_subdirectory(simplesets)
+add_subdirectory(chorematic_map)
 
 add_library(cartocrow_lib INTERFACE
         treemap/turbo_colormap.cpp
@@ -23,11 +28,16 @@ add_library(cartocrow_lib INTERFACE
 target_link_libraries(
     cartocrow_lib INTERFACE
     core
+    reader
     renderer
+    circle_segment_helpers
     necklace_map
     flow_map
     simplification
     treemap
+    isoline_simplification
+    simplesets
+    chorematic_map
 )
 
 install(
