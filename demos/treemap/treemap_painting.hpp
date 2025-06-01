@@ -25,13 +25,10 @@ template <class V>
 void TreemapPainting<V>::paint(renderer::GeometryRenderer& renderer) const {
 	auto arr = *m_treemap.m_arrangement;
 
-	std::cout << "===Drawing the treemap===" << std::endl;
-
 	//	draw_node_in_hue_range(m_treemap, m_treemap.m_tree, renderer, 0.0, 1.0);
 	for (auto [leaf, _] : m_treemap.m_leaf_to_face) {
 		std::optional<Polygon<K>> initial_poly = m_initial_treemap.node_region(leaf);
 		Polygon<K> current_poly = *(m_treemap.node_region(leaf));
-		std::cout << "Polygon: " << current_poly << std::endl;
 		CGAL::Bbox_2 bb;
 		if (!initial_poly.has_value()) {
 //			throw std::runtime_error("Don't know how to color node that is not part of treemap of first timestep.");
@@ -50,7 +47,6 @@ void TreemapPainting<V>::paint(renderer::GeometryRenderer& renderer) const {
 	for (auto eit = arr.edges_begin(); eit != arr.edges_end(); eit++) {
 		auto edge = *eit;
 		Segment<K> seg(edge.source()->point(), edge.target()->point());
-		//		renderer.setStroke(Color{0, 0, 0}, 1.0);
 		renderer.setStroke(Color{255, 255, 255}, 1.0);
 		renderer.setMode(renderer::GeometryRenderer::stroke);
 		renderer.draw(seg);

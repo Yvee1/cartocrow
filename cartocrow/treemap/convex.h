@@ -18,17 +18,6 @@ Treemap<V> convex_treemap(NP<V>& tree, const Rectangle<K>& rect, NodeWeight<V> w
 	NPD copy = convert_to_binary_npv_balanced(tree, copy_to_tree, w);
 	recurse_convex(copy, arr, face, leaf_regions_safe);
 
-	std::cout << "--- All faces ---" << std::endl;
-	for (auto fit = arr->faces_begin(); fit != arr->faces_end(); fit++) {
-		if (fit->has_outer_ccb()) {
-			std::cout << face_to_polygon_coll(fit) << std::endl;
-		}
-	}
-	std::cout << "--- All edges ---" << std::endl;
-	for (auto eit = arr->edges_begin(); eit != arr->edges_end(); eit++) {
-		std::cout << (eit->source()->point()) << " -> " << (eit->target()->point()) << std::endl;
-	}
-
 	for (const auto& leaf_region : leaf_regions_safe) {
 		auto [v, dir] = leaf_region.second;
 		auto cit_start = v->incident_halfedges();
@@ -37,7 +26,8 @@ Treemap<V> convex_treemap(NP<V>& tree, const Rectangle<K>& rect, NodeWeight<V> w
 		bool found = false;
 		do {
 			auto he = *cit;
-			if ((he.target()->point() - he.source()->point()).direction() == dir) {
+			auto cand_dir = (he.target()->point() - he.source()->point()).direction();
+			if (abs(cand_dir.dx()) < M_EPSILON && abs(dir.dx()) < M_EPSILON && cand_dir.dy() * dir.dy() > 0 || abs(cand_dir.dy() / cand_dir.dx() - dir.dy() / dir.dx()) < M_EPSILON && cand_dir.dx() * dir.dx() > 0) {
 				the_he = cit;
 				found = true;
 				break;

@@ -35,8 +35,8 @@ TreemapDemo::TreemapDemo() {
 	vLayout->addWidget(treemapOptions);
 	auto* treemapTypeLabel = new QLabel("Treemap type");
 	auto* treemapType = new QComboBox();
-	treemapType->addItem("Convex");
 	treemapType->addItem("Orthoconvex");
+	treemapType->addItem("Convex");
 	vLayout->addWidget(treemapTypeLabel);
 	vLayout->addWidget(treemapType);
 	m_treemap_builder = [treemapType](NP<Named>& tree, const Rectangle<K>& rect, NodeWeight<Named> w) {
