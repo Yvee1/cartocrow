@@ -9,6 +9,10 @@ set(SOURCES
 	turbo_colormap.cpp
 	aspect_ratio.cpp
 	convex.cpp
+	parse_csv_to_tree.cpp
+	treemap_painting.cpp
+	misc.cpp
+	arrangement_helpers.hpp
 )
 set(HEADERS
 	orthoconvex.h
@@ -22,6 +26,10 @@ set(HEADERS
 	ok_hsv_hsl.h
 	draw_tree.h
 	arrangement_helpers.h
+	parse_csv_to_tree.h
+	treemap_painting.h
+	misc.h
+	arrangement_helpers.hpp
 )
 
 add_library(treemap ${SOURCES})

@@ -66,7 +66,7 @@ bool GeometryWidget::PolygonEditable::startDrag(Point<Inexact> location, Number<
 	return true;
 }
 
-void GeometryWidget::PolygonEditable::handleDrag(Point<Inexact> to) const {
+void GeometryWidget::PolygonEditable::handleDrag(Point<Inexact> to) {
 	assert(m_draggedVertex != -1);
 	m_polygon->set(m_polygon->vertices_begin() + m_draggedVertex, to);
 }
@@ -104,7 +104,7 @@ bool GeometryWidget::PointEditable::startDrag(Point<Inexact> location, Number<In
 	return isClose(location, radius);
 }
 
-void GeometryWidget::PointEditable::handleDrag(Point<Inexact> to) const {
+void GeometryWidget::PointEditable::handleDrag(Point<Inexact> to) {
 	*m_point = to;
 }
 
@@ -148,7 +148,7 @@ bool GeometryWidget::CircleEditable::startDrag(Point<Inexact> location, Number<I
     return false;
 }
 
-void GeometryWidget::CircleEditable::handleDrag(Point<Inexact> to) const {
+void GeometryWidget::CircleEditable::handleDrag(Point<Inexact> to) {
     if (m_dragging == Dragging::Center) {
         *m_circle = Circle<Inexact>(to, m_circle->squared_radius());
     } else if (m_dragging == Dragging::Radius) {
@@ -312,6 +312,7 @@ void GeometryWidget::mouseReleaseEvent(QMouseEvent* event) {
 		m_dragging = false;
 		emit dragEnded(inverseConvertPoint(m_previousMousePos));
 	} else if (m_activeEditable) {
+		m_activeEditable->endDrag();
 		m_activeEditable = nullptr;
 	} else {
 		emit clicked(inverseConvertPoint(m_previousMousePos));

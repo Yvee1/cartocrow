@@ -1,11 +1,9 @@
-#include "treemap_demo.h"
+#include "treemap_interactive.h"
 #include "cartocrow/treemap/aspect_ratio.h"
-#include "cartocrow/treemap/convex.h"
-#include "cartocrow/treemap/orthoconvex.h"
-#include "cartocrow/treemap/parse_csv_to_tree.h"
 #include "cartocrow/treemap/parse_tree.h"
+#include "cartocrow/treemap/parse_csv_to_tree.h"
+#include "cartocrow/treemap/arrangement_helpers.hpp"
 #include <QApplication>
-#include <QComboBox>
 #include <QDockWidget>
 #include <QFileDialog>
 #include <QLabel>
@@ -13,8 +11,20 @@
 #include <QSpinBox>
 #include <QToolButton>
 #include <QVBoxLayout>
+#include <QComboBox>
+#include "cartocrow/treemap/orthoconvex.h"
+#include "cartocrow/treemap/convex.h"
 
-TreemapDemo::TreemapDemo() {
+#include <CGAL/Arr_accessor.h>
+
+
+// Determine maximal segments.
+// Make Editable that can:
+// - move maximal segments (via modify_edge_ex and modify_vertex_ex of Arr_accessor)
+// - collapse edges that define a non-standard split? L-shape/S-shape edges...
+// - ¨pull out¨ edges to create an L-shape/S-shape
+
+TreemapInteractive::TreemapInteractive() {
 	setWindowTitle("Treemap");
 
 	m_renderer = new GeometryWidget();
@@ -31,22 +41,8 @@ TreemapDemo::TreemapDemo() {
 	vLayout->setAlignment(Qt::AlignTop);
 	dockWidget->setWidget(vWidget);
 
-	auto* treemapOptions = new QLabel("<h3>Treemap type</h3>");
-	vLayout->addWidget(treemapOptions);
-	auto* treemapTypeLabel = new QLabel("Treemap type");
-	auto* treemapType = new QComboBox();
-	treemapType->addItem("Orthoconvex");
-	treemapType->addItem("Convex");
-	vLayout->addWidget(treemapTypeLabel);
-	vLayout->addWidget(treemapType);
-	m_treemap_builder = [treemapType](NP<Named>& tree, const Rectangle<K>& rect, NodeWeight<Named> w) {
-		if (treemapType->currentText() == "Orthoconvex") {
-			return orthoconvex_treemap(tree, rect, w);
-		} else if (treemapType->currentText() == "Convex") {
-			return convex_treemap(tree, rect, w);
-		} else {
-			throw std::runtime_error("Treemap type " + treemapType->currentText().toStdString() + " has not been implemented.");
-		}
+	m_treemap_builder = [](NP<Named>& tree, const Rectangle<K>& rect, NodeWeight<Named> w) {
+		return std::make_shared<Treemap<Named>>(orthoconvex_treemap(tree, rect, w));
 	};
 
 	auto* basicOptions = new QLabel("<h3>Input</h3>");
@@ -63,11 +59,7 @@ TreemapDemo::TreemapDemo() {
 	vLayout->addWidget(timeStepInput);
 
 	// Read a csv containing sequences of weights in a hierarchy into a tree
-//	load_file("data/wb-SM.POP.NETM-net-migration.data");
-//	load_file("data/convex_test_correct.data");
-	load_file("data/convex_hierarchy.data");
-//	load_file("data/convex_test_breaks.data");
-//	load_file("data/convex_test_tiny.data");
+		load_file("data/wb-SM.POP.NETM-net-migration.data");
 
 	connect(m_renderer, &GeometryWidget::clicked, [this](Point<Inexact> pt) {
 		Point<K> pt_k(pt.x(), pt.y());
@@ -93,42 +85,31 @@ TreemapDemo::TreemapDemo() {
 		m_info_box->move({static_cast<int>(qp.x()), static_cast<int>(qp.y())});
 	});
 	connect(m_renderer, &GeometryWidget::zoomed, [this]() {
-	  if (m_info_box == nullptr) return;
-	  auto qp = m_renderer->convertPoint(*m_info_box_position);
-	  m_info_box->move({static_cast<int>(qp.x()), static_cast<int>(qp.y())});
+		if (m_info_box == nullptr) return;
+		auto qp = m_renderer->convertPoint(*m_info_box_position);
+		m_info_box->move({static_cast<int>(qp.x()), static_cast<int>(qp.y())});
 	});
 	connect(timeStepInput, QOverload<int>::of(&QSpinBox::valueChanged), [this, timeStepInput]() {
-	    if (timeStepInput->value() >= m_treemap->m_tree->value.weight.size()) {
+		if (timeStepInput->value() >= m_treemap->m_tree->value.weight.size()) {
 			timeStepInput->setValue(m_timestep);
-		    return;
-	    }
+			return;
+		}
 		m_timestep = timeStepInput->value();
 		m_treemap = m_treemap_builder(m_treemap->m_tree, m_rect, timestep_weights(m_timestep));
 		updated_treemap();
 	});
 	connect(fileSelector, &QPushButton::clicked, [this, fileSelector]() {
 		QString start_dir;
-//		if (m_dir.has_value() && m_dir != "") {
-//			start_dir = QString::fromStdString(*m_dir);
-//		} else {
-//			start_dir = ".";
-	  start_dir = "data/";
-//		}
-
+		start_dir = "data/";
 		std::filesystem::path filePath = QFileDialog::getOpenFileName(this, tr("Select treemap data file"), start_dir).toStdString();
 
 		if (filePath == "") return;
 		load_file(filePath);
 		fileSelector->setText(QString::fromStdString(filePath.filename()));
 	});
-	connect(treemapType, &QComboBox::currentTextChanged, [this, treemapType]() {
-		m_treemap = m_treemap_builder(m_treemap->m_tree, m_rect, timestep_weights(m_timestep));
-		m_tmp = std::make_shared<TreemapPainting<Named>>(*m_treemap, *m_treemap);
-		updated_treemap();
-	});
 }
 
-void TreemapDemo::clear_info_box() {
+void TreemapInteractive::clear_info_box() {
 	if (m_info_box != nullptr) {
 		m_info_box->close();
 	}
@@ -136,7 +117,7 @@ void TreemapDemo::clear_info_box() {
 	m_info_box_position = std::nullopt;
 }
 
-void TreemapDemo::updated_treemap() {
+void TreemapInteractive::updated_treemap() {
 	m_renderer->clear();
 	m_tmp = std::make_shared<TreemapPainting<Named>>(*m_treemap, m_tmp->m_initial_treemap);
 	m_renderer->addPainting(m_tmp, "Treemap");
@@ -146,9 +127,10 @@ void TreemapDemo::updated_treemap() {
 	if (m_info_box != nullptr) {
 		create_info_box(*m_info_box_position, *m_selected_node);
 	}
+	m_renderer->m_editables.push_back(std::make_unique<TreemapEditable>(m_renderer, m_treemap));
 }
 
-void TreemapDemo::load_file(const std::filesystem::path& filePath) {
+void TreemapInteractive::load_file(const std::filesystem::path& filePath) {
 	m_timestep = 0;
 	m_selected_node = std::nullopt;
 	clear_info_box();
@@ -166,7 +148,7 @@ void TreemapDemo::load_file(const std::filesystem::path& filePath) {
 	updated_treemap();
 }
 
-void TreemapDemo::create_info_box(Point<Inexact> pt, const NPN& node) {
+void TreemapInteractive::create_info_box(Point<Inexact> pt, const NPN& node) {
 	clear_info_box();
 	if (m_treemap->node_region(node) == std::nullopt) {
 		return;
@@ -208,31 +190,6 @@ void TreemapDemo::create_info_box(Point<Inexact> pt, const NPN& node) {
 	dec_weight->setText("-");
 	hLayout->addWidget(dec_weight);
 
-//	auto rebuild = [node, pt, this]() mutable {
-//		update_weights(node);
-//		m_treemap = build_treemap(m_treemap->m_tree, weight_getter);
-//		auto tmp = std::make_shared<TreemapPainting>(*m_treemap);
-//		m_renderer->clear();
-//		m_renderer->addPainting(tmp, "Treemap");
-//		auto np = std::make_shared<NodePainting>(*m_treemap, m_selected_node);
-//		m_renderer->addPainting(np, "Node highlight");
-//		m_renderer->repaint();
-//		create_info_box(pt, node);
-//	};
-//
-//	connect(dec_weight, &QToolButton::clicked, [node, rebuild]() mutable {
-//		if (node->value <= 1) return;
-//		node->value -= 1;
-//		rebuild();
-//	});
-//	auto* inc_weight = new QToolButton();
-//	inc_weight->setText("+");
-//	hLayout->addWidget(inc_weight);
-//	connect(inc_weight, &QToolButton::clicked, [node, rebuild]() mutable {
-//		node->value += 1;
-//		rebuild();
-//	});
-//	vLayout->addLayout(hLayout);
 	std::stringstream area_s;
 	auto area = abs(CGAL::to_double(m_treemap->node_region(node)->area()));
 	if (area < 1E9) {
@@ -270,7 +227,7 @@ void TreemapDemo::create_info_box(Point<Inexact> pt, const NPN& node) {
 	vLayout->addWidget(close_button);
 }
 
-Arrangement<K>::Face_handle TreemapDemo::face_at_point(const Point<K>& point) {
+Arrangement<K>::Face_handle TreemapInteractive::face_at_point(const Point<K>& point) {
 	CGAL::Arr_walk_along_line_point_location<Arrangement<K>> pl(*m_treemap->m_arrangement);
 
 	typedef typename Arrangement<K>::Vertex_const_handle Vertex_const_handle;
@@ -297,15 +254,142 @@ Arrangement<K>::Face_handle TreemapDemo::face_at_point(const Point<K>& point) {
 	return m_treemap->m_arrangement->non_const_handle(face);
 }
 
-void TreemapDemo::resizeEvent(QResizeEvent *event) {
+void TreemapInteractive::resizeEvent(QResizeEvent *event) {
 	if (m_info_box == nullptr) return;
 	auto qp = m_renderer->convertPoint(*m_info_box_position);
 	m_info_box->move({static_cast<int>(qp.x()), static_cast<int>(qp.y())});
 }
 
+TreemapEditable::TreemapEditable(GeometryWidget* widget, std::shared_ptr<Treemap<Named>> treemap) :
+      GeometryWidget::Editable(widget), m_treemap(std::move(treemap)), m_arrAcc(*m_treemap->m_arrangement) {
+	maximal_segments(*m_treemap->m_arrangement, std::back_inserter(m_maximalSegments));
+}
+
+std::optional<MaximalSegment> TreemapEditable::closestMaximalSegment(Point<Inexact> location, double radius) const {
+	double minDist = std::numeric_limits<double>::infinity();
+	std::optional<MaximalSegment> closestSegment;
+
+	for (const auto& m_seg : m_maximalSegments) {
+		auto dist = CGAL::squared_distance(m_seg.segment, location);
+		if (dist < minDist) {
+			minDist = dist;
+			closestSegment = m_seg;
+		}
+	}
+
+	if (closestSegment.has_value() && minDist < radius * radius) {
+		return *closestSegment;
+	} else {
+		return std::nullopt;
+	}
+}
+
+bool TreemapEditable::drawHoverHint(Point<cartocrow::Inexact> location, double radius) const {
+	auto closest = closestMaximalSegment(location, radius);
+	if (closest.has_value()) {
+		m_widget->setStroke(Color(0, 0, 255), 3.0);
+		m_widget->GeometryRenderer::draw(closest->segment);
+		return true;
+	}
+	return false;
+}
+
+bool TreemapEditable::startDrag(Point<cartocrow::Inexact> location, double radius) {
+	auto closest = closestMaximalSegment(location, radius);
+	if (closest.has_value()) {
+		m_dragging = closest;
+		bool vertical = abs(m_dragging->segment.source().x() - m_dragging->segment.target().x()) < M_EPSILON;
+		QApplication::setOverrideCursor(QCursor(vertical ? Qt::SizeHorCursor : Qt::SizeVerCursor));
+		return true;
+	}
+	return false;
+}
+
+void TreemapEditable::endDrag() {
+	QApplication::restoreOverrideCursor();
+	m_dragging = std::nullopt;
+}
+
+void TreemapEditable::handleDrag(Point<cartocrow::Inexact> to) {
+	if (!m_dragging.has_value()) return;
+
+	std::vector<std::tuple<Segment<K>, bool, bool>> newCurves;
+	for (auto& e : m_dragging->halfedges) {
+		auto& curve = e->curve();
+		bool rev = e->source()->point() == curve.target();
+		bool vertical = abs(curve.source().x() - curve.target().x()) < M_EPSILON;
+		Segment<K> newCurve;
+		if (vertical) {
+			newCurve = Segment<K>({to.x(), curve.source().y()}, {to.x(), curve.target().y()});
+		} else {
+			newCurve = Segment<K>({curve.source().x(), to.y()}, {curve.target().x(), to.y()});
+		}
+		newCurves.push_back({newCurve, rev, vertical});
+	}
+
+	auto [cf, rf, vertf] = newCurves.front();
+	auto source = rf ? cf.target() : cf.source();
+	auto [cb, rb, vertb] = newCurves.back();
+	auto target = rb ? cb.source() : cb.target();
+	auto vf = m_dragging->halfedges.front()->source();
+	auto vb = m_dragging->halfedges.back()->target();
+	auto vsf = perpVertices(m_dragging->halfedges.front()->twin());
+	auto vsb = perpVertices(m_dragging->halfedges.back());
+	std::vector<Point<K>> psf;
+	for (const auto& v : vsf) {
+		psf.push_back(v->point());
+	}
+	std::sort(psf.begin(), psf.end(), [vertf](Point<K> p1, Point<K> p2) { return vertf ? p1.x() <= p2.x() : p1.y() <= p2.y(); });
+	std::vector<Point<K>> psb;
+	for (const auto& v : vsb) {
+		psb.push_back(v->point());
+	}
+	std::sort(psb.begin(), psb.end(), [vertb](Point<K> p1, Point<K> p2) { return vertb ? p1.x() <= p2.x() : p1.y() <= p2.y(); });
+
+	bool problem = false;
+	if (psf.size() > 1 && std::upper_bound(psf.begin(), psf.end(), source, [vertf](Point<K> p1, Point<K> p2) { return vertf ? p1.x() <= p2.x() : p1.y() <= p2.y(); }) != ++psf.begin()) {
+		std::cout << "! Non-order-equivalent layout !" << std::endl;
+		problem = true;
+	}
+	if (psb.size() > 1 && std::upper_bound(psb.begin(), psb.end(), target, [vertb](Point<K> p1, Point<K> p2) { return vertb ? p1.x() <= p2.x() : p1.y() <= p2.y(); }) != ++psb.begin()) {
+		std::cout << "! Non-order-equivalent layout !" << std::endl;
+		problem = true;
+	}
+
+	for (int i = 0; !problem && i < newCurves.size(); ++i) {
+		auto& [newCurve, rev, vert] = newCurves[i];
+		auto& e = m_dragging->halfedges[i];
+		auto modifyVertex = [this, &e, vert](TMArrangement::Vertex_handle v, auto p) {
+			auto start = v->incident_halfedges();
+			auto eit = start;
+			do {
+				if (vert && isVertical(eit) || !vert && isHorizontal(eit)) continue;
+				auto curve = eit->curve();
+				auto dir = (curve.target() - curve.source()).direction();
+				auto replaceSource = curve.source() == v->point();
+				auto replaceTarget = curve.target() == v->point();
+				auto newCurve = Segment<K>(replaceSource ? p : curve.source(), replaceTarget ? p : curve.target());
+				auto newDir = (newCurve.target() - newCurve.source()).direction();
+				if (!approx_same_direction(dir, newDir)) {
+					auto prev = prevOnMaximalSegment(eit);
+					auto next = nextOnMaximalSegment(eit);
+				}
+				m_arrAcc.modify_edge_ex(eit, newCurve);
+			} while(++eit != start);
+		  m_arrAcc.modify_vertex_ex(v, p);
+		};
+		modifyVertex(e->source(), rev ? newCurve.target() : newCurve.source());
+		modifyVertex(e->target(), rev ? newCurve.source() : newCurve.target());
+		m_arrAcc.modify_edge_ex(e, newCurve);
+	}
+
+	m_maximalSegments.clear();
+	maximal_segments(*m_treemap->m_arrangement, std::back_inserter(m_maximalSegments));
+}
+
 int main(int argc, char* argv[]) {
 	QApplication app(argc, argv);
-	TreemapDemo demo;
+	TreemapInteractive demo;
 	demo.show();
 	QApplication::exec();
 }

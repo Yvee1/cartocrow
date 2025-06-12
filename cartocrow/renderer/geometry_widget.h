@@ -111,7 +111,7 @@ class GeometryWidget : public QWidget, public GeometryRenderer {
 		/// want to become active from this location.
 		virtual bool startDrag(Point<Inexact> location, Number<Inexact> radius) = 0;
 		/// Handles a drag operation.
-		virtual void handleDrag(Point<Inexact> to) const = 0;
+		virtual void handleDrag(Point<Inexact> to) = 0;
 		/// Ends a running drag operation.
 		virtual void endDrag() = 0;
 
@@ -127,7 +127,7 @@ class GeometryWidget : public QWidget, public GeometryRenderer {
 		PointEditable(GeometryWidget* widget, std::shared_ptr<Point<Inexact>> point);
 		bool drawHoverHint(Point<Inexact> location, Number<Inexact> radius) const override;
 		bool startDrag(Point<Inexact> location, Number<Inexact> radius) override;
-		void handleDrag(Point<Inexact> to) const override;
+		void handleDrag(Point<Inexact> to) override;
 		void endDrag() override;
 
 	  private:
@@ -145,7 +145,7 @@ class GeometryWidget : public QWidget, public GeometryRenderer {
         CircleEditable(GeometryWidget* widget, std::shared_ptr<Circle<Inexact>> circle);
         bool drawHoverHint(Point<Inexact> location, Number<Inexact> radius) const override;
         bool startDrag(Point<Inexact> location, Number<Inexact> radius) override;
-        void handleDrag(Point<Inexact> to) const override;
+        void handleDrag(Point<Inexact> to) override;
         void endDrag() override;
 
     private:
@@ -175,7 +175,7 @@ class GeometryWidget : public QWidget, public GeometryRenderer {
 		PolygonEditable(GeometryWidget* widget, std::shared_ptr<Polygon<Inexact>> polygon);
 		bool drawHoverHint(Point<Inexact> location, Number<Inexact> radius) const override;
 		bool startDrag(Point<Inexact> location, Number<Inexact> radius) override;
-		void handleDrag(Point<Inexact> to) const override;
+		void handleDrag(Point<Inexact> to) override;
 		void endDrag() override;
 
 	  private:
@@ -235,6 +235,9 @@ class GeometryWidget : public QWidget, public GeometryRenderer {
     void registerEditable(std::shared_ptr<Circle<Inexact>> point);
 	/// Adds an editable polygon.
 	void registerEditable(std::shared_ptr<Polygon<Inexact>> polygon);
+
+	/// The registered editables.
+	std::vector<std::unique_ptr<Editable>> m_editables;
 
 	/// Converts a point in drawing coordinates to Qt coordinates.
 	QPointF convertPoint(Point<Inexact> p) const;
@@ -356,8 +359,6 @@ class GeometryWidget : public QWidget, public GeometryRenderer {
 	bool m_drawAxes = true;
 	/// The grid mode.
 	GridMode m_gridMode = GridMode::CARTESIAN;
-	/// The registered editables.
-	std::vector<std::unique_ptr<Editable>> m_editables;
 	/// The editable in \ref m_editables that the user is currently interacting
 	/// with, or `nullptr` if no such interaction is going on.
 	Editable* m_activeEditable = nullptr;

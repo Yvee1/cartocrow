@@ -32,7 +32,6 @@ Polygon<K> faces_to_polygon(const std::unordered_set<FaceH>& faces) {
 	return Polygon<K>(pts.begin(), pts.end());
 }
 
-/// Create an arrangement of a single rectangle. Returns the bounded face.
 std::pair<std::shared_ptr<TMArrangement>, FaceH> arrangement_rectangle(const Rectangle<K>& rect) {
 	auto arr = std::make_shared<TMArrangement>();
 
@@ -72,5 +71,38 @@ FaceConstH getFaceOf(const TMArrangement& arr, Point<K> point) {
 	else {
 		throw std::runtime_error("Point does not lie in the interior of a face.");
 	}
+}
+
+bool isVertical(const HalfedgeH& e) {
+	return approx_same_direction((e->curve().target() - e->curve().source()).direction(), Direction<K>(0, 1)) ||
+	       approx_same_direction((e->curve().target() - e->curve().source()).direction(), Direction<K>(0, -1));
+}
+
+bool isHorizontal(const HalfedgeH& e) {
+	return approx_same_direction((e->curve().target() - e->curve().source()).direction(), Direction<K>(1, 0)) ||
+		   approx_same_direction((e->curve().target() - e->curve().source()).direction(), Direction<K>(-1, 0));
+}
+
+std::optional<HalfedgeH> prevOnMaximalSegment(const HalfedgeH& e) {
+	return nextOnMaximalSegment(e->twin());
+}
+
+std::optional<HalfedgeH> nextOnMaximalSegment(const HalfedgeH& e) {
+	auto dir = (e->target()->point() - e->source()->point()).direction();
+	auto start = e->target()->incident_halfedges();
+
+	auto eit = start;
+	std::optional<HalfedgeH> next = std::nullopt;
+
+	do {
+		auto eit_ = eit->twin();
+		auto dir_ = (eit_->target()->point() - eit_->source()->point()).direction();
+		if (approx_same_direction(dir, dir_)) {
+			next = eit_;
+			break;
+		}
+	} while (++eit != start);
+
+	return next;
 }
 }

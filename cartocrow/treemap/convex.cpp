@@ -291,7 +291,7 @@ void recurse_convex(const NPD& tree, std::shared_ptr<TMArrangement> arr, FaceH f
 		bool found = false;
 		do {
 			auto he = *cit;
-			if ((he.target()->point() - he.source()->point()).direction() == dir) {
+			if (approx_same_direction((he.target()->point() - he.source()->point()).direction(), dir)) {
 				the_he = cit;
 				found = true;
 				break;

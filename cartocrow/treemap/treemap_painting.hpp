@@ -4,9 +4,9 @@
 #include "cartocrow/core/core.h"
 #include "cartocrow/renderer/geometry_painting.h"
 //#include "cartocrow/treemap/ok_hsv_hsl.h"
+#include "cartocrow/treemap/parse_csv_to_tree.h"
 #include "cartocrow/treemap/treemap.h"
 #include "cartocrow/treemap/treemap_helpers.h"
-#include "parse_csv_to_tree.h"
 
 template <class V>
 class TreemapPainting : public renderer::GeometryPainting {

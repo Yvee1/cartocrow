@@ -3,6 +3,7 @@
 
 #include "treemap_helpers.h"
 #include "treemap.h"
+#include "misc.h"
 
 namespace cartocrow::treemap {
 void recurse_convex(const NPD& tree, std::shared_ptr<TMArrangement> arr, FaceH face,
@@ -27,7 +28,7 @@ Treemap<V> convex_treemap(NP<V>& tree, const Rectangle<K>& rect, NodeWeight<V> w
 		do {
 			auto he = *cit;
 			auto cand_dir = (he.target()->point() - he.source()->point()).direction();
-			if (abs(cand_dir.dx()) < M_EPSILON && abs(dir.dx()) < M_EPSILON && cand_dir.dy() * dir.dy() > 0 || abs(cand_dir.dy() / cand_dir.dx() - dir.dy() / dir.dx()) < M_EPSILON && cand_dir.dx() * dir.dx() > 0) {
+			if (approx_same_direction(cand_dir, dir)) {
 				the_he = cit;
 				found = true;
 				break;

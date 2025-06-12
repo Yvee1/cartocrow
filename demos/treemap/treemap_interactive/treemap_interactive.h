@@ -1,5 +1,5 @@
-#ifndef CARTOCROW_TREEMAP_DEMO_H
-#define CARTOCROW_TREEMAP_DEMO_H
+#ifndef CARTOCROW_TREEMAP_INTERACTIVE_H
+#define CARTOCROW_TREEMAP_INTERACTIVE_H
 
 #include "cartocrow/core/core.h"
 #include "cartocrow/reader/ipe_reader.h"
@@ -14,13 +14,13 @@ using namespace cartocrow;
 using namespace cartocrow::renderer;
 using namespace cartocrow::treemap;
 
-typedef std::function<Treemap<Named>(NP<Named>& tree, const Rectangle<K>& rect, NodeWeight<Named> w)> TreemapBuilder;
+typedef std::function<std::shared_ptr<Treemap<Named>>(NP<Named>& tree, const Rectangle<K>& rect, NodeWeight<Named> w)> TreemapBuilder;
 
-class TreemapDemo : public QMainWindow {
+class TreemapInteractive : public QMainWindow {
 	Q_OBJECT
 
   public:
-	TreemapDemo();
+	TreemapInteractive();
 	void resizeEvent(QResizeEvent *event) override;
 
   private:
@@ -35,11 +35,29 @@ class TreemapDemo : public QMainWindow {
 	QFrame* m_info_box = nullptr;
 	std::optional<Point<Inexact>> m_info_box_position;
 	std::optional<NPN> m_selected_node;
-	std::optional<Treemap<Named>> m_treemap;
+	std::shared_ptr<Treemap<Named>> m_treemap;
 	std::shared_ptr<TreemapPainting<Named>> m_tmp;
 	Arrangement<K>::Face_handle face_at_point(const Point<K>& point);
 	int m_timestep = 0;
 	TreemapBuilder m_treemap_builder;
+
 };
 
-#endif //CARTOCROW_TREEMAP_DEMO_H
+class TreemapEditable : public renderer::GeometryWidget::Editable {
+  public:
+	TreemapEditable(GeometryWidget* widget, std::shared_ptr<Treemap<Named>> treemap);
+
+	bool drawHoverHint(Point<Inexact> location, Number<Inexact> radius) const override;
+	bool startDrag(Point<Inexact> location, Number<Inexact> radius) override;
+	void handleDrag(Point<Inexact> to) override;
+	void endDrag() override;
+	std::optional<MaximalSegment> closestMaximalSegment(Point<Inexact> location, Number<Inexact> radius) const;
+
+  private:
+	std::shared_ptr<Treemap<Named>> m_treemap;
+	std::vector<MaximalSegment> m_maximalSegments;
+	std::optional<MaximalSegment> m_dragging;
+	CGAL::Arr_accessor<TMArrangement> m_arrAcc;
+};
+
+#endif //CARTOCROW_TREEMAP_INTERACTIVE_H
