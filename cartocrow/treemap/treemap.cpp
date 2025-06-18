@@ -2,5 +2,4 @@
 #include "arrangement_helpers.h"
 
 namespace cartocrow::treemap {
-
 }

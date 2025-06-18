@@ -8,7 +8,7 @@ using namespace cartocrow;
 using namespace cartocrow::treemap;
 
 void check_weights(const Treemap<Number<K>>& treemap, const NPV& tree) {
-	auto poly = treemap.node_region(tree);
+	auto poly = treemap.nodeRegion(tree);
 	if (!poly.has_value()) {
 		CHECK(tree->value == 0);
 		return;
@@ -20,7 +20,7 @@ void check_weights(const Treemap<Number<K>>& treemap, const NPV& tree) {
 }
 
 void check_aspect_ratio(const Treemap<Number<K>>& treemap, const NPV& tree) {
-	auto poly = treemap.node_region(tree);
+	auto poly = treemap.nodeRegion(tree);
 	if (!poly.has_value()) {
 		CHECK(tree->value == 0);
 		return;

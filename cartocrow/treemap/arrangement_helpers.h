@@ -15,6 +15,8 @@ bool isVertical(const HalfedgeH& e);
 bool isHorizontal(const HalfedgeH& e);
 std::optional<HalfedgeH> nextOnMaximalSegment(const HalfedgeH& e);
 std::optional<HalfedgeH> prevOnMaximalSegment(const HalfedgeH& e);
+std::vector<HalfedgeH> perpEdges(const HalfedgeH& e);
+std::vector<VertexH> perpVertices(const HalfedgeH& e);
 
 struct MaximalSegment {
 	Segment<K> segment;

@@ -26,9 +26,9 @@ void TreemapPainting<V>::paint(renderer::GeometryRenderer& renderer) const {
 	auto arr = *m_treemap.m_arrangement;
 
 	//	draw_node_in_hue_range(m_treemap, m_treemap.m_tree, renderer, 0.0, 1.0);
-	for (auto [leaf, _] : m_treemap.m_leaf_to_face) {
-		std::optional<Polygon<K>> initial_poly = m_initial_treemap.node_region(leaf);
-		Polygon<K> current_poly = *(m_treemap.node_region(leaf));
+	for (auto [leaf, _] : m_treemap.m_leafToFace) {
+		std::optional<Polygon<K>> initial_poly = m_initial_treemap.nodeRegion(leaf);
+		Polygon<K> current_poly = *(m_treemap.nodeRegion(leaf));
 		CGAL::Bbox_2 bb;
 		if (!initial_poly.has_value()) {
 //			throw std::runtime_error("Don't know how to color node that is not part of treemap of first timestep.");
@@ -101,7 +101,7 @@ void NodePainting<V>::paint(renderer::GeometryRenderer& renderer) const {
 	auto n = *m_node;
 	renderer.setMode(renderer::GeometryRenderer::stroke);
 	renderer.setStroke({0, 0, 0}, 3.0);
-	renderer.draw(*(m_treemap.node_region(n)));
+	renderer.draw(*(m_treemap.nodeRegion(n)));
 }
 
 #endif //CARTOCROW_TREEMAP_PAINTING_HPP

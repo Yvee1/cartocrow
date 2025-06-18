@@ -72,7 +72,7 @@ TreemapDemo::TreemapDemo() {
 	connect(m_renderer, &GeometryWidget::clicked, [this](Point<Inexact> pt) {
 		Point<K> pt_k(pt.x(), pt.y());
 		auto face = face_at_point(pt_k);
-		if (!m_treemap->m_face_to_leaf.contains(face)) {
+		if (!m_treemap->m_faceToLeaf.contains(face)) {
 			if (m_info_box != nullptr) {
 				m_info_box->close();
 				m_selected_node = std::nullopt;
@@ -81,7 +81,7 @@ TreemapDemo::TreemapDemo() {
 			m_info_box = nullptr;
 			return;
 		}
-		auto leaf = m_treemap->m_face_to_leaf[face];
+		auto leaf = m_treemap->m_faceToLeaf[face];
 		m_selected_node = leaf;
 		create_info_box(pt, *m_selected_node);
 		m_renderer->repaint();
@@ -168,7 +168,7 @@ void TreemapDemo::load_file(const std::filesystem::path& filePath) {
 
 void TreemapDemo::create_info_box(Point<Inexact> pt, const NPN& node) {
 	clear_info_box();
-	if (m_treemap->node_region(node) == std::nullopt) {
+	if (m_treemap->nodeRegion(node) == std::nullopt) {
 		return;
 	}
 	m_info_box = new QFrame(m_renderer);
@@ -234,7 +234,7 @@ void TreemapDemo::create_info_box(Point<Inexact> pt, const NPN& node) {
 //	});
 //	vLayout->addLayout(hLayout);
 	std::stringstream area_s;
-	auto area = abs(CGAL::to_double(m_treemap->node_region(node)->area()));
+	auto area = abs(CGAL::to_double(m_treemap->nodeRegion(node)->area()));
 	if (area < 1E9) {
 		area_s.precision(std::ceil(std::log10(area)) + 1);
 	} else {
@@ -245,7 +245,7 @@ void TreemapDemo::create_info_box(Point<Inexact> pt, const NPN& node) {
 	auto* region_area = new QLabel(QString::fromStdString(area_s.str()));
 	vLayout->addWidget(region_area);
 	std::stringstream aspect_ratio_s;
-	auto aspect_ratio = aspect_ratio_square_percentage(*(m_treemap->node_region(node)));
+	auto aspect_ratio = aspect_ratio_square_percentage(*(m_treemap->nodeRegion(node)));
 	aspect_ratio_s.precision(2);
 	aspect_ratio_s.unsetf(std::ios::showpoint);
 	aspect_ratio_s << "Aspect ratio: " << aspect_ratio;

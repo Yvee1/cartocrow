@@ -51,13 +51,11 @@ class TreemapEditable : public renderer::GeometryWidget::Editable {
 	bool startDrag(Point<Inexact> location, Number<Inexact> radius) override;
 	void handleDrag(Point<Inexact> to) override;
 	void endDrag() override;
-	std::optional<MaximalSegment> closestMaximalSegment(Point<Inexact> location, Number<Inexact> radius) const;
+	std::optional<Treemap<Named>::MaximalSegmentId> closestMaximalSegment(Point<Inexact> location, Number<Inexact> radius) const;
 
   private:
 	std::shared_ptr<Treemap<Named>> m_treemap;
-	std::vector<MaximalSegment> m_maximalSegments;
-	std::optional<MaximalSegment> m_dragging;
-	CGAL::Arr_accessor<TMArrangement> m_arrAcc;
+	std::optional<Treemap<Named>::MaximalSegmentId> m_dragging;
 };
 
 #endif //CARTOCROW_TREEMAP_INTERACTIVE_H

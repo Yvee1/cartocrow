@@ -4,32 +4,8 @@
 #include "arrangement_helpers.h"
 
 namespace cartocrow::treemap {
-std::vector<HalfedgeH> perpEdges(const HalfedgeH& e) {
-	std::vector<HalfedgeH> perps;
-
-	auto vert = isVertical(e);
-	auto start = e->target()->incident_halfedges();
-	auto eit = start;
-	do {
-		if (vert && isHorizontal(eit) || !vert && isVertical(eit)) {
-			perps.push_back(eit);
-		}
-	} while (++eit != start);
-
-	return perps;
-}
-
-std::vector<VertexH> perpVertices(const HalfedgeH& e) {
-	auto perpEs = perpEdges(e);
-	std::vector<VertexH> perpVs;
-	for (const auto& e : perpEs) {
-		perpVs.push_back(e->source());
-	}
-	return perpVs;
-}
-
 template <class OutputIterator>
-void maximal_segments(const TMArrangement& arr, OutputIterator out) {
+void maximalSegments(const TMArrangement& arr, OutputIterator out) {
 	std::vector<HalfedgeH> edges;
 	for (auto eit = arr.edges_begin(); eit != arr.edges_end(); ++eit) {
 		edges.push_back(eit.ptr());

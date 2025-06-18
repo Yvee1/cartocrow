@@ -2,7 +2,6 @@
 #include "cartocrow/treemap/aspect_ratio.h"
 #include "cartocrow/treemap/parse_tree.h"
 #include "cartocrow/treemap/parse_csv_to_tree.h"
-#include "cartocrow/treemap/arrangement_helpers.hpp"
 #include <QApplication>
 #include <QDockWidget>
 #include <QFileDialog>
@@ -64,7 +63,7 @@ TreemapInteractive::TreemapInteractive() {
 	connect(m_renderer, &GeometryWidget::clicked, [this](Point<Inexact> pt) {
 		Point<K> pt_k(pt.x(), pt.y());
 		auto face = face_at_point(pt_k);
-		if (!m_treemap->m_face_to_leaf.contains(face)) {
+		if (!m_treemap->m_faceToLeaf.contains(face)) {
 			if (m_info_box != nullptr) {
 				m_info_box->close();
 				m_selected_node = std::nullopt;
@@ -73,7 +72,7 @@ TreemapInteractive::TreemapInteractive() {
 			m_info_box = nullptr;
 			return;
 		}
-		auto leaf = m_treemap->m_face_to_leaf[face];
+		auto leaf = m_treemap->m_faceToLeaf[face];
 		m_selected_node = leaf;
 		create_info_box(pt, *m_selected_node);
 		m_renderer->repaint();
@@ -150,7 +149,7 @@ void TreemapInteractive::load_file(const std::filesystem::path& filePath) {
 
 void TreemapInteractive::create_info_box(Point<Inexact> pt, const NPN& node) {
 	clear_info_box();
-	if (m_treemap->node_region(node) == std::nullopt) {
+	if (m_treemap->nodeRegion(node) == std::nullopt) {
 		return;
 	}
 	m_info_box = new QFrame(m_renderer);
@@ -191,7 +190,7 @@ void TreemapInteractive::create_info_box(Point<Inexact> pt, const NPN& node) {
 	hLayout->addWidget(dec_weight);
 
 	std::stringstream area_s;
-	auto area = abs(CGAL::to_double(m_treemap->node_region(node)->area()));
+	auto area = abs(CGAL::to_double(m_treemap->nodeRegion(node)->area()));
 	if (area < 1E9) {
 		area_s.precision(std::ceil(std::log10(area)) + 1);
 	} else {
@@ -202,7 +201,7 @@ void TreemapInteractive::create_info_box(Point<Inexact> pt, const NPN& node) {
 	auto* region_area = new QLabel(QString::fromStdString(area_s.str()));
 	vLayout->addWidget(region_area);
 	std::stringstream aspect_ratio_s;
-	auto aspect_ratio = aspect_ratio_square_percentage(*(m_treemap->node_region(node)));
+	auto aspect_ratio = aspect_ratio_square_percentage(*(m_treemap->nodeRegion(node)));
 	aspect_ratio_s.precision(2);
 	aspect_ratio_s.unsetf(std::ios::showpoint);
 	aspect_ratio_s << "Aspect ratio: " << aspect_ratio;
@@ -261,19 +260,18 @@ void TreemapInteractive::resizeEvent(QResizeEvent *event) {
 }
 
 TreemapEditable::TreemapEditable(GeometryWidget* widget, std::shared_ptr<Treemap<Named>> treemap) :
-      GeometryWidget::Editable(widget), m_treemap(std::move(treemap)), m_arrAcc(*m_treemap->m_arrangement) {
-	maximal_segments(*m_treemap->m_arrangement, std::back_inserter(m_maximalSegments));
-}
+      GeometryWidget::Editable(widget), m_treemap(std::move(treemap)) {}
 
-std::optional<MaximalSegment> TreemapEditable::closestMaximalSegment(Point<Inexact> location, double radius) const {
+std::optional<Treemap<Named>::MaximalSegmentId> TreemapEditable::closestMaximalSegment(Point<Inexact> location, double radius) const {
 	double minDist = std::numeric_limits<double>::infinity();
-	std::optional<MaximalSegment> closestSegment;
+	std::optional<Treemap<Named>::MaximalSegmentId> closestSegment;
 
-	for (const auto& m_seg : m_maximalSegments) {
-		auto dist = CGAL::squared_distance(m_seg.segment, location);
+	for (int i = 0; i < m_treemap->m_maximalSegments.size(); ++i) {
+		auto& mSeg = m_treemap->m_maximalSegments[i];
+		auto dist = CGAL::squared_distance(mSeg.segment, location);
 		if (dist < minDist) {
 			minDist = dist;
-			closestSegment = m_seg;
+			closestSegment = i;
 		}
 	}
 
@@ -288,7 +286,7 @@ bool TreemapEditable::drawHoverHint(Point<cartocrow::Inexact> location, double r
 	auto closest = closestMaximalSegment(location, radius);
 	if (closest.has_value()) {
 		m_widget->setStroke(Color(0, 0, 255), 3.0);
-		m_widget->GeometryRenderer::draw(closest->segment);
+		m_widget->GeometryRenderer::draw(m_treemap->m_maximalSegments[*closest].segment);
 		return true;
 	}
 	return false;
@@ -298,7 +296,8 @@ bool TreemapEditable::startDrag(Point<cartocrow::Inexact> location, double radiu
 	auto closest = closestMaximalSegment(location, radius);
 	if (closest.has_value()) {
 		m_dragging = closest;
-		bool vertical = abs(m_dragging->segment.source().x() - m_dragging->segment.target().x()) < M_EPSILON;
+		auto seg = m_treemap->m_maximalSegments[*m_dragging].segment;
+		bool vertical = abs(seg.source().x() - seg.target().x()) < M_EPSILON;
 		QApplication::setOverrideCursor(QCursor(vertical ? Qt::SizeHorCursor : Qt::SizeVerCursor));
 		return true;
 	}
@@ -312,79 +311,9 @@ void TreemapEditable::endDrag() {
 
 void TreemapEditable::handleDrag(Point<cartocrow::Inexact> to) {
 	if (!m_dragging.has_value()) return;
-
-	std::vector<std::tuple<Segment<K>, bool, bool>> newCurves;
-	for (auto& e : m_dragging->halfedges) {
-		auto& curve = e->curve();
-		bool rev = e->source()->point() == curve.target();
-		bool vertical = abs(curve.source().x() - curve.target().x()) < M_EPSILON;
-		Segment<K> newCurve;
-		if (vertical) {
-			newCurve = Segment<K>({to.x(), curve.source().y()}, {to.x(), curve.target().y()});
-		} else {
-			newCurve = Segment<K>({curve.source().x(), to.y()}, {curve.target().x(), to.y()});
-		}
-		newCurves.push_back({newCurve, rev, vertical});
-	}
-
-	auto [cf, rf, vertf] = newCurves.front();
-	auto source = rf ? cf.target() : cf.source();
-	auto [cb, rb, vertb] = newCurves.back();
-	auto target = rb ? cb.source() : cb.target();
-	auto vf = m_dragging->halfedges.front()->source();
-	auto vb = m_dragging->halfedges.back()->target();
-	auto vsf = perpVertices(m_dragging->halfedges.front()->twin());
-	auto vsb = perpVertices(m_dragging->halfedges.back());
-	std::vector<Point<K>> psf;
-	for (const auto& v : vsf) {
-		psf.push_back(v->point());
-	}
-	std::sort(psf.begin(), psf.end(), [vertf](Point<K> p1, Point<K> p2) { return vertf ? p1.x() <= p2.x() : p1.y() <= p2.y(); });
-	std::vector<Point<K>> psb;
-	for (const auto& v : vsb) {
-		psb.push_back(v->point());
-	}
-	std::sort(psb.begin(), psb.end(), [vertb](Point<K> p1, Point<K> p2) { return vertb ? p1.x() <= p2.x() : p1.y() <= p2.y(); });
-
-	bool problem = false;
-	if (psf.size() > 1 && std::upper_bound(psf.begin(), psf.end(), source, [vertf](Point<K> p1, Point<K> p2) { return vertf ? p1.x() <= p2.x() : p1.y() <= p2.y(); }) != ++psf.begin()) {
-		std::cout << "! Non-order-equivalent layout !" << std::endl;
-		problem = true;
-	}
-	if (psb.size() > 1 && std::upper_bound(psb.begin(), psb.end(), target, [vertb](Point<K> p1, Point<K> p2) { return vertb ? p1.x() <= p2.x() : p1.y() <= p2.y(); }) != ++psb.begin()) {
-		std::cout << "! Non-order-equivalent layout !" << std::endl;
-		problem = true;
-	}
-
-	for (int i = 0; !problem && i < newCurves.size(); ++i) {
-		auto& [newCurve, rev, vert] = newCurves[i];
-		auto& e = m_dragging->halfedges[i];
-		auto modifyVertex = [this, &e, vert](TMArrangement::Vertex_handle v, auto p) {
-			auto start = v->incident_halfedges();
-			auto eit = start;
-			do {
-				if (vert && isVertical(eit) || !vert && isHorizontal(eit)) continue;
-				auto curve = eit->curve();
-				auto dir = (curve.target() - curve.source()).direction();
-				auto replaceSource = curve.source() == v->point();
-				auto replaceTarget = curve.target() == v->point();
-				auto newCurve = Segment<K>(replaceSource ? p : curve.source(), replaceTarget ? p : curve.target());
-				auto newDir = (newCurve.target() - newCurve.source()).direction();
-				if (!approx_same_direction(dir, newDir)) {
-					auto prev = prevOnMaximalSegment(eit);
-					auto next = nextOnMaximalSegment(eit);
-				}
-				m_arrAcc.modify_edge_ex(eit, newCurve);
-			} while(++eit != start);
-		  m_arrAcc.modify_vertex_ex(v, p);
-		};
-		modifyVertex(e->source(), rev ? newCurve.target() : newCurve.source());
-		modifyVertex(e->target(), rev ? newCurve.source() : newCurve.target());
-		m_arrAcc.modify_edge_ex(e, newCurve);
-	}
-
-	m_maximalSegments.clear();
-	maximal_segments(*m_treemap->m_arrangement, std::back_inserter(m_maximalSegments));
+	auto seg = m_treemap->m_maximalSegments[*m_dragging].segment;
+	bool vertical = abs(seg.source().x() - seg.target().x()) < M_EPSILON;
+	m_treemap->moveMaximalSegment(*m_dragging, vertical ? to.x() - seg.source().x() : to.y() - seg.source().y());
 }
 
 int main(int argc, char* argv[]) {
