@@ -9,6 +9,7 @@
 #include <stdexcept>
 #include <utility>
 #include <CGAL/number_utils.h>
+#include <Eigen/Eigenvalues>
 
 #include "../core/centroid.h"
 #include "triangulation.h"
