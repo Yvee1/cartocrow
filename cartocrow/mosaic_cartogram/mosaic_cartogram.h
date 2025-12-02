@@ -77,17 +77,11 @@ class MosaicCartogram {
 	/// it to size \c tileCount, and normalizes the contours.
 	template<typename K>
 	EllipseAtOrigin computeGuidingShape(const PolygonWithHoles<K> &polygon, int tileCount = 1) const {
-		// internally, we define tiles to have unit area
-		// return Ellipse::fit(polygon.outer_boundary())//.outer_boundary())
-		// 	.translateToOrigin()
-		// 	.scaleTo(tileCount)
-		// 	.normalizeContours();
 
 		return fitEllipsoid(polygon.outer_boundary())//.outer_boundary())
 			.translateToOrigin()
 			.scaleTo(tileCount)
 			.normalizeContours();
-		//blabla
 	}
 
 

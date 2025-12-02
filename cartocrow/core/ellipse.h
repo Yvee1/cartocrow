@@ -3,7 +3,6 @@
 
 #include <string>
 #include <utility>
-#include <Eigen/Dense>
 
 #include "core.h"
 
@@ -22,7 +21,6 @@ class Ellipse {
 	struct Parameters {
 		double a, b, angle, x0, y0;
 		std::array<std::array<double, 3>, 3> matrix() const;
-		//Eigen::Matrix3d matrix() const;
 	};
 
 	Ellipse() : A(1), B(), C(1), D(), E(), F(-1) {}
@@ -48,9 +46,6 @@ class Ellipse {
 	friend std::ostream& operator<<(std::ostream &os, const Ellipse &e);
 	std::string toString(int precision = 3) const;
 
-	template <class K>
-	static Ellipse fit(const Polygon<K> &polygon);
-	static Ellipse fit(const Eigen::ArrayX2d &boundary);
 };
 
 /// \author Gijs Pennings
