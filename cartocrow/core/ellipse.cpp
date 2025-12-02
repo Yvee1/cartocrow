@@ -19,15 +19,32 @@ bool isZero(double x) {
 	return std::abs(x) < 1e-10;
 }
 
-Eigen::Matrix3d Ellipse::Parameters::matrix() const {
+// Eigen::Matrix3d Ellipse::Parameters::matrix() const {
+// 	// multiply matrices left to right: translation, rotation, scaling
+// 	const double cos = std::cos(angle);
+// 	const double sin = std::sin(angle);
+// 	return Eigen::Matrix3d {
+// 		{ cos*a, -sin*b, x0 },
+// 		{ sin*a,  cos*b, y0 },
+// 		{ 0,      0,     1  }
+// 	};
+// }
+
+std::array<std::array<double, 3>, 3> Ellipse::Parameters::matrix() const {
 	// multiply matrices left to right: translation, rotation, scaling
 	const double cos = std::cos(angle);
 	const double sin = std::sin(angle);
-	return Eigen::Matrix3d {
-		{ cos*a, -sin*b, x0 },
-		{ sin*a,  cos*b, y0 },
-		{ 0,      0,     1  }
-	};
+
+	return std::array<std::array<double, 3>, 3> {{
+		{cos*a, -sin*b, x0},
+		{ sin*a, cos*b, y0},
+		{	0, 0, 1}
+	}};
+	// return Eigen::Matrix3d {
+	// 		{ cos*a, -sin*b, x0 },
+	// 		{ sin*a,  cos*b, y0 },
+	// 		{ 0,      0,     1  }
+	// };
 }
 
 // TODO: only enable checks in debug builds?

@@ -21,7 +21,8 @@ class Ellipse {
   public:
 	struct Parameters {
 		double a, b, angle, x0, y0;
-		Eigen::Matrix3d matrix() const;
+		std::array<std::array<double, 3>, 3> matrix() const;
+		//Eigen::Matrix3d matrix() const;
 	};
 
 	Ellipse() : A(1), B(), C(1), D(), E(), F(-1) {}

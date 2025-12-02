@@ -68,16 +68,29 @@ class MosaicCartogram {
 	int getTileCount(double value) const {
 		return std::round(value / m_parameters.unitValue);
 	}
+
+	template <class K>
+	static Ellipse fitEllipsoid(const Polygon<K> &polygon);
+	static Ellipse fitEllipsoid(const Eigen::ArrayX2d &boundary);
+
 	/// Fits ellipse to (the boundary of) the given \c polygon, translates it to the origin, scales
 	/// it to size \c tileCount, and normalizes the contours.
 	template<typename K>
 	EllipseAtOrigin computeGuidingShape(const PolygonWithHoles<K> &polygon, int tileCount = 1) const {
 		// internally, we define tiles to have unit area
-		return Ellipse::fit(polygon.outer_boundary())
+		// return Ellipse::fit(polygon.outer_boundary())//.outer_boundary())
+		// 	.translateToOrigin()
+		// 	.scaleTo(tileCount)
+		// 	.normalizeContours();
+
+		return fitEllipsoid(polygon.outer_boundary())//.outer_boundary())
 			.translateToOrigin()
 			.scaleTo(tileCount)
 			.normalizeContours();
+		//blabla
 	}
+
+
 
 	int getNumberOfRegions() const {
 		return m_regionIndices.size();  // == m_landRegions.size() + m_seaRegions.size() + 3

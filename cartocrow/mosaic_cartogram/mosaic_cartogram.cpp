@@ -329,4 +329,81 @@ int MosaicCartogram::parseIntAtEnd(const std::string &s) {
 	return n;
 }
 
+template Ellipse MosaicCartogram::fitEllipsoid<Exact>(const Polygon<Exact> &polygon);
+template Ellipse MosaicCartogram::fitEllipsoid<Inexact>(const Polygon<Inexact> &polygon);
+
+template <class K> Ellipse MosaicCartogram::fitEllipsoid(const Polygon<K>& polygon) {
+	const auto n = polygon.size();
+
+	// if the polygon is too small, we simply return a circle with the same area and centroid
+	if (n < 6) {
+		const EllipseAtOrigin circle(1, 0, 1, -CGAL::to_double(polygon.area()) / std::numbers::pi);
+		return circle.translate(approximate(centroid(polygon)) - CGAL::ORIGIN);
+	}
+
+	// TODO: linearly space points on boundary instead of taking vertices, which biases the ellipse towards "detailed corners"
+	Eigen::ArrayX2d boundary(n, 2);
+	for (int i = 0; i < n; i++) {
+		const Point<K> &p = polygon.vertex(i);
+		boundary(i, 0) = CGAL::to_double(p.x());
+		boundary(i, 1) = CGAL::to_double(p.y());
+	}
+	return fitEllipsoid(boundary);
+
+}
+
+// based on Fitzgibbon et al. (1999)
+// TODO: implement improvements by Harker et al. (2008)?
+Ellipse leastSquares(const Eigen::ArrayX2d &boundary) {
+	const int n = boundary.rows();
+	if (n < 6) throw std::invalid_argument("To fit an ellipse you need at least 6 points");
+
+	const Eigen::ArrayXd xs = boundary.col(0);
+	const Eigen::ArrayXd ys = boundary.col(1);
+
+	// design matrix (n×6)
+	Eigen::MatrixXd D(n, 6);
+	D << xs*xs, xs*ys, ys*ys, xs, ys, Eigen::VectorXd::Ones(n);
+
+	// scatter matrix (6×6)
+	const Eigen::MatrixXd S = D.transpose() * D;
+
+	// constraint matrix (6×6)
+	Eigen::MatrixXd C = Eigen::MatrixXd::Zero(6, 6);
+	C(0, 2) =  2;
+	C(1, 1) = -1;
+	C(2, 0) =  2;
+
+	// Compute the one positive eigenvalue and corresponding eigenvector. Due to numerical instabi-
+	// lity, there are often other positive eigenvalues that are very close to 0. We ignore these by
+	// taking the largest.
+	// TODO: What should happen with zero, infinite, or imaginary eigenvalues?
+	// TODO: This could produce nonsense (e.g., see Halíř & Flusser, 1998).
+	const Eigen::EigenSolver<Eigen::MatrixXd> evSolver(S.inverse() * C);
+	const Eigen::Vector<double, 6> evs = evSolver.eigenvalues().real();
+	const int i = std::max_element(evs.begin(), evs.end()) - evs.begin();
+	const Eigen::Vector<double, 6> u = evSolver.eigenvectors().col(i).real();
+
+	// ellipse coefficients
+	const Eigen::Vector<double, 6> a = u / std::sqrt(u.transpose() * C * u);
+	return { a[0], a[1], a[2], a[3], a[4], a[5] };
+}
+
+Ellipse MosaicCartogram::fitEllipsoid(const Eigen::ArrayX2d &boundary) {
+	Eigen::ArrayX2d ps = boundary;
+
+	// normalize the points: subtract mean and divide by standard deviation
+	// this improves numerical stability during fitting
+	const Eigen::Array<double, 1, 2> mean = ps.colwise().mean();
+	ps.rowwise() -= mean;
+	const Eigen::Array<double, 1, 2> invStd = std::sqrt(ps.rows()) / ps.colwise().norm();
+	ps.rowwise() *= invStd;
+
+	// fit ellipse and "denormalize"
+	return leastSquares(ps)
+		.stretch(invStd[0], invStd[1])
+		.translate(mean[0], mean[1]);
+}
+
+
 } // namespace cartocrow::mosaic_cartogram
