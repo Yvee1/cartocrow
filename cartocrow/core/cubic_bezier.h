@@ -130,7 +130,7 @@ class CubicBezierCurve {
 		std::vector<Number<K>> intersT;
 		intersectionsT(line, std::back_inserter(intersT));
 		for (Number<K> t : intersT) {
-			*out++ = CurvePoint(t, evaluate(t));
+			*out++ = CurvePoint{t, evaluate(t)};
 		}
 	}
 
@@ -144,7 +144,7 @@ class CubicBezierCurve {
 			// Parameter on segment
 			auto s = (point - segment.source()) * (segment.target() - segment.source()) / segment.squared_length();
 			if (s >= 0 && s <= 1) {
-				*out++ = CurvePoint(t, point);
+				*out++ = CurvePoint{t, point};
 			}
 		}
 	}
@@ -161,7 +161,7 @@ class CubicBezierCurve {
 			// Parameter on ray
 			auto s = (point - ray.source()) * v / v.squared_length();
 			if (s >= 0 && s <= 1) {
-				*out++ = CurvePoint(t, point);
+				*out++ = CurvePoint{t, point};
 			}
 		}
 	}
@@ -187,7 +187,7 @@ class CubicBezierCurve {
 		std::vector<Number<K>> ts;
 		inflectionsT(std::back_inserter(ts));
 		for (const auto& t : ts) {
-			*out++ = CurvePoint(t, evaluate(t));
+			*out++ = CurvePoint{t, evaluate(t)};
 		}
 	}
 
@@ -271,6 +271,19 @@ class CubicBezierSpline {
 	/// Append a cubic Bézier curve from two endpoints.
 	void appendCurve(Point<K> source, Point<K> target);
 
+	// === Helper structs ===
+	/// A Bézier spline is parameterized by a pair of a curve index and a curve parameter.
+	struct SplineParameter {
+		int curveIndex;
+		Number<K> t;
+	};
+
+	/// We represent a point on a spline by a pair of its spline parameter and the coordinates of the point in the plane.
+	struct SplinePoint {
+		SplineParameter param;
+		Point<K> point;
+	};
+
 	// === Access ===
 	/// Returns a copy of the ith curve.
 	Curve curve(size_t i) const;
@@ -284,6 +297,21 @@ class CubicBezierSpline {
 	const ControlsContainer& controlPoints() const;
 	/// Returns the ith control point.
 	Point<K> controlPoint(size_t i) const;
+
+	/// Evaluates the spline at the spline parameter.
+	Point<K> evaluate(const SplineParameter& param) const;
+	/// Evaluates the curve at the spline parameter.
+	Point<K> position(const SplineParameter& param) const;
+	/// Evaluates the derivative at the spline parameter.
+	Vector<K> derivative(const SplineParameter& param) const;
+	/// Evaluates the second derivative at the spline parameter.
+	Vector<K> derivative2(const SplineParameter& param) const;
+	/// Computes the tangent at the spline parameter.
+	Vector<K> tangent(const SplineParameter& param) const;
+	/// Computes the normal at the spline parameter.
+	Vector<K> normal(const SplineParameter& param) const;
+	/// Computes the curvature at the spline parameter.
+	Number<K> curvature(const SplineParameter& param) const;
 
 	class CurveIterable {
 	  public:
@@ -367,6 +395,8 @@ class CubicBezierSpline {
 	bool closed() const;
 
 	// === More computational operations ===
+	/// Returns the extrema on the spline: left-, bottom-, right-, top-most points on the curve.
+	std::tuple<SplinePoint, SplinePoint, SplinePoint, SplinePoint> extrema() const;
 	/// Returns the axis-aligned bounding box of the spline.
 	Box bbox() const;
 	/// Returns a copy of the spline that is the reverse of this spline.
@@ -379,5 +409,85 @@ class CubicBezierSpline {
 	/// Positive for counter-clockwise curves, negative otherwise.
 	/// For open splines it returns the signed area as if the curve was closed with a line segment between the endpoints.
 	Number<Inexact> signedArea() const;
+
+	/// Outputs the parameter values (\ref SplineParameter) at which the curvature flips sign.
+	template <class OutputIterator>
+	void inflectionsT(OutputIterator out) const {
+		int curveIndex = 0;
+		for (const auto& curve : curves()) {
+			std::vector<Number<K>> ts;
+			curve.inflectionsT(std::back_inserter(ts));
+			for (double t : ts) {
+				*out++ = SplineParameter{curveIndex, t};
+			}
+			++curveIndex;
+		}
+	}
+
+	/// Outputs the spline points (\ref SplinePoint) at which the curvature flips sign.
+	template <class OutputIterator>
+	void inflections(OutputIterator out) const {
+		int curveIndex = 0;
+		for (const auto& curve : curves()) {
+			std::vector<Curve::CurvePoint> pts;
+			curve.inflections(std::back_inserter(pts));
+			for (const auto& pt : pts) {
+				*out++ = SplinePoint{SplineParameter{curveIndex, pt.t}, pt.point};
+			}
+			++curveIndex;
+		}
+	}
+
+	/// Outputs the spline parameter values at which the Bézier spline intersects the given line.
+	template <class OutputIterator>
+	void intersectionsT(const Line<K>& line, OutputIterator out) const {
+		int curveIndex = 0;
+		for (const auto& curve : curves()) {
+			std::vector<double> ts;
+			curve.intersectionsT(line, std::back_inserter(ts));
+			for (double t : ts) {
+				*out++ = SplineParameter{curveIndex, t};
+			}
+			++curveIndex;
+		}
+	}
+
+	/// Outputs the spline points (\ref SplinePoint) at which the Bézier spline intersects the given line.
+	template <class OutputIterator>
+	void intersections(const Line<K>& line, OutputIterator out) const {
+		std::vector<SplineParameter> intersParams;
+		intersectionsT(line, std::back_inserter(intersParams));
+		for (const auto& param : intersParams) {
+			*out++ = SplinePoint{param, evaluate(param)};
+		}
+	}
+
+	/// Outputs the spline points (\ref SplinePoint) at which the Bézier spline intersects the given line segment.
+	template <class OutputIterator>
+	void intersections(const Segment<K>& segment, OutputIterator out) const {
+		int curveIndex = 0;
+		for (const auto& curve : curves()) {
+			std::vector<CubicBezierCurve::CurvePoint> curvePoints;
+			curve.intersections(segment, std::back_inserter(curvePoints));
+			for (const auto& cp : curvePoints) {
+				*out++ = SplinePoint{.param=SplineParameter{curveIndex, cp.t}, .point=cp.point};
+				++curveIndex;
+			}
+		}
+	}
+
+	/// Outputs the spline points (\ref SplinePoint) at which the Bézier spline intersects the given ray.
+	template <class OutputIterator>
+	void intersections(const Ray<K>& ray, OutputIterator out) const {
+		int curveIndex = 0;
+		for (const auto& curve : curves()) {
+			std::vector<CubicBezierCurve::CurvePoint> curvePoints;
+			curve.intersections(ray, std::back_inserter(curvePoints));
+			for (const auto& cp : curvePoints) {
+				*out++ = SplinePoint{.param=SplineParameter{curveIndex, cp.t}, .point=cp.point};
+				++curveIndex;
+			}
+		}
+	}
 };
 }

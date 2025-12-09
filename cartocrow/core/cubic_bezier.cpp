@@ -327,6 +327,64 @@ bool CubicBezierSpline::closed() const {
 	return m_c.front() == m_c.back();
 }
 
+Point<Inexact> CubicBezierSpline::evaluate(const SplineParameter& param) const {
+    auto c = curve(param.curveIndex);
+	return c.evaluate(param.t);
+}
+
+Point<Inexact> CubicBezierSpline::position(const SplineParameter& param) const {
+	auto c = curve(param.curveIndex);
+	return c.position(param.t);
+}
+
+Vector<Inexact> CubicBezierSpline::derivative(const SplineParameter& param) const {
+	auto c = curve(param.curveIndex);
+	return c.derivative(param.t);
+}
+
+Vector<Inexact> CubicBezierSpline::derivative2(const SplineParameter& param) const {
+	auto c = curve(param.curveIndex);
+	return c.derivative2(param.t);
+}
+
+Vector<Inexact> CubicBezierSpline::tangent(const SplineParameter& param) const {
+	auto c = curve(param.curveIndex);
+	return c.tangent(param.t);
+}
+
+Vector<Inexact> CubicBezierSpline::normal(const SplineParameter& param) const {
+	auto c = curve(param.curveIndex);
+	return c.normal(param.t);
+}
+
+Number<Inexact> CubicBezierSpline::curvature(const SplineParameter& param) const {
+	auto c = curve(param.curveIndex);
+	return c.curvature(param.t);
+}
+
+std::tuple<CubicBezierSpline::SplinePoint, CubicBezierSpline::SplinePoint, CubicBezierSpline::SplinePoint, CubicBezierSpline::SplinePoint>
+CubicBezierSpline::extrema() const {
+	std::optional<SplinePoint> l, b, r, t;
+	int curveIndex = 0;
+	for (const auto& c : curves()) {
+		auto [l_, b_, r_, t_] = c.extrema();
+		if (!l.has_value() || l_.point.x() < l->point.x()) {
+			l = SplinePoint{.param=SplineParameter{.curveIndex=curveIndex, .t=l_.t}, .point=l_.point};
+		}
+		if (!r.has_value() || r_.point.x() > r->point.x()) {
+			r = SplinePoint{.param=SplineParameter{.curveIndex=curveIndex, .t=r_.t}, .point=r_.point};
+		}
+		if (!b.has_value() || b_.point.y() < b->point.y()) {
+			b = SplinePoint{.param=SplineParameter{.curveIndex=curveIndex, .t=b_.t}, .point=b_.point};
+		}
+		if (!t.has_value() || t_.point.y() > t->point.y()) {
+			t = SplinePoint{.param=SplineParameter{.curveIndex=curveIndex, .t=t_.t}, .point=t_.point};
+		}
+		++curveIndex;
+	}
+	return {*l, *b, *r, *t};
+}
+
 Box CubicBezierSpline::bbox() const {
 	auto curves_view = curves();
 	std::vector<CubicBezierCurve> temp(curves_view.begin(), curves_view.end());
