@@ -41,7 +41,7 @@ std::shared_ptr<ComputeScaleFactor> ComputeScaleFactor::construct(const Paramete
 ComputeScaleFactor::ComputeScaleFactor(const Parameters& parameters)
     : buffer_rad_(parameters.buffer_rad), max_buffer_rad_(-1) {
 	assert(buffer_rad_ >= 0);
-	assert(buffer_rad_ <= M_PI);
+	assert(buffer_rad_ <= std::numbers::pi);
 }
 
 Number<Inexact> ComputeScaleFactor::operator()(std::vector<Necklace>& necklaces) {

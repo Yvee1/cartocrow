@@ -187,7 +187,7 @@ double approximateLength(const CSXMCurve& xmc) {
         auto acc = approximate(c.center());
         auto angle = orientedAngleBetween(s - acc, t - acc, xmc.orientation());
 		if (angle < 0) {
-			angle += M_2xPI;
+			angle += two_pi;
 		}
         return angle * CGAL::sqrt(CGAL::to_double(c.squared_radius()));
     }
@@ -202,12 +202,12 @@ double approximateLength(const CSCurve& c) {
         const auto& circ = c.supporting_circle();
         auto r = CGAL::sqrt(CGAL::to_double(circ.squared_radius()));
         if (c.is_full()) {
-            return M_2xPI * r;
+            return two_pi * r;
         }
         auto acc = approximate(circ.center());
         auto angle = orientedAngleBetween(s - acc, t - acc, c.orientation());
 		if (angle < 0) {
-			angle += M_2xPI;
+			angle += two_pi;
 		}
         return angle * r;
     }

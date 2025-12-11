@@ -24,7 +24,7 @@ target_link_libraries(chorematic_map
 	PUBLIC core
 		   circle_segment_helpers
 		   reader
-	PRIVATE GDAL::GDAL
+	       GDAL::GDAL
 )
 
 cartocrow_install_module(chorematic_map)

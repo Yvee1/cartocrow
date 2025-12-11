@@ -32,7 +32,7 @@ PolarPoint::PolarPoint(const Number<Inexact>& r, const Number<Inexact>& phi) : m
 	if (r < 0) {
 		throw std::runtime_error("Tried to construct a polar point with r < 0");
 	}
-	m_phi = wrapAngle(m_phi, -M_PI);
+	m_phi = wrapAngle(m_phi, -std::numbers::pi);
 }
 
 PolarPoint::PolarPoint(const PolarPoint& p) : m_r(p.r()), m_phi(p.phi()) {}

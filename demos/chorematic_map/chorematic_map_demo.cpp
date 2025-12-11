@@ -21,6 +21,7 @@
 #include "cartocrow/core/arrangement_map.h"
 #include "cartocrow/renderer/ipe_renderer.h"
 #include "cartocrow/reader/gdal_conversion.h"
+#include "cartocrow/reader/region_map_reader.h"
 
 #include "demos/widgets/double_slider.h"
 
@@ -211,7 +212,7 @@ void ChorematicMapDemo::exportToGpkg(const std::filesystem::path& outputPath) {
 
 	GDALDataset *poDS;
 
-	poDS = poDriver->Create(outputPath.c_str(), 0, 0, 0, GDT_Unknown, nullptr);
+	poDS = poDriver->Create(outputPath.string().c_str(), 0, 0, 0, GDT_Unknown, nullptr);
 	if( poDS == nullptr )
 	{
 		printf( "Creation of output file failed.\n" );
@@ -604,7 +605,7 @@ ChorematicMapDemo::ChorematicMapDemo() {
 		std::filesystem::path filePath = QFileDialog::getOpenFileName(this, tr("Select region map file"), startDir).toStdString();
 		if (filePath == "") return;
 		loadMap(filePath);
-		loadMapButton->setText(QString::fromStdString(filePath.filename()));
+		loadMapButton->setText(QString::fromStdString(filePath.filename().string()));
 		resample();
         auto abb = approximate(m_sampler->getArrBoundingBox());
         Box box(abb.xmin(), abb.ymin(), abb.xmax(), abb.ymax());
@@ -620,7 +621,7 @@ ChorematicMapDemo::ChorematicMapDemo() {
 		std::filesystem::path filePath = QFileDialog::getOpenFileName(this, tr("Select region data file"), startDir).toStdString();
 		if (filePath == "") return;
 		loadData(filePath);
-		loadDataButton->setText(QString::fromStdString(filePath.filename()));
+		loadDataButton->setText(QString::fromStdString(filePath.filename().string()));
 		auto [rdMin, rdMax, _, blah] = regionDataData(*m_choropleth->m_data);
 		m_threshold->setMinimum(rdMin);
 		m_threshold->setMaximum(std::ceil(rdMax));

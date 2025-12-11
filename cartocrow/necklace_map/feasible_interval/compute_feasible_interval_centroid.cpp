@@ -53,7 +53,7 @@ ComputeFeasibleCentroidInterval::ComputeFeasibleCentroidInterval(const Parameter
     : ComputeFeasibleInterval(parameters),
       half_length_rad_(0.5 * parameters.centroid_interval_length_rad) {
 	assert(half_length_rad_ >= 0);
-	assert(half_length_rad_ < M_PI);
+	assert(half_length_rad_ < std::numbers::pi);
 }
 
 } // namespace cartocrow::necklace_map

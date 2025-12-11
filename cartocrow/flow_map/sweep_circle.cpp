@@ -41,7 +41,7 @@ void SweepCircle::shrink(Number<Inexact> r) {
 }
 
 bool SweepCircle::isValid() const {
-	Number<Inexact> previousPhi = -M_PI;
+	Number<Inexact> previousPhi = -std::numbers::pi;
 	bool valid = true;
 	if (m_edges.empty()) {
 		if (!m_onlyInterval.has_value()) {
@@ -61,8 +61,8 @@ bool SweepCircle::isValid() const {
 			// compare with a small epsilon to handle floating-point inaccuracy
 			if (phi < previousPhi - 0.000001) {
 				std::cout << "sweep circle is invalid because edge " << edgeId
-				          << " (at φ = " << phi / M_PI
-				          << "π) is ordered after the edge at φ = " << previousPhi / M_PI << "π"
+				          << " (at φ = " << phi / std::numbers::pi
+				          << "π) is ordered after the edge at φ = " << previousPhi / std::numbers::pi << "π"
 				          << std::endl;
 				valid = false;
 			}
@@ -125,11 +125,11 @@ void SweepCircle::print() const {
 		int i = 0;
 		for (auto& edge : m_edges) {
 			if (edge->shape().type() == SweepEdgeShape::Type::SEGMENT) {
-				std::cout << " |" << edge->shape().phiForR(m_r) / M_PI << "π| ";
+				std::cout << " |" << edge->shape().phiForR(m_r) / std::numbers::pi << "π| ";
 			} else if (edge->shape().type() == SweepEdgeShape::Type::LEFT_SPIRAL) {
-				std::cout << " )" << edge->shape().phiForR(m_r) / M_PI << "π) ";
+				std::cout << " )" << edge->shape().phiForR(m_r) / std::numbers::pi << "π) ";
 			} else if (edge->shape().type() == SweepEdgeShape::Type::RIGHT_SPIRAL) {
-				std::cout << " (" << edge->shape().phiForR(m_r) / M_PI << "π( ";
+				std::cout << " (" << edge->shape().phiForR(m_r) / std::numbers::pi << "π( ";
 			}
 			if (i++ % 4 == 3) {
 				std::cout << "…\n        … ";
@@ -439,8 +439,8 @@ void SweepCircle::setRadius(Number<Inexact> r) {
 	for (auto e = --m_edges.end(); e != m_edges.begin(); --e) {
 		auto beforeGrowing = (*e)->shape().evalForR(previousR);
 		auto afterGrowing = (*e)->shape().evalForR(r);
-		if (beforeGrowing.phi() > M_PI / 2 && afterGrowing.phi() < 0) {
-			/*std::cout << "counter-clockwise wraparound at φ = " << afterGrowing.phi() / M_PI << "π"
+		if (beforeGrowing.phi() > std::numbers::pi / 2 && afterGrowing.phi() < 0) {
+			/*std::cout << "counter-clockwise wraparound at φ = " << afterGrowing.phi() / std::numbers::pi << "π"
 			          << std::endl;*/
 			toReinsert.push_back(m_edges.extract(e));
 		} else {
@@ -451,8 +451,8 @@ void SweepCircle::setRadius(Number<Inexact> r) {
 	for (auto e = m_edges.begin(); e != --m_edges.end(); ++e) {
 		auto beforeGrowing = (*e)->shape().evalForR(previousR);
 		auto afterGrowing = (*e)->shape().evalForR(r);
-		if (beforeGrowing.phi() < -M_PI / 2 && afterGrowing.phi() > 0) {
-			/*std::cout << "clockwise wraparound at φ = " << afterGrowing.phi() / M_PI << "π"
+		if (beforeGrowing.phi() < -std::numbers::pi / 2 && afterGrowing.phi() > 0) {
+			/*std::cout << "clockwise wraparound at φ = " << afterGrowing.phi() / std::numbers::pi << "π"
 			          << std::endl;*/
 			toReinsert.push_back(m_edges.extract(e));
 		} else {

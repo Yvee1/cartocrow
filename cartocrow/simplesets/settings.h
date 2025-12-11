@@ -12,10 +12,10 @@ struct GeneralSettings {
 	int inflectionLimit = 2;
 	/// Maximum total angle (in radians) of a bend (maximum monotone subsequence of a bank).
 	/// The current implementation assumes this is at most pi.
-	Number<Inexact> maxBendAngle = M_PI;
+	Number<Inexact> maxBendAngle = std::numbers::pi;
 	/// Maximum turning angle (in radians) in a bank.
 	/// The current implementation assumes this is less than pi.
-	Number<Inexact> maxTurnAngle = 70.0 / 180 * M_PI;
+	Number<Inexact> maxTurnAngle = 70.0 / 180 * std::numbers::pi;
 
 	/// The distance each pattern is dilated.
 	[[nodiscard]] Number<Exact> dilationRadius() const {

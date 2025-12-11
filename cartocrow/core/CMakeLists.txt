@@ -1,8 +1,7 @@
 set(SOURCES
 	core.cpp
-	boundary_map.cpp
+	ellipse.cpp
 	region_arrangement.cpp
-	region_map.cpp
 	timer.cpp
 	cubic_bezier.cpp
 	rectangle_helpers.cpp
@@ -13,6 +12,7 @@ set(SOURCES
 set(HEADERS
 	centroid.h
 	core.h
+	ellipse.h
 	boundary_map.h
 	arrangement_map.h
 	region_arrangement.h
@@ -31,6 +31,8 @@ set(HEADERS
 )
 
 add_library(core ${SOURCES})
+target_link_libraries(core
+)
 
 cartocrow_install_module(core)
 install(FILES ${HEADERS} DESTINATION ${CARTOCROW_INSTALL_DIR}/core)

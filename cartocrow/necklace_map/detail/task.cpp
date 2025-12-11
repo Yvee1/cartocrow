@@ -66,7 +66,7 @@ TaskSlice::TaskSlice(const TaskSlice& slice, const Number<Inexact>& angle_start,
 	assert(0 <= cycle);
 
 	// Determine the part of the necklace covered by this slice.
-	const Number<Inexact> cycle_start = cycle * M_2xPI;
+	const Number<Inexact> cycle_start = cycle * two_pi;
 	const Number<Inexact> offset = cycle_start - angle_start;
 	coverage.from() = wrapAngle(event_from.angle_rad + offset, cycle_start);
 	coverage.to() = wrapAngle(event_to.angle_rad + offset, coverage.from());
@@ -81,7 +81,7 @@ TaskSlice::TaskSlice(const TaskSlice& slice, const Number<Inexact>& angle_start,
 
 		// Skip tasks that have started before the first cycle.
 		if (cycle == 0 && coverage.to() <= task->valid->from() + offset &&
-		    task->valid->contains(M_2xPI + angle_start)) {
+		    task->valid->contains(two_pi + angle_start)) {
 			continue;
 		}
 
@@ -111,7 +111,7 @@ void TaskSlice::Rotate(const TaskSlice& first_slice, const BitString& layer_set)
 	const Number<Inexact>& angle_rad = first_slice.event_from.angle_rad;
 	coverage = CircularRange(coverage.from() - angle_rad, coverage.to() - angle_rad);
 	if (coverage.to() < M_EPSILON) { // TODO why are we using epsilon here? (and later)
-		coverage.to() = M_2xPI;
+		coverage.to() = two_pi;
 	}
 
 	for (const CycleNodeLayered::Ptr& task : tasks) {
@@ -134,11 +134,11 @@ void TaskSlice::Rotate(const TaskSlice& first_slice, const BitString& layer_set)
 				if (coverage.to() - M_EPSILON <= task->valid->from()) {
 					task->disabled = true;
 				}
-				task->valid->to() = M_2xPI;
+				task->valid->to() = two_pi;
 			}
 		} else {
 			if (task->valid->to() < M_EPSILON) {
-				task->valid->to() = M_2xPI;
+				task->valid->to() = two_pi;
 			}
 		}
 	}

@@ -116,7 +116,7 @@ void intersect(const Spiral& spiral_1, const Spiral& spiral_2,
 	if (ddt_phi == 0) {
 		return;
 	}
-	const Number<Inexact> t_period = std::abs(M_2xPI / ddt_phi);
+	const Number<Inexact> t_period = std::abs(two_pi / ddt_phi);
 
 	// determine the time to spend on the second spiral to reach the same
 	// distance from the pole
@@ -133,9 +133,9 @@ void intersect(const Spiral& spiral_1, const Spiral& spiral_2,
 
 	// remember that the spirals have an infinite number of intersections;
 	// we want the one farthest from the pole for which 0 < t
-	const Number<Inexact> t_1_positive = 0 < ddt_phi ? d_phi / ddt_phi : (d_phi - M_2xPI) / ddt_phi;
+	const Number<Inexact> t_1_positive = 0 < ddt_phi ? d_phi / ddt_phi : (d_phi - two_pi) / ddt_phi;
 	//assert(0 < t_1_positive);
-	//assert(t_1 <= std::abs(M_PI / tan_alpha_1));
+	//assert(t_1 <= std::abs(std::numbers::pi / tan_alpha_1));
 	//assert(t_1_positive < t_period);
 
 	intersections.push_back(spiral_1.evaluate(t_1_positive));
@@ -154,7 +154,7 @@ void intersect(const PolarLine& line_1, const PolarLine& line_2,
 	// t_1 = R_2 / sin(phi_d) - R_1 * cos(phi_d) / sin(phi_d) = R_2 / sin(phi_d) - R_1 / tan(phi_d)
 
 	const Number<Inexact> phi_d = wrapAngle(line_2.foot().phi() - line_1.foot().phi());
-	if (std::abs(phi_d) < Number<Inexact>(1e-15) || std::abs(phi_d - M_PI) < Number<Inexact>(1e-15)) {
+	if (std::abs(phi_d) < Number<Inexact>(1e-15) || std::abs(phi_d - std::numbers::pi) < Number<Inexact>(1e-15)) {
 		return;
 	}
 
@@ -174,15 +174,15 @@ void intersect(const PolarLine& line, const Spiral& spiral, std::vector<PolarPoi
 	const Number<Inexact>& phi_spiral = spiral.anchor().phi();
 
 	if (spiral.angle() == 0) {
-		const Number<Inexact> phi_diff = wrapAngle(phi_spiral - phi_line, -M_PI);
+		const Number<Inexact> phi_diff = wrapAngle(phi_spiral - phi_line, -std::numbers::pi);
 
 		if (line.foot().r() == 0) {
-			if (phi_diff == -M_PI_2) {
+			if (phi_diff == -two_pi) {
 				// overlapping in 'clockwise' direction from the foot
 				intersections.push_back(line.pointAlongLine(0));
 				intersections.push_back(line.pointAlongLine(-spiral.anchor().r()));
 				return;
-			} else if (phi_diff == M_PI_2) {
+			} else if (phi_diff == two_pi) {
 				// overlapping in 'counter-clockwise' direction from the foot
 				intersections.push_back(line.pointAlongLine(spiral.anchor().r()));
 				intersections.push_back(line.pointAlongLine(0));
@@ -193,7 +193,7 @@ void intersect(const PolarLine& line, const Spiral& spiral, std::vector<PolarPoi
 				return;
 			}
 		} else {
-			if (std::abs(phi_diff) < M_PI_2) {
+			if (std::abs(phi_diff) < two_pi) {
 				// 1 intersection at the spiral's phi
 				intersections.push_back(line.pointAlongLine(line.distanceAlongLineForPhi(phi_spiral)));
 				return;
@@ -236,7 +236,7 @@ void intersect(const PolarLine& line, const Spiral& spiral, std::vector<PolarPoi
 
 	const Number<Inexact> period = spiral.period();
 	const Number<Inexact> t_spiral_parallel =
-	    spiral.parameterForPhi(phi_line + M_PI_2 + spiral.angle());
+	    spiral.parameterForPhi(phi_line + two_pi + spiral.angle());
 
 	// We determine two reference times t_0 < t_1 such that an intersection point must lie between t_i and t_i + period / 2.
 	// The point at the second reference time should lie on the same side of the line as the anchor.
@@ -273,8 +273,8 @@ void intersect(const PolarLine& line, const Spiral& spiral, std::vector<PolarPoi
 			const Number<Inexact> phi_line_near_0 = line.pointAlongLine(t_line_near[0]).phi();
 			const Number<Inexact> phi_line_near_1 = line.pointAlongLine(t_line_near[1]).phi();
 
-			if (std::abs(wrapAngle(phi_spiral_near - phi_line_near_0, -M_PI)) <
-			    std::abs(wrapAngle(phi_spiral_near - phi_line_near_1, -M_PI))) {
+			if (std::abs(wrapAngle(phi_spiral_near - phi_line_near_0, -std::numbers::pi)) <
+			    std::abs(wrapAngle(phi_spiral_near - phi_line_near_1, -std::numbers::pi))) {
 				intersections.push_back(line.pointAlongLine(t_line_near[0]));
 			} else {
 				intersections.push_back(line.pointAlongLine(t_line_near[1]));

@@ -130,7 +130,7 @@ Number<Inexact> CircleNecklace::computeAngleAtDistanceRad(const Number<Inexact>&
 	const Number<Inexact> distance_abs = std::abs(distance);
 	assert(distance_abs <= 2 * radius_);
 	if (distance_abs == 2 * radius_) {
-		return angle_rad + M_PI;
+		return angle_rad + std::numbers::pi;
 	}
 
 	const Number<Inexact> angle_diff = 2 * std::asin(distance_abs / (2 * radius_));

@@ -37,6 +37,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <cmath>
 #include <limits>
 
+#include <numbers>
+
 namespace cartocrow::renderer {
 
 GeometryWidget::Editable::Editable(GeometryWidget* widget) : m_widget(widget) {}
@@ -514,7 +516,7 @@ void GeometryWidget::drawCoordinates() {
 		double phiDecimalCount = std::max(0, static_cast<int>(log10(m_transform.m11() * r)) + 1);
 		Number<Inexact> theta = std::atan2(converted.y(), converted.x());
 		coordinate = "(r = " + QString::number(r, 'f', rDecimalCount) + ", φ = " +
-		             QString::number(theta / M_PI, 'f', phiDecimalCount) + "π)";
+		             QString::number(theta / std::numbers::pi, 'f', phiDecimalCount) + "π)";
 	}
 	m_painter->drawText(rect().marginsRemoved(QMargins(10, 10, 10, 10)),
 	                    Qt::AlignRight | Qt::AlignBottom, coordinate);
@@ -566,6 +568,16 @@ void GeometryWidget::draw(const Circle<Inexact>& c) {
 	setupPainter();
 	QRectF rect = convertBox(c.bbox());
 	m_painter->drawEllipse(rect);
+}
+
+void GeometryWidget::draw(const Ellipse& e) {
+	setupPainter();
+	const auto p = e.parameters();
+	m_painter->save();
+	m_painter->translate(convertPoint(Point<Inexact>(p.x0, p.y0)));
+	m_painter->rotate(-p.angle * 180 * std::numbers::inv_pi);  // clockwise!
+	m_painter->drawEllipse(QPointF(), p.a * zoomFactor(), p.b * zoomFactor());
+	m_painter->restore();
 }
 
 void GeometryWidget::draw(const CubicBezierSpline& s) {
@@ -663,8 +675,8 @@ QPainterPath GeometryWidget::renderPathToQt(const RenderPath& p) {
             Vector<Inexact> diagonal(radius, radius);
             QRectF bounds(convertPoint(center - diagonal), convertPoint(center + diagonal));
 
-            double startAngle = atan2((from - center).y(), (from - center).x()) * (180 / M_PI);
-            double endAngle = atan2((to - center).y(), (to - center).x()) * (180 / M_PI);
+            double startAngle = atan2((from - center).y(), (from - center).x()) * (180 / std::numbers::pi);
+            double endAngle = atan2((to - center).y(), (to - center).x()) * (180 / std::numbers::pi);
             double sweepLength = endAngle - startAngle;
             if (!clockwise && sweepLength < 0) {
                 sweepLength += 360;  // counter-clockwise -> positive sweepLength

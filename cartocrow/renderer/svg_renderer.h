@@ -20,8 +20,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #ifndef CARTOCROW_RENDERER_SVG_RENDERER_H
 #define CARTOCROW_RENDERER_SVG_RENDERER_H
 
-#include <QPainter>
-
 #include <filesystem>
 #include <fstream>
 #include <stack>
@@ -80,6 +78,7 @@ class SvgRenderer : public GeometryRenderer {
 	void draw(const Point<Inexact>& p) override;
 	void draw(const Circle<Inexact>& c) override;
 	void draw(const CubicBezierSpline& s) override;
+	void draw(const Ellipse& e) override;
 	void draw(const Line<Inexact>& l) override;
 	void draw(const Ray<Inexact>& r) override;
 	void draw(const Halfplane<Inexact>& h) override;
