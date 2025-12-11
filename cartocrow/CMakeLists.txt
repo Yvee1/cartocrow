@@ -17,7 +17,6 @@ add_subdirectory(circle_segment_helpers)
 add_subdirectory(necklace_map)
 add_subdirectory(simplification)
 add_subdirectory(flow_map)
-add_subdirectory(mosaic_cartogram)
 add_subdirectory(isoline_simplification)
 add_subdirectory(simplesets)
 add_subdirectory(chorematic_map)
@@ -32,7 +31,6 @@ target_link_libraries(
     necklace_map
     flow_map
     simplification
-    mosaic_cartogram
     isoline_simplification
     simplesets
     chorematic_map

@@ -197,10 +197,10 @@ void IpeRenderer::draw(const Ellipse& e) {
 	const auto m = e.parameters().matrix();
 	ipe::Matrix matrix {
 		// transposed linear map:  (i.e., to make it column-major)
-		m(0, 0), m(1, 0),
-		m(0, 1), m(1, 1),
+		m[0][0], m[1][0],
+		m[0][1], m[1][1],
 		// translation:
-		m(0, 2), m(1, 2)
+		m[0][2], m[1][2]
 	};
 	ipe::Ellipse* ellipse = new ipe::Ellipse(matrix);
 	ipe::Shape* shape = new ipe::Shape();

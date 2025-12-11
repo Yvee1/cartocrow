@@ -133,14 +133,6 @@ On Ubuntu 25.04, most dependencies can be obtained from the repository:
 sudo apt install build-essential cmake
 sudo apt install libcgal-dev nlohmann-json3-dev qtbase5-dev
 sudo apt install libpq-dev gdal-bin libgdal-dev
-sudo apt install libeigen3-dev
-```
-
-If Eigen [cannot be found](https://stackoverflow.com/q/23284473) during compilation, you might need to run:
-
-```sh
-cd /usr/include
-sudo ln -s eigen3/Eigen Eigen
 ```
 
 (Note: Ubuntu 24.10 and earlier have CGAL 5.6, which does not work.)

@@ -135,7 +135,7 @@ class GeometryRenderer {
 	/// Draws a circle with the currently set style.
 	virtual void draw(const Circle<Inexact>& c) = 0;
 	/// Draws a circle with the currently set style.
-	void draw(const Circle<Exact>& c);
+	///void draw(const Circle<Exact>& c);
 	/// Draws an ellipse with the currently set style.
 	virtual void draw(const Ellipse& e) = 0;
 	/// Draws a Bézier spline with the currently set style.

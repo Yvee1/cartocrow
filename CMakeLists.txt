@@ -48,7 +48,6 @@ find_package(Ipelib REQUIRED)
 include_directories(${Ipelib_INCLUDE_DIR})
 
 include_directories(${CavalierContours_INCLUDE_DIR})
-find_package(Eigen3 3.4 REQUIRED NO_MODULE)
 
 # ## SOURCES ###
 
