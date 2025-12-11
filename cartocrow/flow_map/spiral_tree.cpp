@@ -36,7 +36,7 @@ namespace cartocrow::flow_map {
 
 SpiralTree::SpiralTree(const Point<Inexact> rootPosition, const Number<Inexact> restrictingAngle)
     : m_restrictingAngle(restrictingAngle), m_rootPosition(rootPosition) {
-	if (restrictingAngle < 0 || restrictingAngle > M_PI_2) {
+	if (restrictingAngle < 0 || restrictingAngle > two_pi) {
 		throw std::runtime_error("Restricting angle outside [0, 2 * pi]");
 	}
 
@@ -85,7 +85,7 @@ void SpiralTree::addShields() {
 		Point<Inexact> p = position.toCartesian() + (rootPosition() - CGAL::ORIGIN);
 		const Number<Inexact> shieldWidth = 1;
 		Vector<Inexact> v1 =
-		    PolarPoint(shieldWidth, position.phi() + M_PI_2).toCartesian() - CGAL::ORIGIN;
+		    PolarPoint(shieldWidth, position.phi() + two_pi).toCartesian() - CGAL::ORIGIN;
 		const Number<Inexact> shieldThickness = 1;
 		Vector<Inexact> v2 = PolarPoint(shieldThickness, position.phi()).toCartesian() - CGAL::ORIGIN;
 		Polygon<Inexact> polygon;
@@ -107,7 +107,7 @@ Point<Inexact> SpiralTree::rootPosition() const {
 
 /*void SpiralTree::setRestrictingAngle(const Number<Inexact>& restricting_angle) {
 	assert(restricting_angle > 0);
-	assert(restricting_angle < M_PI_2);
+	assert(restricting_angle < two_pi);
 	m_restricting_angle = restricting_angle;
 	clean();
 }*/
@@ -166,7 +166,7 @@ SpiralTree::Obstacle SpiralTree::makeObstacle(Polygon<Inexact> shape) {
 }
 
 void SpiralTree::subdivideClosestAndSpiral(Obstacle& obstacle) {
-	const Number<Inexact> phi_offset = M_PI_2 - m_restrictingAngle;
+	const Number<Inexact> phi_offset = two_pi - m_restrictingAngle;
 	assert(phi_offset > 0);
 	for (auto edge = obstacle.begin(); edge != obstacle.end(); ++edge) {
 		PolarPoint start = (*edge)->shape().start();

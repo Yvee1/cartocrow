@@ -16,7 +16,7 @@ target_link_libraries(reader
 	PUBLIC core
 		   renderer
 		   Ipe::ipelib
-	PRIVATE GDAL::GDAL
+	       GDAL::GDAL
 )
 
 cartocrow_install_module(reader)

@@ -81,8 +81,8 @@ bool ValidateScaleFactor::operator()(Necklace& necklace) const {
 		auto& node = nodes[i];
 		nodes.emplace_back(node);
 
-		nodes.back().valid->from() += M_2xPI;
-		nodes.back().valid->to() += M_2xPI;
+		nodes.back().valid->from() += two_pi;
+		nodes.back().valid->to() += two_pi;
 	}
 
 	// Compute the valid intervals at the specified scale factor, where beads can be placed without pairwise overlap.

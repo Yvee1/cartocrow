@@ -44,7 +44,7 @@ Number ComputeScaleFactorAnyOrderIngot::ComputeScaleUpperBound() {
 		}
 	}
 
-	return M_PI / nodes_.size() - half_buffer_rad_;
+	return std::numbers::pi / nodes_.size() - half_buffer_rad_;
 }
 
 void ComputeScaleFactorAnyOrderIngot::ComputeCoveringRadii(const Number& scale_factor) {

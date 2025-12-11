@@ -21,22 +21,38 @@ if (NOT EMSCRIPTEN)
     add_subdirectory(isoline_simplification)
     add_subdirectory(reader)
     add_subdirectory(simplification)
+    add_subdirectory(mosaic_cartogram)
 endif()
 
 add_library(cartocrow_lib INTERFACE)
+if (NOT EMSCRIPTEN)
 target_link_libraries(
     cartocrow_lib INTERFACE
     core
     circle_segment_helpers
     renderer
+    reader
+    necklace_map
+    flow_map
+    simplification
+    mosaic_cartogram
+    isoline_simplification
+    simplesets
+    chorematic_map
 )
+else()
+target_link_libraries(
+    cartocrow_lib INTERFACE
+    core
+    circle_segment_helpers
+    renderer
+    necklace_map
+    flow_map
+    simplesets
+)
+endif()
 
-install(
-    TARGETS cartocrow_lib
-    EXPORT ${CARTOCROW_EXPORT_TARGETS}
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBRARY_DIR}
-    INCLUDES DESTINATION ${CMAKE_INSTALL_SOURCE_DIR}
-)
+cartocrow_install_module(cartocrow_lib)
 install(
     EXPORT ${CARTOCROW_EXPORT_TARGETS}
     FILE "${CARTOCROW_EXPORT_TARGETS}.cmake"

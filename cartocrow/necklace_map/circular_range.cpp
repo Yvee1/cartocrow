@@ -25,9 +25,9 @@ namespace cartocrow::necklace_map {
 
 CircularRange::CircularRange(const Number<Inexact>& from_angle, const Number<Inexact>& to_angle)
     : Range(from_angle, to_angle) {
-	if (M_2xPI <= to_angle - from_angle) {
+	if (two_pi <= to_angle - from_angle) {
 		from() = 0;
-		to() = M_2xPI;
+		to() = two_pi;
 	} else {
 		from() = wrapAngle(from_angle);
 		to() = wrapAngle(to_angle, from());
@@ -40,11 +40,11 @@ bool CircularRange::isValid() const {
 	if (isFull()) {
 		return true;
 	}
-	return 0 <= from() && from() < M_2xPI && from() <= to() && to() < from() + M_2xPI;
+	return 0 <= from() && from() < two_pi && from() <= to() && to() < from() + two_pi;
 }
 
 bool CircularRange::isFull() const {
-	return from() == 0 && to() == M_2xPI;
+	return from() == 0 && to() == two_pi;
 }
 
 bool CircularRange::contains(const Number<Inexact>& value) const {

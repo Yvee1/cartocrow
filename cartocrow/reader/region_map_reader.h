@@ -14,6 +14,10 @@ namespace cartocrow {
 /// Throws if the file could not be read, if the file is not a valid Ipe file,
 /// or if the file does not contain regions like specified above.
 RegionMap ipeToRegionMap(const std::filesystem::path& file, bool labelAtCentroid = false);
+
+/// (temp) Should be removed in favor of an algorithm that computes salient
+/// points from a \ref RegionMap.
+std::vector<Point<Exact>> ipeToSalientPoints(const std::filesystem::path& file);
 }
 
 #endif //CARTOCROW_REGION_MAP_READER_H

@@ -32,10 +32,6 @@ write_basic_package_version_file(
     COMPATIBILITY AnyNewerVersion
 )
 
-if(MSVC)
-    add_compile_definitions(_USE_MATH_DEFINES)
-endif()
-
 if(EMSCRIPTEN)
     message(STATUS "Building for WebAssembly / Emscripten")
 else()
@@ -57,14 +53,21 @@ if(EMSCRIPTEN)
     include_directories(${EMSCRIPTEN_INCLUDE_DIR})
 else()
     find_package(CGAL REQUIRED)
+    find_path(CGAL_INCLUDE_DIR CGAL/Exact_predicates_inexact_constructions_kernel.h)
+    include_directories(${CGAL_INCLUDE_DIR})
     link_libraries(${CGAL_LIBRARIES})
     find_package(GMP REQUIRED)
 
     find_package(GDAL CONFIG REQUIRED)
+    include_directories(${GDAL_INCLUDE_DIR})
+
     find_package(Qt5Widgets REQUIRED)
     set(CMAKE_AUTOMOC ON)
-    find_package(glog REQUIRED)
     find_package(Ipelib REQUIRED)
+    include_directories(${Ipelib_INCLUDE_DIR})
+
+    include_directories(${CavalierContours_INCLUDE_DIR})
+    find_package(Eigen3 3.4 REQUIRED NO_MODULE)
 endif()
 
 ### SOURCES ###

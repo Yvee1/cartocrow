@@ -7,7 +7,7 @@
 
 CartoCrow is a framework that simplifies the implementation of algorithms in cartographic visualization. It allows researchers to experiment with these algorithms and use them to generate maps. The framework behind CartoCrow can be used to run other cartography algorithms online. CartoCrow consists of a C++ library (this repository) which provides a set of command-line applications, and a web interface (see [cartocrow-web](https://github.com/tue-alga/cartocrow-web)) which allows end users to generate maps in a user-friendly way.
 
-> [!WARNING]  
+> [!WARNING]
 > CartoCrow is still a **work in progress**  and should not be considered stable yet.
 
 This repository consists of the following subdirectories:
@@ -59,17 +59,13 @@ On Windows systems, we recommend using [vcpkg](https://github.com/microsoft/vcpk
   In our experience, vcpkg may misbehave when installed in a directory with a long path name, or a path name containing exotic characters. vcpkg itself recommends `C:\src\vcpkg`.
 
   For more information on installing vcpkg, see [here](https://github.com/microsoft/vcpkg#quick-start-windows).
+  
+  We use vcpkg in Manifest mode. This means that the dependencies are stored in the vcpkg.json file and should not need to be configured anymore. If using classic mode, install the packages listed in the json file.
 
-* **Install dependencies.** As described [here](https://doc.cgal.org/latest/Manual/windows.html#title0):
+* **Configure user presets.** 
 
-  ```sh
-  vcpkg install cgal:x64-windows
-  vcpkg install qt5:x64-windows
-  vcpkg install nlohmann-json:x64-windows
-  vcpkg install gdal
-  ```
-
-  This step can take a very long time, especially compiling CGAL (around 30 minutes) and Qt (around 2 hours).
+  The CMakePresets.json file configures three build types for Windows/MSVC: "_x64-Debug", "_x64-Release" and "_x64-RelWithDebInfo", matching the CMake build types. It is only missing some local paths depending on your installation, to be configured with a CMake.
+  The template file "CMakeUserPresets_template.json" provides a template that can be used. Create a copy of this file, called "CMakeUserPresets.json" and supply the paths in the template.
 
 * **Ipelib.** This library is not available in vcpkg, so we will have to build it ourselves. Unfortunately, the [upstream version](https://github.com/otfried/ipe/releases/download/v7.2.24/ipe-7.2.24-src.tar.gz) of ipelib does not compile cleanly with MSVC. We prepared a patched version *(to do: link coming soon)* that can be compiled and installed with
 
@@ -116,7 +112,7 @@ The remaining dependencies need to be built manually.
     * in `src/ipelib/ipeplatform.cpp` and `src/ipelib/ipebitmap_win.cpp`, add an `#include <string>`;
     * in `src/ipelib/ipeplatform.cpp`, in `Platform::runLatex()`, replace `wcmd.data()` by `&wcmd[0]`;
     * in `src/ipelib/ipeplatform.cpp`, in `String::w()`, replace `result.data()` by `&result[0]`.
-  
+
   Then, to compile:
   ```sh
   cd src
@@ -137,6 +133,14 @@ On Ubuntu 25.04, most dependencies can be obtained from the repository:
 sudo apt install build-essential cmake
 sudo apt install libcgal-dev nlohmann-json3-dev qtbase5-dev
 sudo apt install libpq-dev gdal-bin libgdal-dev
+sudo apt install libeigen3-dev
+```
+
+If Eigen [cannot be found](https://stackoverflow.com/q/23284473) during compilation, you might need to run:
+
+```sh
+cd /usr/include
+sudo ln -s eigen3/Eigen Eigen
 ```
 
 (Note: Ubuntu 24.10 and earlier have CGAL 5.6, which does not work.)

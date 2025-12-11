@@ -52,7 +52,7 @@ CircularRange ComputeFeasibleWedgeInterval::operator()(const PolygonSet<Inexact>
 			// Clockwise segment.
 			Number angle_target_adj = angle_target;
 			while (obscured.to_rad() < angle_target_adj) {
-				angle_target_adj -= M_2xPI;
+				angle_target_adj -= two_pi;
 			}
 			obscured.from_rad() = std::min(obscured.from_rad(), angle_target_adj);
 		}
@@ -61,7 +61,7 @@ CircularRange ComputeFeasibleWedgeInterval::operator()(const PolygonSet<Inexact>
 	const Number interval_length = obscured.ComputeLength();
 	if (interval_length == 0) {
 		return (*fallback_point_regions_)(extent, necklace);
-	} else if (M_2xPI <= interval_length) {
+	} else if (two_pi <= interval_length) {
 		return (*fallback_kernel_region_)(extent, necklace);
 	} else if (interval_length < interval_length_min_rad_) {
 		return (*fallback_small_regions_)(extent, necklace);
@@ -72,7 +72,7 @@ CircularRange ComputeFeasibleWedgeInterval::operator()(const PolygonSet<Inexact>
 	                                       ModuloNonZero(obscured.to_rad(), obscured.from_rad()));*/
 
 	// TODO debug
-	return CircularRange(0, M_2xPI);
+	return CircularRange(0, two_pi);
 }
 
 ComputeFeasibleWedgeInterval::ComputeFeasibleWedgeInterval(const Parameters& parameters)

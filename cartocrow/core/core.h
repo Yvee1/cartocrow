@@ -28,7 +28,6 @@ Created by tvl (t.vanlankveld@esciencecenter.nl) on 07-11-2019
 #include <CGAL/Bbox_2.h>
 #include <CGAL/Circle_2.h>
 #include <CGAL/Exact_predicates_exact_constructions_kernel.h>
-#include <CGAL/Exact_predicates_exact_constructions_kernel_with_sqrt.h>
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Line_2.h>
 #include <CGAL/Point_2.h>
@@ -38,6 +37,8 @@ Created by tvl (t.vanlankveld@esciencecenter.nl) on 07-11-2019
 #include <CGAL/Segment_2.h>
 #include <CGAL/Vector_2.h>
 #include <CGAL/number_utils.h>
+
+#include <numbers>
 
 namespace cartocrow {
 
@@ -53,6 +54,8 @@ template <class K> using Number = typename K::FT;
 template <class K> using Point = CGAL::Point_2<K>;
 /// A vector in the plane. See \ref CGAL::Vector_2.
 template <class K> using Vector = CGAL::Vector_2<K>;
+/// A direction in the plane. See \ref CGAL::Direction_2.
+template <class K> using Direction = CGAL::Direction_2<K>;
 /// A circle in the plane. See \ref CGAL::Circle_2.
 template <class K> using Circle = CGAL::Circle_2<K>;
 /// A line in the plane. See \ref CGAL::Line_2.
@@ -200,6 +203,14 @@ void pretendExact(InputIterator begin, InputIterator end, OutputIterator out) {
 	}
 }
 
+/// Returns the area of a polygon with holes.
+/// TODO: move to more logical place
+template <class K> Number<K> area(PolygonWithHoles<K> polygon) {
+	Number<K> a = polygon.outer_boundary().area();
+	for (const auto &h : polygon.holes()) a -= h.area();
+	return a;  // = outer area minus area of each hole
+}
+
 /// An RGB color. Used for storing the color of elements to be drawn.
 struct Color {
 	/// Red component (integer 0-255).
@@ -208,6 +219,10 @@ struct Color {
 	int g;
 	/// Blue component (integer 0-255).
 	int b;
+
+	/// Returns a new color that is darker (\f$0 \le f < 1\f$) or lighter
+	/// (\f$1 < f \le 2\f$).
+	Color shaded(double f) const;
 	/// Constructs the color black.
 	Color();
 	/// Constructs a color.
@@ -254,7 +269,7 @@ Number<Inexact> wrapAngle(Number<Inexact> alpha, Number<Inexact> beta = 0);
 Number<Inexact> wrapAngleUpper(Number<Inexact> alpha, Number<Inexact> beta = 0);
 
 /// \f$2 \pi\f$, defined here for convenience.
-constexpr Number<Inexact> M_2xPI = M_PI * 2;
+constexpr Number<Inexact> two_pi = std::numbers::pi * 2;
 
 } // namespace cartocrow
 

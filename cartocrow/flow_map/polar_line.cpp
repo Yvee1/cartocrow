@@ -46,7 +46,7 @@ bool PolarLine::containsR(const Number<Inexact>& R) const {
 
 bool PolarLine::containsPhi(const Number<Inexact>& phi) const {
 	const Number<Inexact> phi_d = std::abs(foot().phi() - phi);
-	return foot().r() == 0 || phi_d < M_PI_2 || 3 * M_PI_2 < phi_d;
+	return foot().r() == 0 || phi_d < two_pi || 3 * two_pi < phi_d;
 }
 
 PolarPoint PolarLine::pointAlongLine(const Number<Inexact>& t) const {

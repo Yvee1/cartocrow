@@ -78,8 +78,8 @@ ComputeScaleFactorFixedOrder::ComputeScaleFactorFixedOrder(Necklace& necklace,
 		assert(node_iter->bead != nullptr);
 		nodes_.emplace_back(node_iter->bead);
 
-		nodes_.back().valid->from() += M_2xPI;
-		nodes_.back().valid->to() += M_2xPI;
+		nodes_.back().valid->from() += two_pi;
+		nodes_.back().valid->to() += two_pi;
 	}
 }
 
@@ -89,8 +89,8 @@ ComputeScaleFactorFixedOrder::ComputeScaleFactorFixedOrder(Necklace& necklace,
 Number<Inexact> ComputeScaleFactorFixedOrder::Optimize() {
 	// Check whether the buffer allows any nodes.
 	// Note that the nodes are inserted twice.
-	max_buffer_rad_ = M_2xPI / (size() / 2); // TODO possible bug: integer division?
-	const Number<Inexact> available_rad = M_2xPI - buffer(0, size() / 2);
+	max_buffer_rad_ = two_pi / (size() / 2); // TODO possible bug: integer division?
+	const Number<Inexact> available_rad = two_pi - buffer(0, size() / 2);
 
 	const Number<Inexact> rho = OptimizeSubProblem(0, size() - 1, max_buffer_rad_);
 	const Number<Inexact> rho_full_necklace =

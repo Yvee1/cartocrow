@@ -104,11 +104,11 @@ Polygon<Inexact> SweepInterval::sweepShape(Number<Inexact> rFrom, Number<Inexact
 	// special case: if we're the only interval on the circle, just draw an annulus
 	if (!m_nextBoundary) {
 		Polygon<Inexact> result;
-		for (Number<Inexact> phi = 0; phi < 2 * M_PI; phi += SWEEP_SHAPE_RESOLUTION) {
+		for (Number<Inexact> phi = 0; phi < 2 * std::numbers::pi; phi += SWEEP_SHAPE_RESOLUTION) {
 			result.push_back(PolarPoint(rFrom, phi).toCartesian());
 		}
-		result.push_back(PolarPoint(rFrom, 2 * M_PI).toCartesian());
-		for (Number<Inexact> phi = 2 * M_PI; phi > 0; phi -= SWEEP_SHAPE_RESOLUTION) {
+		result.push_back(PolarPoint(rFrom, 2 * std::numbers::pi).toCartesian());
+		for (Number<Inexact> phi = 2 * std::numbers::pi; phi > 0; phi -= SWEEP_SHAPE_RESOLUTION) {
 			result.push_back(PolarPoint(rTo, phi).toCartesian());
 		}
 		result.push_back(PolarPoint(rTo, 0).toCartesian());
@@ -178,7 +178,7 @@ Number<Inexact> SweepInterval::angleSpan(std::vector<PolarPoint>& vertices) cons
 	for (size_t i = 0; i + 1 < vertices.size(); i++) {
 		Number<Inexact> phi1 = vertices[i].phi();
 		Number<Inexact> phi2 = vertices[i + 1].phi();
-		angle += wrapAngle(phi2 - phi1, -M_PI);
+		angle += wrapAngle(phi2 - phi1, -std::numbers::pi);
 	}
 	return angle;
 }

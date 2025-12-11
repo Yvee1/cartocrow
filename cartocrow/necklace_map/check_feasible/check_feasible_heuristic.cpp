@@ -81,7 +81,7 @@ bool CheckFeasibleHeuristic::Feasible() {
 	size_t count = 0;
 	for (CheckSet::iterator left_iter = nodes_check_.begin(), right_iter = nodes_check_.begin();
 	     left_iter != nodes_check_.end() && right_iter != nodes_check_.end();) {
-		if ((*right_iter)->valid->from() + M_2xPI < (*left_iter)->valid->to()) {
+		if ((*right_iter)->valid->from() + two_pi < (*left_iter)->valid->to()) {
 			if (--(*right_iter)->check == 0) {
 				--count;
 			}
