@@ -21,7 +21,6 @@ if (NOT EMSCRIPTEN)
     add_subdirectory(isoline_simplification)
     add_subdirectory(reader)
     add_subdirectory(simplification)
-    add_subdirectory(mosaic_cartogram)
 endif()
 
 add_library(cartocrow_lib INTERFACE)
