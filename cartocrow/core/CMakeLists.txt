@@ -1,9 +1,7 @@
 set(SOURCES
 	core.cpp
 	ellipse.cpp
-	boundary_map.cpp
 	region_arrangement.cpp
-	region_map.cpp
 	timer.cpp
 	bezier.cpp
 	rectangle_helpers.cpp

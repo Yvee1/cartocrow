@@ -32,24 +32,45 @@ write_basic_package_version_file(
     COMPATIBILITY AnyNewerVersion
 )
 
-# ## DEPENDENCIES ###
-find_package(CGAL REQUIRED)
-find_path(CGAL_INCLUDE_DIR CGAL/Exact_predicates_inexact_constructions_kernel.h)
-include_directories(${CGAL_INCLUDE_DIR})
-link_libraries(${CGAL_LIBRARIES})
-find_package(GMP REQUIRED)
+if(EMSCRIPTEN)
+    message(STATUS "Building for WebAssembly / Emscripten")
+else()
+    message(STATUS "Building natively")
+endif()
 
-find_package(GDAL CONFIG REQUIRED)
-include_directories(${GDAL_INCLUDE_DIR})
+### DEPENDENCIES ###
+if(EMSCRIPTEN)
+    add_compile_definitions(
+        USE_BOOST_HEADERS=1
+        CGAL_ALWAYS_ROUND_TO_NEAREST
+        CGAL_DISABLE_GMP=ON
+    )
+    add_compile_options(-fwasm-exceptions)
+    add_link_options(-g -fwasm-exceptions -lembind --preload-file ${CMAKE_CURRENT_SOURCE_DIR}/data@/data)
+    if (NOT DEFINED EMSCRIPTEN_INCLUDE_DIR)
+        message(FATAL_ERROR "Please set EMSCRIPTEN_INCLUDE_DIR to the folder with all header files needed for emscripten compilation")
+    endif()
+    include_directories(${EMSCRIPTEN_INCLUDE_DIR})
+else()
+    find_package(CGAL REQUIRED)
+    find_path(CGAL_INCLUDE_DIR CGAL/Exact_predicates_inexact_constructions_kernel.h)
+    include_directories(${CGAL_INCLUDE_DIR})
+    link_libraries(${CGAL_LIBRARIES})
+    find_package(GMP REQUIRED)
 
-find_package(Qt5Widgets REQUIRED)
-set(CMAKE_AUTOMOC ON)
-find_package(Ipelib REQUIRED)
-include_directories(${Ipelib_INCLUDE_DIR})
+    find_package(GDAL CONFIG REQUIRED)
+    include_directories(${GDAL_INCLUDE_DIR})
 
-include_directories(${CavalierContours_INCLUDE_DIR})
+    find_package(Qt5Widgets REQUIRED)
+    set(CMAKE_AUTOMOC ON)
+    find_package(Ipelib REQUIRED)
+    include_directories(${Ipelib_INCLUDE_DIR})
 
-# ## SOURCES ###
+    include_directories(${CavalierContours_INCLUDE_DIR})
+    find_package(Eigen3 3.4 REQUIRED NO_MODULE)
+endif()
+
+### SOURCES ###
 
 # All source files should use include paths relative to the source root
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
@@ -59,9 +80,13 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
 add_subdirectory(cartocrow)
-add_subdirectory(demos)
-add_subdirectory(frontend)
-add_subdirectory(test)
+if (EMSCRIPTEN)
+    add_subdirectory(wasm_frontend)
+else()
+    add_subdirectory(demos)
+    add_subdirectory(frontend)
+    add_subdirectory(test)
+endif()
 
 # Install rules
 install(

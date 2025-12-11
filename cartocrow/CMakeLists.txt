@@ -11,23 +11,26 @@ macro(cartocrow_install_module NAME)
 endmacro(cartocrow_install_module)
 
 add_subdirectory(core)
-add_subdirectory(reader)
-add_subdirectory(renderer)
 add_subdirectory(circle_segment_helpers)
-add_subdirectory(necklace_map)
-add_subdirectory(simplification)
-add_subdirectory(flow_map)
-add_subdirectory(isoline_simplification)
+add_subdirectory(renderer)
 add_subdirectory(simplesets)
-add_subdirectory(chorematic_map)
+add_subdirectory(necklace_map)
+add_subdirectory(flow_map)
+if (NOT EMSCRIPTEN)
+    add_subdirectory(chorematic_map)
+    add_subdirectory(isoline_simplification)
+    add_subdirectory(reader)
+    add_subdirectory(simplification)
+endif()
 
 add_library(cartocrow_lib INTERFACE)
+if (NOT EMSCRIPTEN)
 target_link_libraries(
     cartocrow_lib INTERFACE
     core
-    reader
-    renderer
     circle_segment_helpers
+    renderer
+    reader
     necklace_map
     flow_map
     simplification
@@ -35,6 +38,17 @@ target_link_libraries(
     simplesets
     chorematic_map
 )
+else()
+target_link_libraries(
+    cartocrow_lib INTERFACE
+    core
+    circle_segment_helpers
+    renderer
+    necklace_map
+    flow_map
+    simplesets
+)
+endif()
 
 cartocrow_install_module(cartocrow_lib)
 install(
