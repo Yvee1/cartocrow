@@ -148,13 +148,7 @@ Polyline<Inexact> CubicBezierCurve::polyline(int nEdges) const {
 	Polyline<Inexact> pl;
 	if (nEdges < 1) return pl;
 
-	int nPoints = nEdges + 1;
-
-	double step = 1.0 / nEdges;
-	for (int i = 0; i < nPoints; ++i) {
-		double t = i * step;
-		pl.push_back(evaluate(t));
-	}
+	samplePoints(nEdges + 1, std::back_inserter(pl));
 
 	return pl;
 }
@@ -173,6 +167,63 @@ Number<Inexact> CubicBezierCurve::curvature(Number<Inexact> t) const {
 
 CubicBezierCurve CubicBezierCurve::transform(const CGAL::Aff_transformation_2<Inexact>& t) const {
 	return { m_p0.transform(t), m_p1.transform(t), m_p2.transform(t), m_p3.transform(t) };
+}
+
+CubicBezierCurve::CurvePoint
+CubicBezierCurve::nearest(Point<K> point) const {
+	int nPoints = 10;
+	double threshold = M_EPSILON;
+
+	int closest = -1;
+	double minDist2 = std::numeric_limits<double>::infinity();
+
+	std::vector<Point<K>> points;
+	samplePoints(nPoints, std::back_inserter(points));
+
+	for (int i = 0; i < nPoints; ++i) {
+		auto dist2 = CGAL::squared_distance(points[i], point);
+		if (dist2 < minDist2) {
+			minDist2 = dist2;
+			closest = i;
+		}
+	}
+
+	// now do binary search
+	auto indexToT = [nPoints](int index) {
+	    double step = 1.0 / (nPoints - 1);
+		return index * step;
+	};
+	double t1 = indexToT(std::max(0, closest - 1));
+	double t2 = indexToT(std::min(nPoints - 1, closest + 1));
+	double closestT = (t1 + t2) / 2;
+	auto closestP = points[closest];
+	while (t2 - t1 > threshold) {
+		double mt = (t1 + t2) / 2;
+		double s1 = (t1 + mt) / 2;
+		double s2 = (mt + t2) / 2;
+		auto s1P = evaluate(s1);
+		auto s2P = evaluate(s2);
+		double s1D2 = CGAL::squared_distance(s1P, point);
+		double s2D2 = CGAL::squared_distance(s2P, point);
+		double minD = std::min(std::min(s1D2, s2D2), minDist2);
+		if (minD == s1D2) {
+			minDist2 = minD;
+			closestT = s1;
+			closestP = s1P;
+			t2 = mt;
+		} else if (minD == s2D2) {
+			minDist2 = minD;
+			closestT = s2;
+			closestP = s2P;
+			t1 = mt;
+		} else {
+			assert(minD == minDist2);
+			minDist2 = minD;
+			t1 = s1;
+			t2 = s2;
+		}
+	}
+	return {closestT, closestP};
 }
 
 std::tuple<CubicBezierCurve::CurvePoint, CubicBezierCurve::CurvePoint, CubicBezierCurve::CurvePoint, CubicBezierCurve::CurvePoint>
@@ -362,6 +413,27 @@ Number<Inexact> CubicBezierSpline::curvature(const SplineParameter& param) const
 	return c.curvature(param.t);
 }
 
+CubicBezierSpline::SplinePoint
+CubicBezierSpline::nearest(Point<Inexact> point) const {
+	double minDist2 = std::numeric_limits<double>::infinity();
+	int closestIndex = -1;
+	Curve::CurvePoint closest;
+
+	int curveIndex = 0;
+	for (const auto& c : curves()) {
+		auto n = c.nearest(point);
+		auto dist2 = CGAL::squared_distance(point, n.point);
+		if (dist2 < minDist2) {
+			minDist2 = dist2;
+			closestIndex = curveIndex;
+			closest = n;
+		}
+		++curveIndex;
+	}
+
+	return SplinePoint{SplineParameter{closestIndex, closest.t}, closest.point};
+}
+
 std::tuple<CubicBezierSpline::SplinePoint, CubicBezierSpline::SplinePoint, CubicBezierSpline::SplinePoint, CubicBezierSpline::SplinePoint>
 CubicBezierSpline::extrema() const {
 	std::optional<SplinePoint> l, b, r, t;
@@ -416,6 +488,34 @@ Number<Inexact> CubicBezierSpline::signedArea() const {
 	a += p.area();
 
 	return a;
+}
+
+std::pair<CubicBezierSpline, CubicBezierSpline>
+CubicBezierSpline::split(const SplineParameter& param) const {
+	// Split the curve that is affected.
+	auto [c1, c2] = curve(param.curveIndex).split(param.t);
+
+	// Control points of other curves stay the same, copy them over appropriately.
+	CubicBezierSpline spline1;
+	for (int i = 0; i < param.curveIndex; ++i) {
+		if (spline1.empty())
+			spline1.m_c.push_back(m_c[3*i]);
+		spline1.m_c.push_back(m_c[3*i+1]);
+		spline1.m_c.push_back(m_c[3*i+2]);
+		spline1.m_c.push_back(m_c[3*i+3]);
+	}
+	spline1.appendCurve(c1);
+
+	CubicBezierSpline spline2;
+	spline2.appendCurve(c2);
+	for (int i_ = param.curveIndex + 1; i_ < numCurves(); ++i_) {
+		int i = i_ - param.curveIndex;
+		spline2.m_c.push_back(m_c[3*i+1]);
+		spline2.m_c.push_back(m_c[3*i+2]);
+		spline2.m_c.push_back(m_c[3*i+3]);
+	}
+
+	return {spline1, spline2};
 }
 
 Polyline<Inexact> CubicBezierSpline::polyline(int nEdgesPerCurve) const {

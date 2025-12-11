@@ -37,7 +37,7 @@ BezierDemo::BezierDemo() {
 	auto c6 = std::make_shared<Point<Inexact>>(3, 0);
 	m_renderer->registerEditable(c6);
 
-	m_renderer->addPainting([p1, p2, c0, c1, c2, c3, c4, c5, c6](GeometryRenderer& renderer) {
+	m_renderer->addPainting([p1, p2, c0, c1, c2, c3, c4, c5, c6, this](GeometryRenderer& renderer) {
 		// Define segment, cubic Bézier spline and its extrema, bounding box and inflection points
 	  	Segment<Inexact> seg(*p1, *p2);
 	  	CubicBezierCurve curve1(*c0, *c1, *c2, *c3);
@@ -108,6 +108,13 @@ BezierDemo::BezierDemo() {
 	  	for (const auto& inter : inters) {
 			  renderer.draw(inter.point);
 	  	}
+
+		// Draw nearest to mouse
+	    renderer.setStroke(Color(0, 200, 0), 1.0);
+		auto mp = m_renderer->mousePosition();
+		auto closest = spline.nearest(mp).point;
+		renderer.draw(closest);
+		renderer.draw(Segment<Inexact>(closest, mp));
 	}, "Bézier spline");
 }
 

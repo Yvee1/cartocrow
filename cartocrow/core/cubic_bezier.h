@@ -88,9 +88,19 @@ class CubicBezierCurve {
 
 	/// Returns the two parts after spliting this Bézier curve at point \c p at time \c t.
 	/// That is, the first curve of this pair starts at the source and ends at \c p.
-	/// The second curve of this pair \c p at p and ends at target.
+	/// The second curve of this pair starts at \c p and ends at the target.
 	/// Note that no approximation is needed for this operation, the curves match the original exactly (up to floating-point errors).
 	std::pair<CubicBezierCurve, CubicBezierCurve> split(const Number<K>& t) const;
+
+	/// Sample points with equidistant parameter values (not equidistant sample points).
+	template <class OutputIterator>
+	void samplePoints(int nPoints, OutputIterator out) const {
+		double step = 1.0 / (nPoints - 1);
+		for (int i = 0; i < nPoints; ++i) {
+			double t = i * step;
+			*out++ = evaluate(t);
+		}
+	}
 
 	/// Returns a naive approximation of this Bézier curve by a polyline with nEdges.
 	/// The polyline starts at the source and ends at the target of the curve.
@@ -104,6 +114,9 @@ class CubicBezierCurve {
 		Number<K> t;
 		Point<K> point;
 	};
+
+	/// Given a point, return the nearest point on the curve together with its parameter value.
+	CurvePoint nearest(Point<K> point) const;
 
 	/// Returns the extrema on the curve: left-, bottom-, right-, top-most points on the curve.
 	std::tuple<CurvePoint, CurvePoint, CurvePoint, CurvePoint> extrema() const;
@@ -188,54 +201,6 @@ class CubicBezierCurve {
 		inflectionsT(std::back_inserter(ts));
 		for (const auto& t : ts) {
 			*out++ = CurvePoint{t, evaluate(t)};
-		}
-	}
-
-	/// Outputs approximations of the intersection points (Point<Inexact>) with another cubic Bézier curve
-	template <class OutputIterator>
-	void intersections(const CubicBezierCurve& other, OutputIterator out) {
-		using Nt_traits = CGAL::CORE_algebraic_number_traits;
-		using NT = Nt_traits::Rational;
-		using Rational = Nt_traits::Rational;
-		using Algebraic = Nt_traits::Algebraic;
-		using Rat_kernel = CGAL::Cartesian<Rational>;
-		using Alg_kernel = CGAL::Cartesian<Algebraic>;
-		using Rat_point = Rat_kernel::Point_2;
-		using Traits =
-		    CGAL::Arr_Bezier_curve_traits_2<Rat_kernel, Alg_kernel, Nt_traits>;
-		using Bezier_curve = Traits::Curve_2;
-
-		auto rp = [](const Point<Inexact>& p) {
-			return Rat_point(p.x(), p.y());
-		};
-		std::vector<Rat_point> controls1({rp(m_p0), rp(m_p1), rp(m_p2), rp(m_p3)});
-		Bezier_curve cgalCurve1(controls1.begin(), controls1.end());
-
-		std::vector<Rat_point> controls2({rp(other.m_p0), rp(other.m_p1), rp(other.m_p2), rp(other.m_p3)});
-		Bezier_curve cgalCurve2(controls2.begin(), controls2.end());
-
-		std::vector<Bezier_curve> curves;
-		std::vector<Traits::Point_2> inters;
-		Traits traits;
-
-		// The following does not return any intersections for some reason
-//		CGAL::compute_intersection_points(curves.begin(), curves.end(), std::back_inserter(inters), false, traits);
-
-		// So just create an arrangement
-		CGAL::Arrangement_2<Traits> arr;
-		// Insertion of curves crashes sometimes.
-		// todo: report to cgal
-		CGAL::insert(arr, cgalCurve1);
-		CGAL::insert(arr, cgalCurve2);
-		for (const auto& vh : arr.vertex_handles()) {
-			// Todo: properly determine what is an intersection.
-			// In particular, self-intersections of curves are also reported currently
-			if (!vh->is_isolated() && vh->degree() > 2)
-				inters.push_back(vh->point());
-		}
-		for (const auto& pt : inters) {
-			auto [x, y] = pt.approximate();
-			*out++ = Point<Inexact>(x, y);
 		}
 	}
 };
@@ -395,6 +360,8 @@ class CubicBezierSpline {
 	bool closed() const;
 
 	// === More computational operations ===
+	/// Given a point, return the nearest point on the spline together with its parameter value.
+	SplinePoint nearest(Point<K> point) const;
 	/// Returns the extrema on the spline: left-, bottom-, right-, top-most points on the curve.
 	std::tuple<SplinePoint, SplinePoint, SplinePoint, SplinePoint> extrema() const;
 	/// Returns the axis-aligned bounding box of the spline.
@@ -409,6 +376,11 @@ class CubicBezierSpline {
 	/// Positive for counter-clockwise curves, negative otherwise.
 	/// For open splines it returns the signed area as if the curve was closed with a line segment between the endpoints.
 	Number<Inexact> signedArea() const;
+	/// Returns the two parts after spliting this Bézier spline at point \c p at parameter \c param.
+	/// That is, the first spline of this pair starts at the source and ends at \c p.
+	/// The second spline of this pair starts at \c p and ends at the target.
+	/// Note that no approximation is needed for this operation, the splines match the original exactly (up to floating-point errors).
+	std::pair<CubicBezierSpline, CubicBezierSpline> split(const SplineParameter& param) const;
 
 	/// Outputs the parameter values (\ref SplineParameter) at which the curvature flips sign.
 	template <class OutputIterator>
