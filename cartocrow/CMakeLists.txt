@@ -35,7 +35,6 @@ target_link_libraries(
     necklace_map
     flow_map
     simplification
-    mosaic_cartogram
     isoline_simplification
     simplesets
     chorematic_map

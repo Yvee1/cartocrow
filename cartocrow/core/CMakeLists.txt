@@ -30,7 +30,6 @@ set(HEADERS
 
 add_library(core ${SOURCES})
 target_link_libraries(core
-	PUBLIC Eigen3::Eigen Ipe::ipelib
 )
 
 cartocrow_install_module(core)
