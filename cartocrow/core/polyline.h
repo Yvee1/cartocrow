@@ -86,6 +86,15 @@ template <class K> class Polyline {
 	typedef SegmentIterator<K, typename std::vector<typename CGAL::Point_2<K>>::const_iterator> Edge_iterator;
 	Polyline() = default;
 
+	// Some container typedefs so that e.g. std::back_inserter can be used on a polyline.
+	using value_type = Point<K>;
+	using reference = Point<K>&;
+	using const_reference = const Point<K>&;
+	using iterator = Vertex_iterator;
+	using const_iterator = Vertex_iterator;
+	using difference_type = int;
+	using size_type = size_t;
+
 	template <class InputIterator> Polyline(InputIterator begin, InputIterator end) {
 		if (begin == end) {
 			throw std::runtime_error("Polyline cannot be empty.");
