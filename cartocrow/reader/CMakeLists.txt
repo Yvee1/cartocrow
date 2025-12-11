@@ -11,7 +11,7 @@ add_library(reader ${SOURCES})
 target_link_libraries(reader
 	PUBLIC core
 		   renderer
-	PRIVATE GDAL::GDAL
+	       GDAL::GDAL
 )
 
 cartocrow_install_module(reader)
