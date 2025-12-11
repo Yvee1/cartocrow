@@ -229,6 +229,9 @@ class GeometryWidget : public QWidget, public GeometryRenderer {
 	/// Returns the current zoom factor, in pixels per unit.
 	Number<Inexact> zoomFactor() const;
 
+	/// Returns the current mouse position.
+	Point<Inexact> mousePosition() const;
+
 	/// Adds an editable point.
 	void registerEditable(std::shared_ptr<Point<Inexact>> point);
     /// Adds an editable circle.

@@ -253,6 +253,10 @@ void GeometryWidget::paintEvent(QPaintEvent* event) {
 	drawCoordinates();
 }
 
+Point<Inexact> GeometryWidget::mousePosition() const {
+	return inverseConvertPoint(m_mousePos);
+}
+
 void GeometryWidget::mouseMoveEvent(QMouseEvent* event) {
 	m_mousePos = event->pos();
 
