@@ -37,6 +37,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <cmath>
 #include <limits>
 
+#include <numbers>
+
 namespace cartocrow::renderer {
 
 GeometryWidget::Editable::Editable(GeometryWidget* widget) : m_widget(widget) {}
@@ -564,6 +566,16 @@ void GeometryWidget::draw(const Circle<Inexact>& c) {
 	m_painter->drawEllipse(rect);
 }
 
+void GeometryWidget::draw(const Ellipse& e) {
+	setupPainter();
+	const auto p = e.parameters();
+	m_painter->save();
+	m_painter->translate(convertPoint(Point<Inexact>(p.x0, p.y0)));
+	m_painter->rotate(-p.angle * 180 * std::numbers::inv_pi);  // clockwise!
+	m_painter->drawEllipse(QPointF(), p.a * zoomFactor(), p.b * zoomFactor());
+	m_painter->restore();
+}
+
 void GeometryWidget::draw(const BezierSpline& s) {
 	setupPainter();
 	QPainterPath path;
@@ -729,7 +741,7 @@ void GeometryWidget::setMode(int mode) {
 }
 
 void GeometryWidget::setStroke(Color color, double width, bool absoluteWidth) {
-	m_style.m_strokeColor = QColor(color.r, color.g, color.b);
+	m_style.m_strokeColor.setRgb(color.r, color.g, color.b, m_style.m_strokeColor.alpha());
 	m_style.m_strokeWidth = width;
 	m_style.m_absoluteWidth = absoluteWidth;
 }

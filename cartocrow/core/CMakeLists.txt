@@ -1,5 +1,6 @@
 set(SOURCES
 	core.cpp
+	ellipse.cpp
 	boundary_map.cpp
 	region_arrangement.cpp
 	region_map.cpp
@@ -12,6 +13,7 @@ set(SOURCES
 set(HEADERS
 	centroid.h
 	core.h
+	ellipse.h
 	boundary_map.h
 	arrangement_map.h
 	region_arrangement.h
@@ -30,7 +32,7 @@ set(HEADERS
 
 add_library(core ${SOURCES})
 target_link_libraries(core
-	PRIVATE glog::glog
+	PUBLIC Eigen3::Eigen Ipe::ipelib
 )
 
 cartocrow_install_module(core)

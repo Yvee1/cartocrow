@@ -48,12 +48,11 @@ include_directories(${GDAL_INCLUDE_DIR})
 
 find_package(Qt5Widgets REQUIRED)
 set(CMAKE_AUTOMOC ON)
-find_package(glog REQUIRED)
-
 find_package(Ipelib REQUIRED)
 include_directories(${Ipelib_INCLUDE_DIR})
 
 include_directories(${CavalierContours_INCLUDE_DIR})
+find_package(Eigen3 3.4 REQUIRED NO_MODULE)
 
 # ## SOURCES ###
 

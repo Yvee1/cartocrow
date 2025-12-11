@@ -13,13 +13,13 @@ target_link_libraries(
     core
     reader
     flow_map
+    mosaic_cartogram
     necklace_map
     isoline_simplification
     simplesets
     chorematic_map
     renderer
     CGAL::CGAL
-    glog::glog
     nlohmann_json::nlohmann_json
 )
 
