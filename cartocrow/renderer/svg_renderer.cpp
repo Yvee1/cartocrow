@@ -131,9 +131,9 @@ void SvgRenderer::draw(const Ellipse& e) {
 	std::cerr << "Ellipsoid rendering is not implemented for svg format; ignoring\n";
 }
 
-void SvgRenderer::draw(const BezierSpline& s) {
+void SvgRenderer::draw(const CubicBezierSpline& s) {
 	// TODO
-	std::cerr << "The SVG renderer does not support BezierSplines; ignoring\n";
+	std::cerr << "The SVG renderer does not support CubicBezierSplines; ignoring\n";
 }
 
 std::string renderPathToSVGCommands(const RenderPath& p) {

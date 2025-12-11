@@ -20,10 +20,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #ifndef CARTOCROW_RENDERER_GEOMETRY_RENDERER_H
 #define CARTOCROW_RENDERER_GEOMETRY_RENDERER_H
 
-#include "../core/bezier.h"
 #include "../core/core.h"
+#include "../core/cubic_bezier.h"
 #include "../core/ellipse.h"
-#include "../core/region_map.h"
 #include "../core/polyline.h"
 #include "../core/halfplane.h"
 #include "render_path.h"
@@ -136,11 +135,10 @@ class GeometryRenderer {
 	virtual void draw(const Circle<Inexact>& c) = 0;
 	/// Draws an ellipse with the currently set style.
 	virtual void draw(const Ellipse& e) = 0;
-	/// Draws a Bézier spline with the currently set style.
 	/// Draws a Bézier curve with the currently set style.
-	void draw(const BezierCurve& c);
+	void draw(const CubicBezierCurve& c);
 	/// Draws a Bézier spline with the currently set style.
-	virtual void draw(const BezierSpline& s) = 0;
+	virtual void draw(const CubicBezierSpline& s) = 0;
 	/// Draws a line with the currently set style.
 	virtual void draw(const Line<Inexact>& l) = 0;
 	/// Draws a ray with the currently set style.
