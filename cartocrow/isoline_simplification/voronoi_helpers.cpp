@@ -412,8 +412,8 @@ void create_matching(const SDG2& delaunay, const SDG2::Edge& edge, Matching& mat
 	auto pv = pl.to_vector();
 	auto qv = ql.to_vector();
 	auto angle = acos((pv * qv) / (sqrt(pv.squared_length()) * sqrt(qv.squared_length())));
-	if (angle > M_PI/2) {
-		angle = M_PI - angle;
+	if (angle > std::numbers::pi/2) {
+		angle = std::numbers::pi - angle;
 	}
 	if (angle > angle_filter) {
 		return;

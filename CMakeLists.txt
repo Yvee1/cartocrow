@@ -32,10 +32,6 @@ write_basic_package_version_file(
     COMPATIBILITY AnyNewerVersion
 )
 
-if(MSVC)
-    add_compile_definitions(_USE_MATH_DEFINES)
-endif()
-
 # ## DEPENDENCIES ###
 find_package(CGAL REQUIRED)
 find_path(CGAL_INCLUDE_DIR CGAL/Exact_predicates_inexact_constructions_kernel.h)

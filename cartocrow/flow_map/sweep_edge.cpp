@@ -151,7 +151,7 @@ Number<Inexact> SweepEdgeShape::tangentAngleForR(Number<Inexact> r) const {
 		}
 		return std::atan2(end.y() - start.y(), end.x() - start.x());
 	} else {
-		return wrapAngle(evalForR(r).phi() + (m_type == Type::LEFT_SPIRAL ? m_alpha : -m_alpha), -M_PI);
+		return wrapAngle(evalForR(r).phi() + (m_type == Type::LEFT_SPIRAL ? m_alpha : -m_alpha), -std::numbers::pi);
 	}
 }
 
@@ -160,7 +160,7 @@ bool SweepEdgeShape::departsOutwardsToLeftOf(Number<Inexact> r, const SweepEdgeS
 
 	Number<Inexact> thisAngle = tangentAngleForR(r);
 	Number<Inexact> otherAngle = other.tangentAngleForR(r);
-	return wrapAngle(thisAngle - otherAngle, -M_PI) > 0;
+	return wrapAngle(thisAngle - otherAngle, -std::numbers::pi) > 0;
 }
 
 std::optional<Number<Inexact>> SweepEdgeShape::intersectOutwardsWith(const SweepEdgeShape& other,
@@ -191,13 +191,13 @@ std::optional<Number<Inexact>> SweepEdgeShape::intersectOutwardsWith(const Sweep
 
 	Number<Inexact> rLower = rMin;
 	Number<Inexact> rUpper = rLower;
-	Number<Inexact> rLimit = std::min(rMax, rMin * std::exp(2 * M_PI / std::tan(alpha)));
+	Number<Inexact> rLimit = std::min(rMax, rMin * std::exp(2 * std::numbers::pi / std::tan(alpha)));
 	while (rUpper < rLimit) {
-		rUpper = std::min(rMax, rUpper * std::exp(M_PI / (8 * std::tan(alpha))));
+		rUpper = std::min(rMax, rUpper * std::exp(std::numbers::pi / (8 * std::tan(alpha))));
 
 		if (isLeftOf(rUpper) != initiallyLeftOfOther) {
 			Number<Inexact> angleDifference = std::abs(phiForR(rUpper) - other.phiForR(rUpper));
-			if (angleDifference < M_PI / 2 || angleDifference > 3 * M_PI / 2) {
+			if (angleDifference < std::numbers::pi / 2 || angleDifference > 3 * std::numbers::pi / 2) {
 				// found intersection
 				break;
 			} else {
@@ -231,7 +231,7 @@ bool SweepEdgeShape::departsInwardsToLeftOf(Number<Inexact> r, const SweepEdgeSh
 
 	Number<Inexact> thisAngle = tangentAngleForR(r);
 	Number<Inexact> otherAngle = other.tangentAngleForR(r);
-	Number<Inexact> angleDifference = wrapAngle(otherAngle - thisAngle, -M_PI);
+	Number<Inexact> angleDifference = wrapAngle(otherAngle - thisAngle, -std::numbers::pi);
 	if (std::abs(angleDifference) > M_EPSILON) {
 		return angleDifference > 0;
 	}
@@ -269,13 +269,13 @@ std::optional<Number<Inexact>> SweepEdgeShape::intersectInwardsWith(const SweepE
 
 	Number<Inexact> rUpper = rMax;
 	Number<Inexact> rLower = rUpper;
-	Number<Inexact> rLimit = std::max(rMin, rMax / std::exp(2 * M_PI / std::tan(alpha)));
+	Number<Inexact> rLimit = std::max(rMin, rMax / std::exp(2 * std::numbers::pi / std::tan(alpha)));
 	while (rLower > rLimit) {
-		rLower = std::max(rMin, rLower / std::exp(M_PI / (8 * std::tan(alpha))));
+		rLower = std::max(rMin, rLower / std::exp(std::numbers::pi / (8 * std::tan(alpha))));
 
 		if (isLeftOf(rLower) != initiallyLeftOfOther) {
 			Number<Inexact> angleDifference = std::abs(phiForR(rLower) - other.phiForR(rLower));
-			if (angleDifference < M_PI / 2 || angleDifference > 3 * M_PI / 2) {
+			if (angleDifference < std::numbers::pi / 2 || angleDifference > 3 * std::numbers::pi / 2) {
 				// found intersection
 				break;
 			} else {

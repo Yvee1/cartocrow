@@ -48,8 +48,8 @@ IntervalCentroid::IntervalCentroid(const Number<Inexact>& from_rad, const Number
 //{
 //  // Order based on centroid.
 //  const Number order = (from_rad() + to_rad()) / 2;
-//  if (M_2xPI <= order)
-//    return order - M_2xPI;
+//  if (two_pi <= order)
+//    return order - two_pi;
 //  return order;
 //}
 

@@ -154,8 +154,8 @@ size_t BezierCurve::intersectRay(const Point<Inexact>& source, const Point<Inexa
 			const Number<Inexact> th = std::acos(R / CGAL::sqrt(-std::pow(Q, 3)));
 
 			roots[0] = 2 * CGAL::sqrt(-Q) * std::cos(th / 3) - A / 3;
-			roots[1] = 2 * CGAL::sqrt(-Q) * std::cos((th + 2 * M_PI) / 3) - A / 3;
-			roots[2] = 2 * CGAL::sqrt(-Q) * std::cos((th + 4 * M_PI) / 3) - A / 3;
+			roots[1] = 2 * CGAL::sqrt(-Q) * std::cos((th + 2 * std::numbers::pi) / 3) - A / 3;
+			roots[2] = 2 * CGAL::sqrt(-Q) * std::cos((th + 4 * std::numbers::pi) / 3) - A / 3;
 		}
 	}
 

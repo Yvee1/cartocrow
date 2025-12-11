@@ -87,7 +87,7 @@ bool CheckFeasibleExact::FeasibleFromSlice(const size_t first_slice_index,
 	}
 
 	// Check whether the first and last beads overlap.
-	if (M_2xPI < value_last_unused.angle_rad + value_last_unused.task->bead->covering_radius_rad +
+	if (two_pi < value_last_unused.angle_rad + value_last_unused.task->bead->covering_radius_rad +
 	                 slice.event_from.node->bead->covering_radius_rad) {
 		return false;
 	}

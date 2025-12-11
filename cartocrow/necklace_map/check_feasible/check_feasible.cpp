@@ -82,7 +82,7 @@ void CheckFeasible::InitializeSlices() {
 	// For this purpose, keep track of the nodes that are valid at some angle, starting at 0 radians (because the first event has the smallest positive angle).
 	std::vector<CycleNodeLayered::Ptr> active_nodes(num_layers);
 	for (const CycleNodeLayered::Ptr& node : nodes_) {
-		if (0 < node->valid->from() && M_2xPI <= node->valid->to()) {
+		if (0 < node->valid->from() && two_pi <= node->valid->to()) {
 			active_nodes[node->layer] = node;
 		}
 	}

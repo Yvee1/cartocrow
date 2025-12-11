@@ -46,7 +46,7 @@ Number<Inexact> Spiral::alpha(const PolarPoint& p1, const PolarPoint& p2) {
 	if (source.r() == 0) {
 		return 0;
 	}
-	Number<Inexact> diff_phi = wrapAngle(target.phi() - source.phi(), -M_PI);
+	Number<Inexact> diff_phi = wrapAngle(target.phi() - source.phi(), -std::numbers::pi);
 	return std::atan(diff_phi / -std::log(target.r() / source.r()));
 }
 
@@ -56,7 +56,7 @@ Number<Inexact> Spiral::dAlphaDPhi1(const PolarPoint& p1, const PolarPoint& p2) 
 	if (source.r() == 0) {
 		return 0;
 	}
-	Number<Inexact> phiDiff = wrapAngle(target.phi() - source.phi(), -M_PI);
+	Number<Inexact> phiDiff = wrapAngle(target.phi() - source.phi(), -std::numbers::pi);
 	Number<Inexact> rDiffLog = std::log(target.r() / source.r());
 	return rDiffLog / (rDiffLog * rDiffLog + phiDiff * phiDiff);
 }
@@ -71,7 +71,7 @@ Number<Inexact> Spiral::dAlphaDR1(const PolarPoint& p1, const PolarPoint& p2) {
 	if (source.r() == 0) {
 		return 0;
 	}
-	Number<Inexact> phiDiff = wrapAngle(target.phi() - source.phi(), -M_PI);
+	Number<Inexact> phiDiff = wrapAngle(target.phi() - source.phi(), -std::numbers::pi);
 	Number<Inexact> rDiffLog = std::log(target.r() / source.r());
 	return (-phiDiff / p1.r()) / (rDiffLog * rDiffLog + phiDiff * phiDiff);
 }
@@ -82,7 +82,7 @@ Number<Inexact> Spiral::dAlphaDR2(const PolarPoint& p1, const PolarPoint& p2) {
 	if (source.r() == 0) {
 		return 0;
 	}
-	Number<Inexact> phiDiff = wrapAngle(target.phi() - source.phi(), -M_PI);
+	Number<Inexact> phiDiff = wrapAngle(target.phi() - source.phi(), -std::numbers::pi);
 	Number<Inexact> rDiffLog = std::log(target.r() / source.r());
 	return (phiDiff / p2.r()) / (rDiffLog * rDiffLog + phiDiff * phiDiff);
 }
@@ -124,11 +124,11 @@ Number<Inexact> Spiral::phiForR(const Number<Inexact>& r) const {
 }
 
 Number<Inexact> Spiral::parameterForPhi(const Number<Inexact>& phi) const {
-	return wrapAngle(phi - m_anchor.phi(), -M_PI) / std::tan(m_angle);
+	return wrapAngle(phi - m_anchor.phi(), -std::numbers::pi) / std::tan(m_angle);
 }
 
 Number<Inexact> Spiral::period() const {
-	return M_2xPI / std::tan(m_angle);
+	return two_pi / std::tan(m_angle);
 }
 
 void Spiral::moveAnchor(const Number<Inexact>& r) {

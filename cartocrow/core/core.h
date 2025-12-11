@@ -38,6 +38,8 @@ Created by tvl (t.vanlankveld@esciencecenter.nl) on 07-11-2019
 #include <CGAL/Vector_2.h>
 #include <CGAL/number_utils.h>
 
+#include <numbers>
+
 namespace cartocrow {
 
 /// CGAL kernel for exact constructions (uses an exact number type).
@@ -267,7 +269,7 @@ Number<Inexact> wrapAngle(Number<Inexact> alpha, Number<Inexact> beta = 0);
 Number<Inexact> wrapAngleUpper(Number<Inexact> alpha, Number<Inexact> beta = 0);
 
 /// \f$2 \pi\f$, defined here for convenience.
-constexpr Number<Inexact> M_2xPI = M_PI * 2;
+constexpr Number<Inexact> two_pi = std::numbers::pi * 2;
 
 } // namespace cartocrow
 

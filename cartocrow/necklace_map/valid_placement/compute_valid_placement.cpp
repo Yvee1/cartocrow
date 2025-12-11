@@ -31,7 +31,7 @@ namespace detail {
 inline Number<Inexact> DistanceOnCircle(const Number<Inexact>& from_rad,
                                         const Number<Inexact>& to_rad) {
 	const Number<Inexact> dist = std::abs(to_rad - from_rad);
-	return std::min(dist, M_2xPI - dist);
+	return std::min(dist, two_pi - dist);
 }
 
 } // namespace detail
@@ -148,9 +148,9 @@ void ComputeValidPlacement::operator()(const Number<Inexact>& scale_factor,
 
 			// The 'bubble' is the largest range centered on the bead that does not contain the centroid.
 			const Number<Inexact> offset_prev_to_bubble =
-			    offset_from_centroid_rad < M_PI
+			    offset_from_centroid_rad < std::numbers::pi
 			        ? (offset_from_prev_rad - offset_from_centroid_rad)
-			        : (offset_from_prev_rad + (M_2xPI - offset_from_centroid_rad));
+			        : (offset_from_prev_rad + (two_pi - offset_from_centroid_rad));
 
 			const double w_0 = centroid_ratio * offset_prev_to_bubble * distance_from_prev_min *
 			                       distance_from_prev_max -

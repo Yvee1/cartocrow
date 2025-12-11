@@ -100,7 +100,7 @@ Number<Inexact> intersectionDelay(const std::vector<CatPoint>& points, const Pol
 	if (intersectionArea <= 0) {
 		return 0;
 	}
-	return sqrt(intersectionArea / M_PI);
+	return sqrt(intersectionArea / std::numbers::pi);
 }
 
 std::vector<std::pair<Number<Inexact>, Partition>>

@@ -512,7 +512,7 @@ void GeometryWidget::drawCoordinates() {
 		double phiDecimalCount = std::max(0, static_cast<int>(log10(m_transform.m11() * r)) + 1);
 		Number<Inexact> theta = std::atan2(converted.y(), converted.x());
 		coordinate = "(r = " + QString::number(r, 'f', rDecimalCount) + ", φ = " +
-		             QString::number(theta / M_PI, 'f', phiDecimalCount) + "π)";
+		             QString::number(theta / std::numbers::pi, 'f', phiDecimalCount) + "π)";
 	}
 	m_painter->drawText(rect().marginsRemoved(QMargins(10, 10, 10, 10)),
 	                    Qt::AlignRight | Qt::AlignBottom, coordinate);
@@ -671,8 +671,8 @@ QPainterPath GeometryWidget::renderPathToQt(const RenderPath& p) {
             Vector<Inexact> diagonal(radius, radius);
             QRectF bounds(convertPoint(center - diagonal), convertPoint(center + diagonal));
 
-            double startAngle = atan2((from - center).y(), (from - center).x()) * (180 / M_PI);
-            double endAngle = atan2((to - center).y(), (to - center).x()) * (180 / M_PI);
+            double startAngle = atan2((from - center).y(), (from - center).x()) * (180 / std::numbers::pi);
+            double endAngle = atan2((to - center).y(), (to - center).x()) * (180 / std::numbers::pi);
             double sweepLength = endAngle - startAngle;
             if (!clockwise && sweepLength < 0) {
                 sweepLength += 360;  // counter-clockwise -> positive sweepLength

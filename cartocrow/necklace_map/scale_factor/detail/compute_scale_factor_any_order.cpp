@@ -90,7 +90,7 @@ Number<Inexact> ComputeScaleFactorAnyOrder::ComputeScaleUpperBound() {
 	for (const CycleNodeLayered::Ptr& node : nodes_) {
 		const Number<Inexact> covering_radius_rad =
 		    necklace_shape_->computeCoveringRadiusRad(*(node->valid), node->bead->radius_base);
-		const Number<Inexact> scale_factor = (M_PI_2 - half_buffer_rad_) / covering_radius_rad;
+		const Number<Inexact> scale_factor = (two_pi - half_buffer_rad_) / covering_radius_rad;
 		upper_bound = 0 < upper_bound ? std::min(upper_bound, scale_factor) : scale_factor;
 
 		// The maximum buffer will be based on the minimum radius and the final scale factor.
@@ -113,7 +113,7 @@ Number<Inexact> ComputeScaleFactorAnyOrder::ComputeScaleUpperBound() {
 		}
 
 		// Check whether the scaled beads could fit.
-		if (totalSize <= M_PI) {
+		if (totalSize <= std::numbers::pi) {
 			lower_bound = scale_factor;
 		} else {
 			upper_bound = scale_factor;
