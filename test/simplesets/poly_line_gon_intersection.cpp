@@ -6,7 +6,6 @@
 
 using namespace cartocrow;
 using namespace cartocrow::renderer;
-using namespace cartocrow::simplesets;
 
 TEST_CASE("Intersection lies in polygon and has correct orientation") {
 	CSXMCurve xm_curve({-2, 0}, {2, 0});

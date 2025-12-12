@@ -34,19 +34,19 @@ TEST_CASE("Computing intersections") {
 	const PolarLine line_2(PolarPoint(Point<Inexact>(-2, -4)), PolarPoint(Point<Inexact>(1, 0)));
 	const PolarLine line_3(PolarPoint(Point<Inexact>(4, -3)), PolarPoint(Point<Inexact>(0, 0)));
 	const PolarLine line_4(PolarPoint(Point<Inexact>(0, 0)), PolarPoint(Point<Inexact>(4, 0)));
-	const Spiral spiral_1(PolarPoint(Point<Inexact>(11, -3)), M_PI * 3.0 / 8);
-	const Spiral spiral_2(PolarPoint(Point<Inexact>(11, -3)), -M_PI * 3.0 / 8);
-	const Spiral spiral_3(PolarPoint(Point<Inexact>(2, 3)), M_PI_4);
-	const Spiral spiral_4(PolarPoint(Point<Inexact>(-11, 3)), M_PI * 3.0 / 8);
+	const Spiral spiral_1(PolarPoint(Point<Inexact>(11, -3)), std::numbers::pi * 3.0 / 8);
+	const Spiral spiral_2(PolarPoint(Point<Inexact>(11, -3)), -std::numbers::pi * 3.0 / 8);
+	const Spiral spiral_3(PolarPoint(Point<Inexact>(2, 3)), std::numbers::pi / 4.0);
+	const Spiral spiral_4(PolarPoint(Point<Inexact>(-11, 3)), std::numbers::pi * 3.0 / 8);
 	const Spiral spiral_5(PolarPoint(Point<Inexact>(4, -3)), 0);
 
 	const PolarSegment line_segment_1(PolarPoint(Point<Inexact>(11, -2)),
 	                                  PolarPoint(Point<Inexact>(-1, 7)));
 	const PolarSegment line_segment_2(PolarPoint(Point<Inexact>(11, -2)),
 	                                  PolarPoint(Point<Inexact>(7, 1)));
-	const SpiralSegment spiral_segment_1(PolarPoint(Point<Inexact>(5, 5)), M_PI * 3.0 / 8, 0, 15);
-	const SpiralSegment spiral_segment_2(PolarPoint(Point<Inexact>(5, 5)), M_PI * 3.0 / 8, 0, 10);
-	const SpiralSegment spiral_segment_3(PolarPoint(Point<Inexact>(5, 5)), M_PI * 3.0 / 8, 6, 10);
+	const SpiralSegment spiral_segment_1(PolarPoint(Point<Inexact>(5, 5)), std::numbers::pi * 3.0 / 8, 0, 15);
+	const SpiralSegment spiral_segment_2(PolarPoint(Point<Inexact>(5, 5)), std::numbers::pi * 3.0 / 8, 0, 10);
+	const SpiralSegment spiral_segment_3(PolarPoint(Point<Inexact>(5, 5)), std::numbers::pi * 3.0 / 8, 6, 10);
 
 	std::vector<PolarPoint> intersections;
 

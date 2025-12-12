@@ -21,13 +21,13 @@ TEST_CASE("Creating and computing phi for a segment sweep edge shape") {
 
 // TODO
 /*TEST_CASE("Creating and computing phi for a spiral sweep edge shape") {
-	SweepEdgeShape edge(SweepEdgeShape::Type::RIGHT_SPIRAL, PolarPoint(1, M_PI / 2),
+	SweepEdgeShape edge(SweepEdgeShape::Type::RIGHT_SPIRAL, PolarPoint(1, std::numbers::pi / 2),
 	                    PolarPoint(2, 0));
 
 	CHECK(edge.nearR() == 1);
 
-	CHECK(edge.phiForR(1) == Approx(M_PI / 2));
-	CHECK(edge.phiForR(std::sqrt(2)) == Approx(M_PI / 4));
+	CHECK(edge.phiForR(1) == Approx(std::numbers::pi / 2));
+	CHECK(edge.phiForR(std::sqrt(2)) == Approx(std::numbers::pi / 4));
 	CHECK(edge.phiForR(2) == Approx(0));
 }*/
 
@@ -48,9 +48,9 @@ TEST_CASE("Splitting, switching and merging in a sweep circle") {
 	circle.grow(1);
 
 	auto e1 =
-	    std::make_shared<SweepEdge>(SweepEdgeShape(PolarPoint(1, M_PI / 2), PolarPoint(2, M_PI / 4)));
+	    std::make_shared<SweepEdge>(SweepEdgeShape(PolarPoint(1, std::numbers::pi / 2), PolarPoint(2, std::numbers::pi / 4)));
 	auto e2 = std::make_shared<SweepEdge>(
-	    SweepEdgeShape(PolarPoint(1, M_PI / 2), PolarPoint(3, 3 * M_PI / 4)));
+	    SweepEdgeShape(PolarPoint(1, std::numbers::pi / 2), PolarPoint(3, 3 * std::numbers::pi / 4)));
 	SweepCircle::SplitResult splitResult = circle.splitFromInterval(e1, e2);
 	splitResult.middleInterval->setType(SweepInterval::Type::OBSTACLE);
 	CHECK(circle.isValid());
@@ -76,7 +76,7 @@ TEST_CASE("Splitting, switching and merging in a sweep circle") {
 	CHECK(circle.intervalCount() == 2);
 
 	auto e3 = std::make_shared<SweepEdge>(
-	    SweepEdgeShape(PolarPoint(2, M_PI / 4), PolarPoint(3, 3 * M_PI / 4)));
+	    SweepEdgeShape(PolarPoint(2, std::numbers::pi / 4), PolarPoint(3, 3 * std::numbers::pi / 4)));
 	SweepCircle::SwitchResult switchResult = circle.switchEdge(e1, e3);
 	CHECK(circle.isValid());
 	CHECK(circle.intervalCount() == 2);
@@ -111,26 +111,26 @@ TEST_CASE("Querying a sweep circle for intervals and edges") {
 		CHECK(e1.first == circle.end());
 		CHECK(e1.second == circle.end());
 
-		SweepInterval* i2 = circle.intervalAt(M_PI);
+		SweepInterval* i2 = circle.intervalAt(std::numbers::pi);
 		CHECK(i2 != nullptr);
 		CHECK(i1 == i2);
 
-		auto e2 = circle.edgesAt(M_PI);
+		auto e2 = circle.edgesAt(std::numbers::pi);
 		CHECK(e2.first == circle.end());
 		CHECK(e2.second == circle.end());
 	}
 
 	SECTION("sweep circle with three intervals") {
-		SweepInterval* i = circle.intervalAt(M_PI / 2);
+		SweepInterval* i = circle.intervalAt(std::numbers::pi / 2);
 		auto e1 = std::make_shared<SweepEdge>(
-		    SweepEdgeShape(PolarPoint(1, M_PI / 2), PolarPoint(2, M_PI / 4)));
+		    SweepEdgeShape(PolarPoint(1, std::numbers::pi / 2), PolarPoint(2, std::numbers::pi / 4)));
 		auto e2 = std::make_shared<SweepEdge>(
-		    SweepEdgeShape(PolarPoint(1, M_PI / 2), PolarPoint(3, 3 * M_PI / 4)));
+		    SweepEdgeShape(PolarPoint(1, std::numbers::pi / 2), PolarPoint(3, 3 * std::numbers::pi / 4)));
 		SweepCircle::SplitResult result = circle.splitFromInterval(e1, e2);
 		circle.grow(1.5);
-		CHECK(circle.intervalAt(M_PI / 4) == result.rightInterval);
-		CHECK(circle.intervalAt(M_PI / 2) == result.middleInterval);
-		CHECK(circle.intervalAt(3 * M_PI / 4) == result.leftInterval);
+		CHECK(circle.intervalAt(std::numbers::pi / 4) == result.rightInterval);
+		CHECK(circle.intervalAt(std::numbers::pi / 2) == result.middleInterval);
+		CHECK(circle.intervalAt(3 * std::numbers::pi / 4) == result.leftInterval);
 	}
 }
 
@@ -140,14 +140,14 @@ TEST_CASE("Growing a sweep circle") {
 
 	SECTION("with an edge moving counter-clockwise over φ = π") {
 		auto e1 = std::make_shared<SweepEdge>(
-		    SweepEdgeShape(PolarPoint(1, 0.9 * M_PI), PolarPoint(2, 0.7 * M_PI)));
+		    SweepEdgeShape(PolarPoint(1, 0.9 * std::numbers::pi), PolarPoint(2, 0.7 * std::numbers::pi)));
 		auto e2 = std::make_shared<SweepEdge>(
-		    SweepEdgeShape(PolarPoint(1, 0.9 * M_PI), PolarPoint(2, -0.9 * M_PI)));
+		    SweepEdgeShape(PolarPoint(1, 0.9 * std::numbers::pi), PolarPoint(2, -0.9 * std::numbers::pi)));
 		circle.splitFromInterval(e1, e2);
 		circle.print();
 		CHECK(circle.isValid());
 		{
-			auto [begin, end] = circle.edgesAt(0.9 * M_PI);
+			auto [begin, end] = circle.edgesAt(0.9 * std::numbers::pi);
 			CHECK(std::distance(begin, end) == 2);
 		}
 
@@ -155,29 +155,29 @@ TEST_CASE("Growing a sweep circle") {
 		circle.print();
 		CHECK(circle.isValid());
 		{
-			auto [begin, end] = circle.edgesAt(0.7 * M_PI);
+			auto [begin, end] = circle.edgesAt(0.7 * std::numbers::pi);
 			CHECK(std::distance(begin, end) == 1);
 		}
 		{
-			auto [begin, end] = circle.edgesAt(-0.9 * M_PI);
+			auto [begin, end] = circle.edgesAt(-0.9 * std::numbers::pi);
 			CHECK(std::distance(begin, end) == 1);
 		}
 	}
 
 	SECTION("with several edges moving counter-clockwise over φ = π") {
 		auto e1 = std::make_shared<SweepEdge>(
-		    SweepEdgeShape(PolarPoint(1, 0.9 * M_PI), PolarPoint(3, -0.9 * M_PI)));
+		    SweepEdgeShape(PolarPoint(1, 0.9 * std::numbers::pi), PolarPoint(3, -0.9 * std::numbers::pi)));
 		auto e2 = std::make_shared<SweepEdge>(
-		    SweepEdgeShape(PolarPoint(1, 0.9 * M_PI), PolarPoint(3, -0.85 * M_PI)));
+		    SweepEdgeShape(PolarPoint(1, 0.9 * std::numbers::pi), PolarPoint(3, -0.85 * std::numbers::pi)));
 		auto e3 = std::make_shared<SweepEdge>(
-		    SweepEdgeShape(PolarPoint(1, 0.9 * M_PI), PolarPoint(3, -0.8 * M_PI)));
+		    SweepEdgeShape(PolarPoint(1, 0.9 * std::numbers::pi), PolarPoint(3, -0.8 * std::numbers::pi)));
 		auto result = circle.splitFromInterval(e1, e2, e3);
 		result.middleRightInterval->setType(SweepInterval::Type::SHADOW);
 		result.middleLeftInterval->setType(SweepInterval::Type::OBSTACLE);
 		circle.print();
 		CHECK(circle.isValid());
 		{
-			auto [begin, end] = circle.edgesAt(0.9 * M_PI);
+			auto [begin, end] = circle.edgesAt(0.9 * std::numbers::pi);
 			CHECK(std::distance(begin, end) == 3);
 		}
 
@@ -217,29 +217,29 @@ TEST_CASE("Growing a sweep circle") {
 		circle.print();
 		CHECK(circle.isValid());
 		{
-			auto [begin, end] = circle.edgesAt(-0.9 * M_PI);
+			auto [begin, end] = circle.edgesAt(-0.9 * std::numbers::pi);
 			CHECK(std::distance(begin, end) == 1);
 		}
 		{
-			auto [begin, end] = circle.edgesAt(-0.85 * M_PI);
+			auto [begin, end] = circle.edgesAt(-0.85 * std::numbers::pi);
 			CHECK(std::distance(begin, end) == 1);
 		}
 		{
-			auto [begin, end] = circle.edgesAt(-0.8 * M_PI);
+			auto [begin, end] = circle.edgesAt(-0.8 * std::numbers::pi);
 			CHECK(std::distance(begin, end) == 1);
 		}
 	}
 
 	SECTION("with an edge moving clockwise over φ = π") {
 		auto e1 = std::make_shared<SweepEdge>(
-		    SweepEdgeShape(PolarPoint(1, -0.9 * M_PI), PolarPoint(2, 0.9 * M_PI)));
+		    SweepEdgeShape(PolarPoint(1, -0.9 * std::numbers::pi), PolarPoint(2, 0.9 * std::numbers::pi)));
 		auto e2 = std::make_shared<SweepEdge>(
-		    SweepEdgeShape(PolarPoint(1, -0.9 * M_PI), PolarPoint(2, -0.7 * M_PI)));
+		    SweepEdgeShape(PolarPoint(1, -0.9 * std::numbers::pi), PolarPoint(2, -0.7 * std::numbers::pi)));
 		circle.splitFromInterval(e1, e2);
 		circle.print();
 		CHECK(circle.isValid());
 		{
-			auto [begin, end] = circle.edgesAt(-0.9 * M_PI);
+			auto [begin, end] = circle.edgesAt(-0.9 * std::numbers::pi);
 			CHECK(std::distance(begin, end) == 2);
 		}
 
@@ -247,11 +247,11 @@ TEST_CASE("Growing a sweep circle") {
 		circle.print();
 		CHECK(circle.isValid());
 		{
-			auto [begin, end] = circle.edgesAt(0.9 * M_PI);
+			auto [begin, end] = circle.edgesAt(0.9 * std::numbers::pi);
 			CHECK(std::distance(begin, end) == 1);
 		}
 		{
-			auto [begin, end] = circle.edgesAt(-0.7 * M_PI);
+			auto [begin, end] = circle.edgesAt(-0.7 * std::numbers::pi);
 			CHECK(std::distance(begin, end) == 1);
 		}
 	}

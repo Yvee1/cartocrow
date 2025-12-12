@@ -47,7 +47,7 @@ class OptimizationDemo : public QMainWindow {
   private:
 	void recalculate();
 	void updateCostLabel();
-	Number<Inexact> m_alpha = 25 * M_PI / 180;
+	Number<Inexact> m_alpha = 25 * std::numbers::pi / 180;
 
 	std::vector<std::shared_ptr<Point<Inexact>>> m_places;
 	std::shared_ptr<cartocrow::flow_map::SmoothTree> m_smoothTree;

@@ -41,7 +41,7 @@ class SpiralTreeDemo : public QMainWindow {
 
   private:
 	void recalculate();
-	Number<Inexact> m_alpha = 25 * M_PI / 180;
+	Number<Inexact> m_alpha = 25 * std::numbers::pi / 180;
 
 	std::vector<std::shared_ptr<Point<Inexact>>> m_places;
 	std::vector<std::shared_ptr<Polygon<Inexact>>> m_obstacles;

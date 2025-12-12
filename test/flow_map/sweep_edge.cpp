@@ -7,55 +7,55 @@ using namespace cartocrow::flow_map;
 
 TEST_CASE("Computing tangent angles") {
 	SECTION("segments") {
-		CHECK(SweepEdgeShape(PolarPoint(1, 0), PolarPoint(std::sqrt(2), M_PI / 4))
-		          .tangentAngleForR(1) == Approx(M_PI / 2));
-		CHECK(SweepEdgeShape(PolarPoint(1, M_PI / 2), PolarPoint(std::sqrt(2), M_PI / 4))
+		CHECK(SweepEdgeShape(PolarPoint(1, 0), PolarPoint(std::sqrt(2), std::numbers::pi / 4))
+		          .tangentAngleForR(1) == Approx(std::numbers::pi / 2));
+		CHECK(SweepEdgeShape(PolarPoint(1, std::numbers::pi / 2), PolarPoint(std::sqrt(2), std::numbers::pi / 4))
 		          .tangentAngleForR(1) == Approx(0));
-		CHECK(SweepEdgeShape(PolarPoint(1, M_PI / 2), PolarPoint(std::sqrt(2), 3 * M_PI / 4))
-		          .tangentAngleForR(1) == Approx(M_PI));
-		CHECK(SweepEdgeShape(PolarPoint(1, M_PI), PolarPoint(std::sqrt(2), 3 * M_PI / 4))
-		          .tangentAngleForR(1) == Approx(M_PI / 2));
+		CHECK(SweepEdgeShape(PolarPoint(1, std::numbers::pi / 2), PolarPoint(std::sqrt(2), 3 * std::numbers::pi / 4))
+		          .tangentAngleForR(1) == Approx(std::numbers::pi));
+		CHECK(SweepEdgeShape(PolarPoint(1, std::numbers::pi), PolarPoint(std::sqrt(2), 3 * std::numbers::pi / 4))
+		          .tangentAngleForR(1) == Approx(std::numbers::pi / 2));
 	}
 	SECTION("inwards segments") {
-		CHECK(SweepEdgeShape(PolarPoint(std::sqrt(2), M_PI / 4), PolarPoint(1, 0))
-		          .tangentAngleForR(1) == Approx(M_PI / 2));
-		CHECK(SweepEdgeShape(PolarPoint(std::sqrt(2), M_PI / 4), PolarPoint(1, M_PI / 2))
+		CHECK(SweepEdgeShape(PolarPoint(std::sqrt(2), std::numbers::pi / 4), PolarPoint(1, 0))
+		          .tangentAngleForR(1) == Approx(std::numbers::pi / 2));
+		CHECK(SweepEdgeShape(PolarPoint(std::sqrt(2), std::numbers::pi / 4), PolarPoint(1, std::numbers::pi / 2))
 		          .tangentAngleForR(1) == Approx(0));
-		CHECK(SweepEdgeShape(PolarPoint(std::sqrt(2), 3 * M_PI / 4), PolarPoint(1, M_PI / 2))
-		          .tangentAngleForR(1) == Approx(M_PI));
-		CHECK(SweepEdgeShape(PolarPoint(std::sqrt(2), 3 * M_PI / 4), PolarPoint(1, M_PI))
-		          .tangentAngleForR(1) == Approx(M_PI / 2));
+		CHECK(SweepEdgeShape(PolarPoint(std::sqrt(2), 3 * std::numbers::pi / 4), PolarPoint(1, std::numbers::pi / 2))
+		          .tangentAngleForR(1) == Approx(std::numbers::pi));
+		CHECK(SweepEdgeShape(PolarPoint(std::sqrt(2), 3 * std::numbers::pi / 4), PolarPoint(1, std::numbers::pi))
+		          .tangentAngleForR(1) == Approx(std::numbers::pi / 2));
 	}
 	SECTION("spirals") {
-		CHECK(SweepEdgeShape(SweepEdgeShape::Type::LEFT_SPIRAL, PolarPoint(1, M_PI / 4), M_PI / 8)
-		          .tangentAngleForR(1) == Approx(3 * M_PI / 8));
-		CHECK(SweepEdgeShape(SweepEdgeShape::Type::RIGHT_SPIRAL, PolarPoint(1, M_PI / 4), M_PI / 8)
-		          .tangentAngleForR(1) == Approx(M_PI / 8));
+		CHECK(SweepEdgeShape(SweepEdgeShape::Type::LEFT_SPIRAL, PolarPoint(1, std::numbers::pi / 4), std::numbers::pi / 8)
+		          .tangentAngleForR(1) == Approx(3 * std::numbers::pi / 8));
+		CHECK(SweepEdgeShape(SweepEdgeShape::Type::RIGHT_SPIRAL, PolarPoint(1, std::numbers::pi / 4), std::numbers::pi / 8)
+		          .tangentAngleForR(1) == Approx(std::numbers::pi / 8));
 	}
 }
 
 TEST_CASE("Checking if shapes depart to the left") {
 	SECTION("segments to the right") {
-		SweepEdgeShape e1(PolarPoint(1, 0), PolarPoint(2, M_PI / 4));
-		SweepEdgeShape e2(PolarPoint(1, 0), PolarPoint(2, -M_PI / 4));
+		SweepEdgeShape e1(PolarPoint(1, 0), PolarPoint(2, std::numbers::pi / 4));
+		SweepEdgeShape e2(PolarPoint(1, 0), PolarPoint(2, -std::numbers::pi / 4));
 		CHECK(e1.departsOutwardsToLeftOf(1, e2));
 		CHECK(!e2.departsOutwardsToLeftOf(1, e1));
 	}
 	SECTION("segments to the top") {
-		SweepEdgeShape e1(PolarPoint(1, M_PI / 2), PolarPoint(2, 3 * M_PI / 4));
-		SweepEdgeShape e2(PolarPoint(1, M_PI / 2), PolarPoint(2, M_PI / 4));
+		SweepEdgeShape e1(PolarPoint(1, std::numbers::pi / 2), PolarPoint(2, 3 * std::numbers::pi / 4));
+		SweepEdgeShape e2(PolarPoint(1, std::numbers::pi / 2), PolarPoint(2, std::numbers::pi / 4));
 		CHECK(e1.departsOutwardsToLeftOf(1, e2));
 		CHECK(!e2.departsOutwardsToLeftOf(1, e1));
 	}
 	SECTION("segments to the left") {
-		SweepEdgeShape e1(PolarPoint(1, M_PI), PolarPoint(2, 5 * M_PI / 4));
-		SweepEdgeShape e2(PolarPoint(1, M_PI), PolarPoint(2, 3 * M_PI / 4));
+		SweepEdgeShape e1(PolarPoint(1, std::numbers::pi), PolarPoint(2, 5 * std::numbers::pi / 4));
+		SweepEdgeShape e2(PolarPoint(1, std::numbers::pi), PolarPoint(2, 3 * std::numbers::pi / 4));
 		CHECK(e1.departsOutwardsToLeftOf(1, e2));
 		CHECK(!e2.departsOutwardsToLeftOf(1, e1));
 	}
 	SECTION("segments to the bottom") {
-		SweepEdgeShape e1(PolarPoint(1, 3 * M_PI / 2), PolarPoint(2, 7 * M_PI / 4));
-		SweepEdgeShape e2(PolarPoint(1, 3 * M_PI / 2), PolarPoint(2, 5 * M_PI / 4));
+		SweepEdgeShape e1(PolarPoint(1, 3 * std::numbers::pi / 2), PolarPoint(2, 7 * std::numbers::pi / 4));
+		SweepEdgeShape e2(PolarPoint(1, 3 * std::numbers::pi / 2), PolarPoint(2, 5 * std::numbers::pi / 4));
 		CHECK(e1.departsOutwardsToLeftOf(1, e2));
 		CHECK(!e2.departsOutwardsToLeftOf(1, e1));
 	}
@@ -94,8 +94,8 @@ TEST_CASE("Checking if shapes depart to the left") {
 }
 
 TEST_CASE("Intersecting outwards a segment and a left spiral") {
-	const SweepEdgeShape segment(PolarPoint(2, M_PI / 2), PolarPoint(Point<Inexact>(-6, 8)));
-	const SweepEdgeShape spiral(SweepEdgeShape::Type::LEFT_SPIRAL, PolarPoint(2, M_PI / 2), 0.5);
+	const SweepEdgeShape segment(PolarPoint(2, std::numbers::pi / 2), PolarPoint(Point<Inexact>(-6, 8)));
+	const SweepEdgeShape spiral(SweepEdgeShape::Type::LEFT_SPIRAL, PolarPoint(2, std::numbers::pi / 2), 0.5);
 	std::optional<Number<Inexact>> r;
 	SECTION("segment to spiral") {
 		r = segment.intersectOutwardsWith(spiral, 2);
@@ -110,8 +110,8 @@ TEST_CASE("Intersecting outwards a segment and a left spiral") {
 }
 
 TEST_CASE("Intersecting inwards a segment and a left spiral") {
-	const SweepEdgeShape segment(PolarPoint(2, M_PI / 2), PolarPoint(Point<Inexact>(0.5, 0.5)));
-	const SweepEdgeShape spiral(SweepEdgeShape::Type::LEFT_SPIRAL, PolarPoint(2, M_PI / 2), 0.5);
+	const SweepEdgeShape segment(PolarPoint(2, std::numbers::pi / 2), PolarPoint(Point<Inexact>(0.5, 0.5)));
+	const SweepEdgeShape spiral(SweepEdgeShape::Type::LEFT_SPIRAL, PolarPoint(2, std::numbers::pi / 2), 0.5);
 	std::optional<Number<Inexact>> r;
 	SECTION("segment to spiral") {
 		r = segment.intersectInwardsWith(spiral, 2);
@@ -126,8 +126,8 @@ TEST_CASE("Intersecting inwards a segment and a left spiral") {
 }
 
 TEST_CASE("Intersecting outwards a segment and a left spiral without intersections") {
-	const SweepEdgeShape segment(PolarPoint(2, M_PI / 2), PolarPoint(Point<Inexact>(6, 8)));
-	const SweepEdgeShape spiral(SweepEdgeShape::Type::LEFT_SPIRAL, PolarPoint(2, M_PI / 2), 0.5);
+	const SweepEdgeShape segment(PolarPoint(2, std::numbers::pi / 2), PolarPoint(Point<Inexact>(6, 8)));
+	const SweepEdgeShape spiral(SweepEdgeShape::Type::LEFT_SPIRAL, PolarPoint(2, std::numbers::pi / 2), 0.5);
 	std::optional<Number<Inexact>> r;
 	SECTION("segment to spiral") {
 		r = segment.intersectOutwardsWith(spiral, 2);
@@ -139,8 +139,8 @@ TEST_CASE("Intersecting outwards a segment and a left spiral without intersectio
 }
 
 TEST_CASE("Intersecting outwards a segment and a right spiral") {
-	const SweepEdgeShape segment(PolarPoint(2, M_PI / 2), PolarPoint(Point<Inexact>(6, 8)));
-	const SweepEdgeShape spiral(SweepEdgeShape::Type::RIGHT_SPIRAL, PolarPoint(2, M_PI / 2), 0.5);
+	const SweepEdgeShape segment(PolarPoint(2, std::numbers::pi / 2), PolarPoint(Point<Inexact>(6, 8)));
+	const SweepEdgeShape spiral(SweepEdgeShape::Type::RIGHT_SPIRAL, PolarPoint(2, std::numbers::pi / 2), 0.5);
 	std::optional<Number<Inexact>> r;
 	SECTION("segment to spiral") {
 		r = segment.intersectOutwardsWith(spiral, 2);
@@ -153,8 +153,8 @@ TEST_CASE("Intersecting outwards a segment and a right spiral") {
 }
 
 TEST_CASE("Intersecting outwards a segment and a right spiral without intersections") {
-	const SweepEdgeShape segment(PolarPoint(2, M_PI / 2), PolarPoint(Point<Inexact>(-6, 8)));
-	const SweepEdgeShape spiral(SweepEdgeShape::Type::RIGHT_SPIRAL, PolarPoint(2, M_PI / 2), 0.5);
+	const SweepEdgeShape segment(PolarPoint(2, std::numbers::pi / 2), PolarPoint(Point<Inexact>(-6, 8)));
+	const SweepEdgeShape spiral(SweepEdgeShape::Type::RIGHT_SPIRAL, PolarPoint(2, std::numbers::pi / 2), 0.5);
 	std::optional<Number<Inexact>> r;
 	SECTION("segment to spiral") {
 		r = segment.intersectOutwardsWith(spiral, 2);
@@ -166,8 +166,8 @@ TEST_CASE("Intersecting outwards a segment and a right spiral without intersecti
 }
 
 TEST_CASE("Intersecting outwards a left spiral and a right spiral starting at the same point") {
-	const SweepEdgeShape spiral1(SweepEdgeShape::Type::RIGHT_SPIRAL, PolarPoint(2, M_PI / 2), 0.5);
-	const SweepEdgeShape spiral2(SweepEdgeShape::Type::LEFT_SPIRAL, PolarPoint(2, M_PI / 2), 0.5);
+	const SweepEdgeShape spiral1(SweepEdgeShape::Type::RIGHT_SPIRAL, PolarPoint(2, std::numbers::pi / 2), 0.5);
+	const SweepEdgeShape spiral2(SweepEdgeShape::Type::LEFT_SPIRAL, PolarPoint(2, std::numbers::pi / 2), 0.5);
 	std::optional<Number<Inexact>> r;
 	SECTION("first to second") {
 		r = spiral1.intersectOutwardsWith(spiral2, 2);
@@ -181,9 +181,9 @@ TEST_CASE("Intersecting outwards a left spiral and a right spiral starting at th
 }
 
 TEST_CASE("Intersecting outwards a left spiral and a right spiral starting at different points") {
-	const SweepEdgeShape spiral1(SweepEdgeShape::Type::RIGHT_SPIRAL, PolarPoint(2, 3 * M_PI / 4),
+	const SweepEdgeShape spiral1(SweepEdgeShape::Type::RIGHT_SPIRAL, PolarPoint(2, 3 * std::numbers::pi / 4),
 	                             0.5);
-	const SweepEdgeShape spiral2(SweepEdgeShape::Type::LEFT_SPIRAL, PolarPoint(2, M_PI / 4), 0.5);
+	const SweepEdgeShape spiral2(SweepEdgeShape::Type::LEFT_SPIRAL, PolarPoint(2, std::numbers::pi / 4), 0.5);
 	std::optional<Number<Inexact>> r;
 	SECTION("first to second") {
 		r = spiral1.intersectOutwardsWith(spiral2, 2);
@@ -197,8 +197,8 @@ TEST_CASE("Intersecting outwards a left spiral and a right spiral starting at di
 }
 
 TEST_CASE("Intersecting outwards a left spiral and a right spiral straddling the φ = 0π ray") {
-	const SweepEdgeShape spiral1(SweepEdgeShape::Type::RIGHT_SPIRAL, PolarPoint(2, M_PI / 4), 0.5);
-	const SweepEdgeShape spiral2(SweepEdgeShape::Type::LEFT_SPIRAL, PolarPoint(2, -M_PI / 8), 0.5);
+	const SweepEdgeShape spiral1(SweepEdgeShape::Type::RIGHT_SPIRAL, PolarPoint(2, std::numbers::pi / 4), 0.5);
+	const SweepEdgeShape spiral2(SweepEdgeShape::Type::LEFT_SPIRAL, PolarPoint(2, -std::numbers::pi / 8), 0.5);
 	std::optional<Number<Inexact>> r;
 	SECTION("first to second") {
 		r = spiral1.intersectOutwardsWith(spiral2, 2);
@@ -212,9 +212,9 @@ TEST_CASE("Intersecting outwards a left spiral and a right spiral straddling the
 }
 
 TEST_CASE("Intersecting outwards a left spiral and a right spiral straddling the φ = π ray") {
-	const SweepEdgeShape spiral1(SweepEdgeShape::Type::RIGHT_SPIRAL, PolarPoint(2, 5 * M_PI / 4),
+	const SweepEdgeShape spiral1(SweepEdgeShape::Type::RIGHT_SPIRAL, PolarPoint(2, 5 * std::numbers::pi / 4),
 	                             0.5);
-	const SweepEdgeShape spiral2(SweepEdgeShape::Type::LEFT_SPIRAL, PolarPoint(2, 7 * M_PI / 8), 0.5);
+	const SweepEdgeShape spiral2(SweepEdgeShape::Type::LEFT_SPIRAL, PolarPoint(2, 7 * std::numbers::pi / 8), 0.5);
 	std::optional<Number<Inexact>> r;
 	SECTION("first to second") {
 		r = spiral1.intersectOutwardsWith(spiral2, 2);

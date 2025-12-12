@@ -3,6 +3,7 @@
 #include <filesystem>
 
 #include "cartocrow/core/region_arrangement.h"
+#include "cartocrow/reader/region_map_reader.h"
 
 using namespace cartocrow;
 

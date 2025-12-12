@@ -111,7 +111,7 @@ OptimizationDemo::OptimizationDemo() {
 	m_alphaLabel = new QLabel("0.139π");
 	toolBar->addWidget(m_alphaLabel);
 	connect(m_alphaSlider, &QSlider::valueChanged, [&](int value) {
-		m_alpha = M_PI * value / 1000.0;
+		m_alpha = std::numbers::pi * value / 1000.0;
 		m_alphaLabel->setText(QString("%1π").arg(value / 1000.0, 0, 'f', 3));
 		recalculate();
 	});

@@ -5,6 +5,7 @@
 #include "cartocrow/necklace_map/circle_necklace.h"
 #include "cartocrow/necklace_map/necklace_map.h"
 #include "cartocrow/necklace_map/painting.h"
+#include "cartocrow/reader/region_map_reader.h"
 
 using namespace cartocrow;
 using namespace cartocrow::necklace_map;
@@ -15,7 +16,7 @@ TEST_CASE("Computing a necklace map") {
 	NecklaceMap map(regions);
 	auto necklace = map.addNecklace(
 	    std::make_unique<CircleNecklace>(Circle<Inexact>(Point<Inexact>(64, 32), 32 * 32)));
-	map.parameters().centroid_interval_length_rad = M_PI;
+	map.parameters().centroid_interval_length_rad = std::numbers::pi;
 	map.parameters().order_type = cartocrow::necklace_map::OrderType::kAny;
 	map.parameters().heuristic_cycles = 0;
 	map.parameters().placement_cycles = 10;

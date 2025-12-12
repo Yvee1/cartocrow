@@ -53,8 +53,8 @@ void getCubicRoots(double a, double b, double c, double d, OutputIterator out, b
 		double r = std::sqrt(-p/3.0);
 		double phi = std::acos(-q/(2*r*r*r));
 		output(2*r*std::cos(phi/3.0) - A/3.0);
-		output(2*r*std::cos((phi+2*M_PI)/3.0) - A/3.0);
-		output(2*r*std::cos((phi+4*M_PI)/3.0) - A/3.0);
+		output(2*r*std::cos((phi+two_pi)/3.0) - A/3.0);
+		output(2*r*std::cos((phi+2*two_pi)/3.0) - A/3.0);
 	}
 }
 

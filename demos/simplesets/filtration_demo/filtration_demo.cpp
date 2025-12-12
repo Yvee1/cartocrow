@@ -30,7 +30,7 @@ FiltrationDemo::FiltrationDemo() {
 	std::vector<Color> cbColors({CB::light_blue, CB::light_red, CB::light_green, CB::light_orange, CB::light_purple});
 
 	// These settings currently need to be set manually.
-	m_gs = GeneralSettings{1.5, 2, M_PI, 70.0 / 180 * M_PI};
+	m_gs = GeneralSettings{1.5, 2, std::numbers::pi, 70.0 / 180 * std::numbers::pi};
 	m_ds = DrawSettings{cbColors, 0.7};
 	m_ps = PartitionSettings{true, true, false, false, 0.5};
 
