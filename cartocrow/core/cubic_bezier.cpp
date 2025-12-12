@@ -508,8 +508,7 @@ CubicBezierSpline::split(const SplineParameter& param) const {
 
 	CubicBezierSpline spline2;
 	spline2.appendCurve(c2);
-	for (int i_ = param.curveIndex + 1; i_ < numCurves(); ++i_) {
-		int i = i_ - param.curveIndex;
+	for (int i = param.curveIndex + 1; i < numCurves(); ++i) {
 		spline2.m_c.push_back(m_c[3*i+1]);
 		spline2.m_c.push_back(m_c[3*i+2]);
 		spline2.m_c.push_back(m_c[3*i+3]);
