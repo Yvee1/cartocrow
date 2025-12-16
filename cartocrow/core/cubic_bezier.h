@@ -241,6 +241,47 @@ class CubicBezierSpline {
 	struct SplineParameter {
 		int curveIndex;
 		Number<K> t;
+
+		bool operator==(const SplineParameter& other) const {
+			return curveIndex == other.curveIndex && t == other.t;
+		}
+
+		bool operator!=(const SplineParameter& other) const {
+			return curveIndex != other.curveIndex || t != other.t;
+		}
+
+		bool operator<(const SplineParameter& other) const {
+			if (curveIndex < other.curveIndex) {
+				return true;
+			} else if (curveIndex > other.curveIndex) {
+				return false;
+			}
+			return t < other.t;
+		}
+		bool operator>(const SplineParameter& other) const {
+			if (curveIndex > other.curveIndex) {
+				return true;
+			} else if (curveIndex < other.curveIndex) {
+				return false;
+			}
+			return t > other.t;
+		}
+		bool operator<=(const SplineParameter& other) const {
+			if (curveIndex < other.curveIndex) {
+				return true;
+			} else if (curveIndex > other.curveIndex) {
+				return false;
+			}
+			return t <= other.t;
+		}
+		bool operator>=(const SplineParameter& other) const {
+			if (curveIndex > other.curveIndex) {
+				return true;
+			} else if (curveIndex < other.curveIndex) {
+				return false;
+			}
+			return t >= other.t;
+		}
 	};
 
 	/// We represent a point on a spline by a pair of its spline parameter and the coordinates of the point in the plane.
@@ -385,28 +426,48 @@ class CubicBezierSpline {
 	/// Outputs the parameter values (\ref SplineParameter) at which the curvature flips sign.
 	template <class OutputIterator>
 	void inflectionsT(OutputIterator out) const {
-		int curveIndex = 0;
-		for (const auto& curve : curves()) {
-			std::vector<Number<K>> ts;
+		std::vector<CubicBezierCurve> cs(curves_begin(), curves_end());
+
+		for (int curveIndex = 0; curveIndex < cs.size(); ++curveIndex) {
+			auto& curve = cs[curveIndex];
+			auto& nextCurve = cs[curveIndex+1];
+			std::vector<double> ts;
 			curve.inflectionsT(std::back_inserter(ts));
-			for (double t : ts) {
+			for (const auto& t : ts) {
 				*out++ = SplineParameter{curveIndex, t};
 			}
-			++curveIndex;
+
+			// The vertices that connect different curves may also be inflection points.
+			if (curveIndex < numCurves() - 1) {
+				// If this is not the last curve, then the target of this curve is a curve endpoint in the interior of the spline.
+				if (curve.curvature(1) * nextCurve.curvature(0) < 0) { // if curvature has different signs
+					*out++ = SplineParameter{curveIndex, 1};
+				}
+			}
 		}
 	}
 
 	/// Outputs the spline points (\ref SplinePoint) at which the curvature flips sign.
 	template <class OutputIterator>
 	void inflections(OutputIterator out) const {
-		int curveIndex = 0;
-		for (const auto& curve : curves()) {
+		std::vector<CubicBezierCurve> cs(curves_begin(), curves_end());
+
+		for (int curveIndex = 0; curveIndex < cs.size(); ++curveIndex) {
+			auto& curve = cs[curveIndex];
+			auto& nextCurve = cs[curveIndex+1];
 			std::vector<Curve::CurvePoint> pts;
 			curve.inflections(std::back_inserter(pts));
 			for (const auto& pt : pts) {
 				*out++ = SplinePoint{SplineParameter{curveIndex, pt.t}, pt.point};
 			}
-			++curveIndex;
+
+			// The vertices that connect different curves may also be inflection points.
+			if (curveIndex < numCurves() - 1) {
+				// If this is not the last curve, then the target of this curve is a curve endpoint in the interior of the spline.
+				if (curve.curvature(1) * nextCurve.curvature(0) < 0) { // if curvature has different signs
+					*out++ = SplinePoint{SplineParameter{curveIndex, 1}, curve.target()};
+				}
+			}
 		}
 	}
 
