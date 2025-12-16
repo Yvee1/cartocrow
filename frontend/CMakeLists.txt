@@ -15,7 +15,6 @@ target_link_libraries(
     flow_map
     necklace_map
     isoline_simplification
-    simplesets
     chorematic_map
     renderer
     CGAL::CGAL
