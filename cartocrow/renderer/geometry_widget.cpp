@@ -964,7 +964,11 @@ void GeometryWidget::saveToSvg() {
 	for (const DrawnPainting& painting : m_paintings) {
 		renderer.addPainting(painting.m_painting, painting.name);
 	}
-	renderer.save(fileName.toStdString());
+	auto windowSize = size();
+	auto bottomLeft = inverseConvertPoint(QPoint(0, windowSize.height()));
+	auto topRight = inverseConvertPoint(QPoint(windowSize.width(), 0));
+
+	renderer.save(fileName.toStdString(), Box(bottomLeft.x(), bottomLeft.y(), topRight.x(), topRight.y()));
 }
 
 } // namespace cartocrow::renderer
