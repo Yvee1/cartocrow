@@ -37,12 +37,7 @@ SvgRenderer::SvgRenderer(const std::shared_ptr<GeometryPainting>& painting, cons
 	m_paintings.push_back(DrawnPainting{painting, name});
 }
 
-void SvgRenderer::save(const std::filesystem::path& file) {
-	std::locale::global(std::locale("C"));
-	m_out.open(file);
-	m_out << "<svg version=\"1.1\" xmlns:inkscape=\"http://www.inkscape.org/namespaces/inkscape\" xmlns=\"http://www.w3.org/2000/svg\">\n";
-	m_out << "<defs><circle id=\"vertex\" cx=\"0\" cy=\"0\" r=\"4\"/></defs>\n";
-
+void SvgRenderer::savePaintings() {
 	for (auto painting : m_paintings) {
 		m_out << "<g inkscape:groupmode=\"layer\"";
 		if (painting.name) {
@@ -54,7 +49,26 @@ void SvgRenderer::save(const std::filesystem::path& file) {
 		popStyle();
 		m_out << "</g>\n";
 	}
+}
 
+void SvgRenderer::save(const std::filesystem::path& file) {
+	std::locale::global(std::locale("C"));
+	m_out.open(file);
+	m_out << "<svg version=\"1.1\" xmlns:inkscape=\"http://www.inkscape.org/namespaces/inkscape\" xmlns=\"http://www.w3.org/2000/svg\">\n";
+	m_out << "<defs><circle id=\"vertex\" cx=\"0\" cy=\"0\" r=\"4\"/></defs>\n";
+	savePaintings();
+	m_out << "</svg>\n";
+	m_out.close();
+}
+
+void SvgRenderer::save(const std::filesystem::path& file, Box viewBox) {
+	std::locale::global(std::locale("C"));
+	m_out.open(file);
+	m_out << "<svg version=\"1.1\"" << " viewBox=\"" <<
+	    viewBox.xmin() << " " << -viewBox.ymax() << " " << viewBox.x_span() << " " << viewBox.y_span() <<
+	    "\" xmlns:inkscape=\"http://www.inkscape.org/namespaces/inkscape\" xmlns=\"http://www.w3.org/2000/svg\">\n";
+	m_out << "<defs><circle id=\"vertex\" cx=\"0\" cy=\"0\" r=\"4\"/></defs>\n";
+	savePaintings();
 	m_out << "</svg>\n";
 	m_out.close();
 }

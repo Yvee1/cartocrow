@@ -74,6 +74,7 @@ class SvgRenderer : public GeometryRenderer {
 
 	/// Saves the painting to an SVG file with the given name.
 	void save(const std::filesystem::path& file);
+	void save(const std::filesystem::path& file, Box viewBox);
 
 	void draw(const Point<Inexact>& p) override;
 	void draw(const Circle<Inexact>& c) override;
@@ -136,6 +137,9 @@ class SvgRenderer : public GeometryRenderer {
 	std::stack<SvgRendererStyle> m_styleStack;
     /// Clip path index; the number of clip paths already added to the SVG.
     int m_clipPathId = 0;
+
+	/// Output paintings as svg to m_out.
+	void savePaintings();
 };
 
 } // namespace cartocrow::renderer
