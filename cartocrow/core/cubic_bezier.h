@@ -430,7 +430,6 @@ class CubicBezierSpline {
 
 		for (int curveIndex = 0; curveIndex < cs.size(); ++curveIndex) {
 			auto& curve = cs[curveIndex];
-			auto& nextCurve = cs[curveIndex+1];
 			std::vector<double> ts;
 			curve.inflectionsT(std::back_inserter(ts));
 			for (const auto& t : ts) {
@@ -439,6 +438,7 @@ class CubicBezierSpline {
 
 			// The vertices that connect different curves may also be inflection points.
 			if (curveIndex < numCurves() - 1) {
+				auto& nextCurve = cs[curveIndex+1];
 				// If this is not the last curve, then the target of this curve is a curve endpoint in the interior of the spline.
 				if (curve.curvature(1) * nextCurve.curvature(0) < 0) { // if curvature has different signs
 					*out++ = SplineParameter{curveIndex, 1};
