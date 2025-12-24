@@ -6,6 +6,11 @@
 #include "cartocrow/core/cubic_bezier.h"
 
 BezierDemo::BezierDemo() {
+	CubicBezierSpline splinee;
+    splinee.appendCurve({0, 0}, {1, 0}, {2, 0}, {3, 0});
+    splinee.appendCurve({3, 0}, {4, 0}, {5, 0}, {6, 0});
+    auto [part1, part2] = splinee.split(0.5);
+
 	setWindowTitle("Bézier demo");
 
 	m_renderer = new GeometryWidget();
@@ -21,7 +26,7 @@ BezierDemo::BezierDemo() {
 	auto p2 = std::make_shared<Point<Inexact>>(3.5, 0.3);
 	m_renderer->registerEditable(p2);
 
-	// Curve control points
+	// Spline control points
 	auto c0 = std::make_shared<Point<Inexact>>(0, 0);
 	m_renderer->registerEditable(c0);
 	auto c1 = std::make_shared<Point<Inexact>>(1, 0);
@@ -37,7 +42,17 @@ BezierDemo::BezierDemo() {
 	auto c6 = std::make_shared<Point<Inexact>>(3, 0);
 	m_renderer->registerEditable(c6);
 
-	m_renderer->addPainting([p1, p2, c0, c1, c2, c3, c4, c5, c6, this](GeometryRenderer& renderer) {
+	// Curve control points
+	auto d0 = std::make_shared<Point<Inexact>>(-1.5, 2);
+	m_renderer->registerEditable(d0);
+	auto d1 = std::make_shared<Point<Inexact>>(2, 3.0);
+	m_renderer->registerEditable(d1);
+	auto d2 = std::make_shared<Point<Inexact>>(2, 0.0);
+	m_renderer->registerEditable(d2);
+	auto d3 = std::make_shared<Point<Inexact>>(1.5, -1);
+	m_renderer->registerEditable(d3);
+
+	m_renderer->addPainting([p1, p2, c0, c1, c2, c3, c4, c5, c6, d0, d1, d2, d3, this](GeometryRenderer& renderer) {
 		// Define segment, cubic Bézier spline and its extrema, bounding box and inflection points
 	  	Segment<Inexact> seg(*p1, *p2);
 	  	CubicBezierCurve curve1(*c0, *c1, *c2, *c3);
@@ -73,7 +88,11 @@ BezierDemo::BezierDemo() {
 	  	// Draw the spline itself and the segment
 	  	renderer.setMode(GeometryRenderer::stroke);
 	    renderer.setStroke(Color(0, 0, 0), 3.0);
+	  	if (spline.selfIntersects()) {
+			  renderer.setStroke(Color(0, 0, 255), 3.0);
+	  	}
 		renderer.draw(spline);
+	  renderer.setStroke(Color(0, 0, 0), 3.0);
 		renderer.draw(seg);
 		renderer.draw(*p1);
 	  	renderer.draw(*p2);
@@ -115,6 +134,23 @@ BezierDemo::BezierDemo() {
 		auto closest = spline.nearest(mp).point;
 		renderer.draw(closest);
 		renderer.draw(Segment<Inexact>(closest, mp));
+
+		CubicBezierCurve otherCurve(*d0, *d1, *d2, *d3);
+		if (spline.intersects(otherCurve)) {
+			renderer.setStroke(Color(255, 0, 0), 3.0);
+		} else {
+			renderer.setStroke(Color(0, 0, 0), 3.0);
+		}
+		if (otherCurve.selfIntersects()) {
+			renderer.setStroke(Color(0, 0, 255), 3.0);
+		}
+	  	renderer.draw(otherCurve);
+
+	  	renderer.setStroke(Color(200, 200, 200), 3.0);
+		renderer.draw(*d0);
+	    renderer.draw(*d1);
+	    renderer.draw(*d2);
+	    renderer.draw(*d3);
 	}, "Bézier spline");
 }
 

@@ -14,6 +14,30 @@
 #include <ranges>
 
 namespace cartocrow {
+class CubicBezierSpline;
+
+namespace detail {
+template <class CubicBezierCurveOrSpline1, class CubicBezierCurveOrSpline2>
+bool intersectsRecursive(const CubicBezierCurveOrSpline1& c1, const CubicBezierCurveOrSpline2& c2, double threshold) {
+	auto c1Box = c1.bbox();
+	auto c2Box = c2.bbox();
+	if (!do_overlap(c1Box, c2Box)) return false;
+	auto comb = c1Box + c2Box;
+	if (std::max(comb.x_span(), comb.y_span()) < threshold) {
+		return true;
+	}
+	auto [c11, c12] = c1.split(0.5);
+	auto [c21, c22] = c2.split(0.5);
+	for (auto& c1x : {c11, c12}) {
+		for (auto& c2x : {c21, c22}) {
+			if (!do_overlap(c1x.bbox(), c2x.bbox())) continue;
+			if (intersectsRecursive(c1x, c2x, threshold)) return true;
+		}
+	}
+	return false;
+}
+}
+
 /// A cubic Bézier curve.
 /// Cubic Bézier curves can be combined to form a cubic Bézier spline (\ref CubicBezierSpline).
 class CubicBezierCurve {
@@ -40,6 +64,10 @@ class CubicBezierCurve {
 	Vector<K> m_v3;
 
   public:
+	bool operator==(const CubicBezierCurve& other) const {
+		return m_p0 == other.m_p0 && m_p1 == other.m_p1 && m_p2 == other.m_p2 && m_p3 == other.m_p3;
+	}
+
 	/// Construct a cubic Bézier curve from its two endpoints and two control points.
 	CubicBezierCurve(Point<K> source, Point<K> control1, Point<K> control2, Point<K> target);
 
@@ -86,11 +114,14 @@ class CubicBezierCurve {
 	/// Reverse this Bézier curve
 	void reverse();
 
-	/// Returns the two parts after spliting this Bézier curve at point \c p at time \c t.
+	/// Returns the two parts after splitting this Bézier curve at point \c p at time \c t.
 	/// That is, the first curve of this pair starts at the source and ends at \c p.
 	/// The second curve of this pair starts at \c p and ends at the target.
 	/// Note that no approximation is needed for this operation, the curves match the original exactly (up to floating-point errors).
 	std::pair<CubicBezierCurve, CubicBezierCurve> split(const Number<K>& t) const;
+
+	/// Returns the part of this Bézier curve between parameters \c t1 and \c t2.
+	CubicBezierCurve sub(const Number<K>& t1, const Number<K>& t2) const;
 
 	/// Sample points with equidistant parameter values (not equidistant sample points).
 	template <class OutputIterator>
@@ -179,6 +210,49 @@ class CubicBezierCurve {
 		}
 	}
 
+  public:
+	template <class OutputIterator>
+	void monotoneParts(OutputIterator out) const {
+		auto a = 3 * (-m_v0 + 3 * m_v1 - 3 * m_v2 + m_v3);
+		auto b = 6 * (m_v0 - 2 * m_v1 + m_v2);
+		auto c = 3 * (m_v1 - m_v0);
+
+		std::vector<double> ts({0, 1});
+
+		auto checkExtrema = [&ts](double A, double B, double C) {
+			double D = B * B - 4 * A * C;
+			if (D < 0)
+				return;
+			double sqrtD = std::sqrt(D);
+			double denom = 2 * A;
+			if (denom == 0)
+				return;
+
+			for (double t : {(-B - sqrtD) / denom, (-B + sqrtD) / denom}) {
+				if (t >= 0.0 && t <= 1.0) {
+					ts.push_back(t);
+				}
+			}
+		};
+		checkExtrema(a.x(), b.x(), c.x());
+		checkExtrema(a.y(), b.y(), c.y());
+
+		std::sort(ts.begin(), ts.end());
+		ts.erase(std::unique(ts.begin(), ts.end()), ts.end());
+		for (int ti = 0; ti < ts.size() - 1; ++ti) {
+			double t1 = ts[ti];
+			double t2 = ts[ti + 1];
+			if (t2 - t1 < M_EPSILON) continue;
+		    *out++ = sub(t1, t2);
+		}
+	}
+
+	/// Outputs whether the two Bézier curves intersect.
+	/// This is approximate controlled by threshold (the max. dimension of the rectangle in which curves are assumed to intersect).
+	bool intersects(const CubicBezierCurve& other, double threshold = M_EPSILON) const;
+	bool intersects(const CubicBezierSpline& other, double threshold = M_EPSILON) const;
+	bool selfIntersects(double threshold = M_EPSILON) const;
+
 	/// Outputs the parameter values (doubles) at which the curvature flips sign.
 	template <class OutputIterator>
 	void inflectionsT(OutputIterator out) const {
@@ -218,6 +292,10 @@ class CubicBezierSpline {
 	ControlsContainer m_c;
 
   public:
+	bool operator==(const CubicBezierSpline& other) const {
+		return m_c == other.m_c;
+	}
+
 	// === Creation ===
 	/// Create an empty spline.
 	CubicBezierSpline();
@@ -423,6 +501,8 @@ class CubicBezierSpline {
 	/// Note that no approximation is needed for this operation, the splines match the original exactly (up to floating-point errors).
 	std::pair<CubicBezierSpline, CubicBezierSpline> split(const SplineParameter& param) const;
 
+	std::pair<CubicBezierSpline, CubicBezierSpline> split(double param) const;
+
 	/// Outputs the parameter values (\ref SplineParameter) at which the curvature flips sign.
 	template <class OutputIterator>
 	void inflectionsT(OutputIterator out) const {
@@ -522,5 +602,9 @@ class CubicBezierSpline {
 			}
 		}
 	}
+
+	bool intersects(const CubicBezierCurve& other, double threshold = M_EPSILON) const;
+	bool intersects(const CubicBezierSpline& other, double threshold = M_EPSILON) const;
+	bool selfIntersects(double threshold = M_EPSILON) const;
 };
 }

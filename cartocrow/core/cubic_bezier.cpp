@@ -144,6 +144,13 @@ CubicBezierCurve::split(const Number<Inexact>& t) const {
 	return {b1, b2};
 }
 
+CubicBezierCurve
+CubicBezierCurve::sub(const Number<Inexact>& t1, const Number<Inexact>& t2) const {
+    auto [_, tail] = split(t1);
+	double t2_ = (t2 - t1) / (1 - t1);
+    return tail.split(t2_).first;
+}
+
 Polyline<Inexact> CubicBezierCurve::polyline(int nEdges) const {
 	Polyline<Inexact> pl;
 	if (nEdges < 1) return pl;
@@ -298,6 +305,27 @@ std::tuple<Vector<Inexact>, Vector<Inexact>, Vector<Inexact>, Vector<Inexact>> C
 	auto c2 = 3 * (m_v1 - m_v0);
 	auto c3 = m_v0;
 	return {c0, c1, c2, c3};
+}
+
+bool CubicBezierCurve::intersects(const CubicBezierCurve& other, double threshold) const {
+	return detail::intersectsRecursive(*this, other, threshold);
+}
+
+bool CubicBezierCurve::intersects(const CubicBezierSpline& other, double threshold) const {
+	return detail::intersectsRecursive(*this, other, threshold);
+}
+
+bool CubicBezierCurve::selfIntersects(double threshold) const {
+	std::vector<CubicBezierCurve> curves;
+	monotoneParts(std::back_inserter(curves));
+
+	for (int i = 0; i < curves.size(); ++i) {
+		for (int j = i + 2; j < curves.size(); ++j) { // do not check consecutive parts
+			if (detail::intersectsRecursive(curves[i], curves[j], threshold)) return true;
+		}
+	}
+
+	return false;
 }
 
 CubicBezierSpline::CubicBezierSpline() {};
@@ -493,7 +521,17 @@ Number<Inexact> CubicBezierSpline::signedArea() const {
 std::pair<CubicBezierSpline, CubicBezierSpline>
 CubicBezierSpline::split(const SplineParameter& param) const {
 	// Split the curve that is affected.
-	auto [c1, c2] = curve(param.curveIndex).split(param.t);
+	std::optional<CubicBezierCurve> c1;
+	std::optional<CubicBezierCurve> c2;
+
+	auto c = curve(param.curveIndex);
+	if (param.t < M_EPSILON) {
+		c2 = c;
+	} else if (param.t > 1 - M_EPSILON) {
+		c1 = c;
+	} else {
+		std::tie(c1, c2) = c.split(param.t);
+	}
 
 	// Control points of other curves stay the same, copy them over appropriately.
 	CubicBezierSpline spline1;
@@ -504,17 +542,31 @@ CubicBezierSpline::split(const SplineParameter& param) const {
 		spline1.m_c.push_back(m_c[3*i+2]);
 		spline1.m_c.push_back(m_c[3*i+3]);
 	}
-	spline1.appendCurve(c1);
+	if (c1.has_value()) {
+		spline1.appendCurve(*c1);
+	}
 
 	CubicBezierSpline spline2;
-	spline2.appendCurve(c2);
+	if (c2.has_value()) {
+		spline2.appendCurve(*c2);
+	}
 	for (int i = param.curveIndex + 1; i < numCurves(); ++i) {
+		if (spline2.empty())
+			spline2.m_c.push_back(m_c[3*i]);
 		spline2.m_c.push_back(m_c[3*i+1]);
 		spline2.m_c.push_back(m_c[3*i+2]);
 		spline2.m_c.push_back(m_c[3*i+3]);
 	}
 
 	return {spline1, spline2};
+}
+
+std::pair<CubicBezierSpline, CubicBezierSpline>
+CubicBezierSpline::split(double param) const {
+	double t = param * numCurves();
+	int curveIndex = static_cast<int>(t);
+	double frac = t - curveIndex;
+	return split({curveIndex, frac});
 }
 
 Polyline<Inexact> CubicBezierSpline::polyline(int nEdgesPerCurve) const {
@@ -533,5 +585,28 @@ Polyline<Inexact> CubicBezierSpline::polyline(int nEdgesPerCurve) const {
 	}
 
 	return pl;
+}
+
+bool CubicBezierSpline::intersects(const CubicBezierCurve& other, double threshold) const {
+	return detail::intersectsRecursive(*this, other, threshold);
+}
+
+bool CubicBezierSpline::intersects(const CubicBezierSpline& other, double threshold) const {
+	return detail::intersectsRecursive(*this, other, threshold);
+}
+
+bool CubicBezierSpline::selfIntersects(double threshold) const {
+	std::vector<CubicBezierCurve> parts;
+	for (const auto& curve : curves()) {
+		curve.monotoneParts(std::back_inserter(parts));
+	}
+
+	for (int i = 0; i < parts.size(); ++i) {
+		for (int j = i + 2; j < parts.size(); ++j) { // do not check consecutive parts
+			if (detail::intersectsRecursive(parts[i], parts[j], threshold)) return true;
+		}
+	}
+
+	return false;
 }
 }
