@@ -290,6 +290,7 @@ class GeometryWidget : public QWidget, public GeometryRenderer {
 	void leaveEvent(QEvent* event) override;
 	QSize sizeHint() const override;
 
+  public:
 	/// Converts a point in drawing coordinates to Qt coordinates.
 	QPointF convertPoint(Point<Inexact> p) const;
 	/// Converts a rectangle in drawing coordinates to Qt coordinates.
@@ -299,6 +300,7 @@ class GeometryWidget : public QWidget, public GeometryRenderer {
 	/// Converts a rectangle in Qt coordinates back to drawing coordinates.
 	Box inverseConvertBox(QRectF r) const;
     /// Convert a render path to a Qt path.
+  private:
     QPainterPath renderPathToQt(const RenderPath& p);
 
   private:
