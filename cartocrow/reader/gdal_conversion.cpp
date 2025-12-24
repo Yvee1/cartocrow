@@ -53,19 +53,19 @@ PolygonWithHoles<Exact> ogrPolygonToPolygonWithHoles(const OGRPolygon& ogrPolygo
     return pgns.front();
 }
 
-OGRLinearRing polygonToOGRLinearRing(const Polygon<Exact>& polygon) {
+OGRLinearRing polygonToOGRLinearRing(const Polygon<Inexact>& polygon) {
     OGRLinearRing ring;
     for (const auto& v : polygon.vertices()) {
-        auto v_ = approximate(v);
+        auto v_ = v;
         ring.addPoint(v_.x(), v_.y());
     }
-    auto v_ = approximate(polygon.vertices().front());
+    auto v_ = polygon.vertices().front();
     ring.addPoint(v_.x(), v_.y());
 
     return ring;
 }
 
-OGRPolygon polygonWithHolesToOGRPolygon(const PolygonWithHoles<Exact>& polygon) {
+OGRPolygon polygonWithHolesToOGRPolygon(const PolygonWithHoles<Inexact>& polygon) {
     assert(!polygon.is_unbounded());
     auto outerRing = polygonToOGRLinearRing(polygon.outer_boundary());
     std::vector<OGRLinearRing> holeRings;
@@ -80,8 +80,8 @@ OGRPolygon polygonWithHolesToOGRPolygon(const PolygonWithHoles<Exact>& polygon) 
     return ogrPolygon;
 }
 
-OGRMultiPolygon polygonSetToOGRMultiPolygon(const PolygonSet<Exact>& polygonSet) {
-    std::vector<PolygonWithHoles<Exact>> pgns;
+OGRMultiPolygon polygonSetToOGRMultiPolygon(const PolygonSet<Inexact>& polygonSet) {
+    std::vector<PolygonWithHoles<Inexact>> pgns;
     polygonSet.polygons_with_holes(std::back_inserter(pgns));
 
     OGRMultiPolygon ogrMultiPolygon;
@@ -91,5 +91,17 @@ OGRMultiPolygon polygonSetToOGRMultiPolygon(const PolygonSet<Exact>& polygonSet)
     }
 
     return ogrMultiPolygon;
+}
+
+OGRLinearRing polygonToOGRLinearRing(const Polygon<Exact>& polygon) {
+	return polygonToOGRLinearRing(approximate(polygon));
+}
+
+OGRPolygon polygonWithHolesToOGRPolygon(const PolygonWithHoles<Exact>& polygon) {
+	return polygonWithHolesToOGRPolygon(approximate(polygon));
+}
+
+OGRMultiPolygon polygonSetToOGRMultiPolygon(const PolygonSet<Exact>& polygonSet) {
+	return polygonSetToOGRMultiPolygon(approximate(polygonSet));
 }
 }

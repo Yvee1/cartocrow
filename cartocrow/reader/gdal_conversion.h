@@ -9,6 +9,9 @@ PolygonSet<Exact> ogrMultiPolygonToPolygonSet(const OGRMultiPolygon& multiPolygo
 PolygonSet<Exact> ogrPolygonToPolygonSet(const OGRPolygon& ogrPolygon);
 Polygon<Exact> ogrLinearRingToPolygon(const OGRLinearRing& ogrLinearRing);
 PolygonWithHoles<Exact> ogrPolygonToPolygonWithHoles(const OGRPolygon& ogrPolygon);
+OGRLinearRing polygonToOGRLinearRing(const Polygon<Inexact>& polygon);
+OGRPolygon polygonWithHolesToOGRPolygon(const PolygonWithHoles<Inexact>& polygon);
+OGRMultiPolygon polygonSetToOGRMultiPolygon(const PolygonSet<Inexact>& polygonSet);
 OGRLinearRing polygonToOGRLinearRing(const Polygon<Exact>& polygon);
 OGRPolygon polygonWithHolesToOGRPolygon(const PolygonWithHoles<Exact>& polygon);
 OGRMultiPolygon polygonSetToOGRMultiPolygon(const PolygonSet<Exact>& polygonSet);
