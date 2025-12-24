@@ -83,6 +83,7 @@ template <class K, class InputIterator> class SegmentIterator {
 template <class K> class Polyline {
   public:
 	typedef typename std::vector<CGAL::Point_2<K>>::const_iterator Vertex_iterator;
+	typedef typename std::vector<CGAL::Point_2<K>>::const_reverse_iterator Vertex_reverse_iterator;
 	typedef SegmentIterator<K, typename std::vector<typename CGAL::Point_2<K>>::const_iterator> Edge_iterator;
 	Polyline() = default;
 
@@ -112,8 +113,14 @@ template <class K> class Polyline {
 		m_points.insert(i, p);
 	}
 
+	void pop_back() {
+		m_points.pop_back();
+	}
+
 	[[nodiscard]] Vertex_iterator vertices_begin() const { return m_points.begin(); }
 	[[nodiscard]] Vertex_iterator vertices_end() const { return m_points.end(); }
+	[[nodiscard]] Vertex_reverse_iterator vertices_rbegin() const { return m_points.rbegin(); }
+	[[nodiscard]] Vertex_reverse_iterator vertices_rend() const { return m_points.rend(); }
 	[[nodiscard]] Edge_iterator edges_begin() const { return { m_points.begin() }; }
 	[[nodiscard]] Edge_iterator edges_end() const { return { --m_points.end() }; }
 	[[nodiscard]] int num_vertices() const { return m_points.size(); }
