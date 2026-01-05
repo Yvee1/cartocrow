@@ -9,14 +9,12 @@ find_package(nlohmann_json REQUIRED)
 target_link_libraries(
     cartocrow
     PRIVATE
-    ${COMMON_CLA_TARGET}
     core
     reader
     flow_map
     necklace_map
     isoline_simplification
     simplesets
-    chorematic_map
     renderer
     CGAL::CGAL
     nlohmann_json::nlohmann_json
