@@ -26,6 +26,7 @@ set(HEADERS
 	function_painting.h
 	render_path.h
 	svg_renderer.h
+	voronoi_drawer.h
 )
 else()
 set(HEADERS
@@ -35,6 +36,7 @@ set(HEADERS
 	function_painting.h
 	render_path.h
 	svg_renderer.h
+	voronoi_drawer.h
 
 	ipe_renderer.h
 	geometry_widget.h

@@ -18,13 +18,13 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include "isoline_simplification_demo.h"
-#include "cartocrow/isoline_simplification/isoline.h"
+#include "cartocrow/core/segment_delaunay_graph_helpers_cgal_adapted.h"
 #include "cartocrow/isoline_simplification/ipe_isolines.h"
-#include "cartocrow/isoline_simplification/voronoi_helpers.h"
+#include "cartocrow/isoline_simplification/isoline.h"
 #include "cartocrow/isoline_simplification/simple_smoothing.h"
+#include "cartocrow/isoline_simplification/voronoi_helpers.h"
 #include "cartocrow/renderer/ipe_renderer.h"
-#include "medial_axis_helpers.h"
-#include "voronoi_drawer.h"
+#include "cartocrow/renderer/voronoi_drawer.h"
 #include <CGAL/bounding_box.h>
 #include <QApplication>
 #include <QCheckBox>
@@ -32,10 +32,10 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QDockWidget>
 #include <QFileDialog>
 #include <QLabel>
+#include <QMessageBox>
 #include <QPushButton>
 #include <QSpinBox>
 #include <QVBoxLayout>
-#include <QMessageBox>
 #include <filesystem>
 #include <ipepath.h>
 #include <ranges>
@@ -436,7 +436,7 @@ void VoronoiPainting::paint(GeometryRenderer& renderer) const {
 	renderer.setStroke(Color{150, 150, 150}, 1);
 	renderer.setMode(GeometryRenderer::stroke);
 	auto voronoiDrawer = VoronoiDrawer<Gt>(&renderer);
-	draw_dual<VoronoiDrawer<Gt>, K>(m_delaunay, voronoiDrawer);
+	draw_dual<VoronoiDrawer<Gt>>(m_delaunay, voronoiDrawer);
 }
 
 IsolinePainting::IsolinePainting(const std::vector<Isoline<K>>& isolines, bool show_vertices, bool light, bool ipe,
@@ -477,7 +477,7 @@ void MedialAxisSeparatorPainting::paint(GeometryRenderer& renderer) const {
 	for (const auto& edge : edges) {
 		renderer.setStroke(Color{30, 119, 179}, 2.5);
 		renderer.setMode(GeometryRenderer::stroke);
-		draw_dual_edge<VoronoiDrawer<Gt>, K>(m_delaunay, edge, voronoiDrawer);
+		draw_dual_edge<VoronoiDrawer<Gt>>(m_delaunay, edge, voronoiDrawer);
 	}
 }
 
@@ -652,19 +652,19 @@ void MedialAxisExceptSeparatorPainting::paint(GeometryRenderer& renderer) const 
 	for (auto eit = del.finite_edges_begin(); eit != del.finite_edges_end(); eit++) {
 		auto vd = VoronoiDrawer<Gt>(&renderer);
 		auto edge = *eit;
-		auto [p, q] = defining_sites(edge);
+		auto [p, q] = defining_sites<SDG2>(edge);
 		SDG2::Point_2 p_point = point_of_site(p);
 		SDG2::Point_2 q_point = point_of_site(q);
 
 		bool is_endpoint_of_seg =
 		    ( p.is_segment() && q.is_point() &&
-		     is_endpoint_of_segment<K>(del, q, p) ) ||
+		     is_endpoint_of_segment<>(del, q, p) ) ||
 		    ( p.is_point() && q.is_segment() &&
-		     is_endpoint_of_segment<K>(del, p, q) );
+		     is_endpoint_of_segment<>(del, p, q) );
 
 		if (!is_endpoint_of_seg && m_simplifier.m_p_isoline.at(p_point) == m_simplifier.m_p_isoline.at(q_point)) {
 			renderer.setStroke(Color{210, 210, 210}, 1.0);
-			draw_dual_edge<VoronoiDrawer<Gt>, K>(del, *eit, vd);
+			draw_dual_edge<VoronoiDrawer<Gt>>(del, *eit, vd);
 		}
 	}
 }
@@ -678,15 +678,15 @@ void VoronoiExceptMedialPainting::paint(GeometryRenderer& renderer) const {
 	for (auto eit = del.finite_edges_begin(); eit != del.finite_edges_end(); eit++) {
 		auto vd = VoronoiDrawer<Gt>(&renderer);
 		auto edge = *eit;
-		auto [p, q] = defining_sites(edge);
+		auto [p, q] = defining_sites<SDG2>(edge);
 
 		bool is_endpoint_of_seg =
-		    (p.is_segment() && q.is_point() && is_endpoint_of_segment<K>(del, q, p)) ||
-		    (p.is_point() && q.is_segment() && is_endpoint_of_segment<K>(del, p, q));
+		    (p.is_segment() && q.is_point() && is_endpoint_of_segment<SDG2>(del, q, p)) ||
+		    (p.is_point() && q.is_segment() && is_endpoint_of_segment<SDG2>(del, p, q));
 
 		if (is_endpoint_of_seg) {
 			renderer.setStroke(Color{210, 210, 210}, 1);
-			draw_dual_edge<VoronoiDrawer<Gt>, K>(del, *eit, vd);
+			draw_dual_edge<VoronoiDrawer<Gt>>(del, *eit, vd);
 		}
 	}
 }

@@ -22,26 +22,17 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <vector>
 #include "voronoi_helpers_cgal.h"
 
+#include "cartocrow/core/delaunay_voronoi_helpers.h"
+#include "cartocrow/core/segment_delaunay_graph_helpers.h"
+
 #ifndef CARTOCROW_MEDIAL_AXIS_SEPARATOR_H
 #define CARTOCROW_MEDIAL_AXIS_SEPARATOR_H
 
 namespace cartocrow::isoline_simplification {
 typedef std::unordered_map<Isoline<K>*, std::vector<SDG2::Edge>> Separator;
 
-class Open_Parabola_segment_2 : public CGAL::Parabola_segment_2<Gt> {
-  public:
-	Point<K> get_p1() {
-		return p1;
-	}
-	Point<K> get_p2() {
-		return p2;
-	}
-};
-
-std::pair<SDG2::Site_2, SDG2::Site_2> defining_sites(const SDG2::Edge& edge);
 SDG2::Point_2 point_of_site(const SDG2::Site_2& site);
 Separator medial_axis_separator(const SDG2& delaunay, const PointToIsoline& isoline, const PointToPoint& prev, const PointToPoint& next);
-std::variant<Point<K>, Segment<K>> site_projection(const SDG2& delaunay, const SDG2::Edge& edge, const SDG2::Site_2& site);
 Segment<K> snap_endpoints(Segment<K> proj, Segment<K> original);
 Matching matching(const SDG2& delaunay, const Separator& separator, const PointToPoint& p_prev,
                   const PointToPoint& p_next, const PointToIsoline& p_isoline, const PointToVertex& p_vertex,
