@@ -14,7 +14,7 @@
 #include "cartocrow/chorematic_map/weighted_point.h"
 #include "cartocrow/chorematic_map/input_parsing.h"
 
-#include "demos/widgets/double_slider.h"
+#include "cartocrow/widgets/double_slider.h"
 #include <QCheckBox>
 #include <QComboBox>
 #include <QLabel>

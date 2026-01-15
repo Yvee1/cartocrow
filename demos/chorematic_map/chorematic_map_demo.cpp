@@ -23,7 +23,7 @@
 #include "cartocrow/reader/gdal_conversion.h"
 #include "cartocrow/reader/region_map_reader.h"
 
-#include "demos/widgets/double_slider.h"
+#include "cartocrow/widgets/double_slider.h"
 
 #include <CGAL/General_polygon_set_2.h>
 

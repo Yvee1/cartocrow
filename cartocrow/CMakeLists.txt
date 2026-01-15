@@ -20,6 +20,7 @@ if (NOT EMSCRIPTEN)
     add_subdirectory(chorematic_map)
     add_subdirectory(isoline_simplification)
     add_subdirectory(reader)
+    add_subdirectory(widgets)
 endif()
 
 add_library(cartocrow_lib INTERFACE)
@@ -35,6 +36,7 @@ target_link_libraries(
     isoline_simplification
     simplesets
     chorematic_map
+    widgets
 )
 else()
 target_link_libraries(
