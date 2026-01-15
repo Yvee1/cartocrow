@@ -54,12 +54,5 @@ target_link_libraries(renderer
 )
 endif()
 
-if(WIN32)
-	find_package(ZLIB REQUIRED)
-	target_link_libraries(renderer
-		PUBLIC gdiplus ${ZLIB_LIBRARIES}
-	)
-endif()
-
 cartocrow_install_module(renderer)
 install(FILES ${HEADERS} DESTINATION ${CARTOCROW_INSTALL_DIR}/renderer)
