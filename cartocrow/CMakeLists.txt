@@ -19,6 +19,7 @@ add_subdirectory(flow_map)
 if (NOT EMSCRIPTEN)
     add_subdirectory(isoline_simplification)
     add_subdirectory(reader)
+    add_subdirectory(widgets)
 endif()
 
 add_library(cartocrow_lib INTERFACE)
@@ -33,6 +34,7 @@ target_link_libraries(
     flow_map
     isoline_simplification
     simplesets
+    widgets
 )
 else()
 target_link_libraries(

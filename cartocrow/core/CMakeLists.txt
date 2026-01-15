@@ -29,11 +29,12 @@ set(HEADERS
 	halfplane.h
 	transform_helpers.h
 	cropped_voronoi.h
+	delaunay_voronoi_helpers.h
+	segment_delaunay_graph_helpers.h
+	segment_delaunay_graph_helpers_cgal_adapted.h
 )
 
 add_library(core ${SOURCES})
-target_link_libraries(core
-)
 
 cartocrow_install_module(core)
 install(FILES ${HEADERS} DESTINATION ${CARTOCROW_INSTALL_DIR}/core)

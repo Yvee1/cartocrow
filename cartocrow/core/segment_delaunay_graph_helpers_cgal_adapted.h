@@ -1,4 +1,6 @@
 // These functions are adapted from CGAL functions that fall under the following license.
+// draw_dual_edge was modified so that it does not linearize parabolic segments.
+// See https://github.com/CGAL/cgal/issues/7973.
 // Copyright (c) 2003,2004,2005,2006  INRIA Sophia-Antipolis (France).
 // All rights reserved.
 //
@@ -11,8 +13,7 @@
 //
 // Author(s)     : Menelaos Karavelas <mkaravel@iacm.forth.gr>
 
-#ifndef CARTOCROW_MEDIAL_AXIS_HELPERS_H
-#define CARTOCROW_MEDIAL_AXIS_HELPERS_H
+#pragma once
 
 #include <CGAL/Segment_Delaunay_graph_2.h>
 #include <CGAL/Segment_Delaunay_graph_adaptation_policies_2.h>
@@ -20,34 +21,26 @@
 #include <CGAL/Segment_Delaunay_graph_hierarchy_2.h>
 #include <CGAL/Segment_Delaunay_graph_traits_2.h>
 
-template<class K,
-          class Gt  = CGAL::Segment_Delaunay_graph_filtered_traits_without_intersections_2<K, CGAL::Field_with_sqrt_tag>,
-          class SDG = CGAL::Segment_Delaunay_graph_hierarchy_2<Gt>,
-          class AT  = CGAL::Segment_Delaunay_graph_adaptation_traits_2<SDG>>
-bool same_points(const SDG& dg, const typename AT::Site_2& p, const typename AT::Site_2& q) {
+namespace cartocrow {
+template<class SDG>
+bool same_points(const SDG& dg, const typename SDG::Site_2& p, const typename SDG::Site_2& q) {
 	return dg.geom_traits().equal_2_object()(p, q);
 }
 
-template<class K,
-          class Gt  = CGAL::Segment_Delaunay_graph_filtered_traits_without_intersections_2<K, CGAL::Field_with_sqrt_tag>,
-          class SDG = CGAL::Segment_Delaunay_graph_hierarchy_2<Gt>,
-          class AT  = CGAL::Segment_Delaunay_graph_adaptation_traits_2<SDG>>
-bool is_endpoint_of_segment(const SDG& dg, typename AT::Site_2& p, typename AT::Site_2& s) {
+template<class SDG>
+bool is_endpoint_of_segment(const SDG& dg, typename SDG::Site_2& p, typename SDG::Site_2& s) {
 	CGAL_precondition( p.is_point() && s.is_segment() );
-	return ( same_points<K>(dg, p, s.source_site()) ||
-	        same_points<K>(dg, p, s.target_site()) );
+	return ( same_points<SDG>(dg, p, s.source_site()) ||
+	        same_points<SDG>(dg, p, s.target_site()) );
 }
 
-template <class Stream,
-          class K,
-          class Gt  = CGAL::Segment_Delaunay_graph_filtered_traits_without_intersections_2<K, CGAL::Field_with_sqrt_tag>,
-          class SDG = CGAL::Segment_Delaunay_graph_hierarchy_2<Gt>>
+template <class Stream, class SDG>
 Stream& draw_dual_edge(const SDG& dg, typename SDG::Edge e, Stream& str)
 {
-	Line<K>    l;
-	Segment<K> s;
-	Ray<K>     r;
-	CGAL::Parabola_segment_2<Gt> ps;
+	typename SDG::Geom_traits::Line_2  l;
+	typename SDG::Geom_traits::Segment_2 s;
+	typename SDG::Geom_traits::Ray_2     r;
+	CGAL::Parabola_segment_2<typename SDG::Geom_traits> ps;
 
 	if (dg.is_infinite(e)) return str;
 	CGAL::Object o = dg.primal(e);
@@ -61,9 +54,7 @@ Stream& draw_dual_edge(const SDG& dg, typename SDG::Edge e, Stream& str)
 }
 
 template <class Stream,
-          class K,
-          class Gt  = CGAL::Segment_Delaunay_graph_filtered_traits_without_intersections_2<K, CGAL::Field_with_sqrt_tag>,
-          class SDG = CGAL::Segment_Delaunay_graph_hierarchy_2<Gt>>
+          class SDG>
 Stream& draw_skeleton(const SDG& dg, Stream& str) {
 	auto eit = dg.finite_edges_begin();
 	for (; eit != dg.finite_edges_end(); ++eit) {
@@ -72,27 +63,24 @@ Stream& draw_skeleton(const SDG& dg, Stream& str) {
 
 		bool is_endpoint_of_seg =
 		    ( p.is_segment() && q.is_point() &&
-		     is_endpoint_of_segment<K>(dg, q, p) ) ||
+		     is_endpoint_of_segment<SDG>(dg, q, p) ) ||
 		    ( p.is_point() && q.is_segment() &&
-		     is_endpoint_of_segment<K>(dg, p, q) );
+		     is_endpoint_of_segment<SDG>(dg, p, q) );
 
 		if ( !is_endpoint_of_seg ) {
-			draw_dual_edge<Stream, K>(dg, *eit, str);
+			draw_dual_edge<Stream, SDG>(dg, *eit, str);
 		}
 	}
 	return str;
 }
 
 template <class Stream,
-          class K,
-          class Gt  = CGAL::Segment_Delaunay_graph_filtered_traits_without_intersections_2<K, CGAL::Field_with_sqrt_tag>,
-          class SDG = CGAL::Segment_Delaunay_graph_hierarchy_2<Gt>>
+          class SDG>
 Stream& draw_dual(const SDG& dg, Stream& str) {
 	auto eit = dg.finite_edges_begin();
 	for (; eit != dg.finite_edges_end(); ++eit) {
-		draw_dual_edge<Stream, K>(dg, *eit, str);
+		draw_dual_edge<Stream, SDG>(dg, *eit, str);
 	}
 	return str;
 }
-
-#endif //CARTOCROW_MEDIAL_AXIS_HELPERS_H
+}

@@ -20,9 +20,15 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #ifndef CARTOCROW_VORONOI_DRAWER_H
 #define CARTOCROW_VORONOI_DRAWER_H
 
-#include "cartocrow/renderer/geometry_renderer.h"
+#include "geometry_renderer.h"
 #include <CGAL/Parabola_segment_2.h>
 
+#include "cartocrow/core/segment_delaunay_graph_helpers.h"
+
+namespace cartocrow::renderer {
+/// This class can be used in combination with the draw_dual and draw_dual_edge functions of
+/// CGAL's Voronoi and Segment Voronoi diagrams.
+/// Also see the modified draw_dual function for segment Voronoi diagrams in "segment_delaunay_graph_helpers.h"
 template < class Gt >
 class VoronoiDrawer {
   public:
@@ -30,47 +36,25 @@ class VoronoiDrawer {
 
 	explicit VoronoiDrawer(cartocrow::renderer::GeometryRenderer* renderer): m_renderer(renderer) {};
 
-	VoronoiDrawer& operator<<(const Segment<K>& s) {
+	VoronoiDrawer& operator<<(const typename Gt::Segment_2& s) {
 		m_renderer->draw(s);
 		return *this;
 	}
 
-	VoronoiDrawer& operator<<(const Line<K>& l) {
+	VoronoiDrawer& operator<<(const typename Gt::Line_2& l) {
 		m_renderer->draw(l);
 		return *this;
 	}
 
-	VoronoiDrawer& operator<<(const Ray<K>& r){
+	VoronoiDrawer& operator<<(const typename Gt::Ray_2& r){
 		m_renderer->draw(r);
 		return *this;
 	}
 
-	VoronoiDrawer& operator<<(const CGAL::Parabola_segment_2<Gt>& p){
-		// Directrix
-		auto dir = p.line();
-		// Focus
-		auto focus = p.center();
-
-		// Roundabout way to obtain start and end of parabolic segment because they are protected -_-
-		Open_Parabola_segment_2 op{p};
-		auto start = op.get_p1();
-		auto end = op.get_p2();
-
-		// Geometric magic: the intersection of the tangents at points p and q of the parabola is
-		// the circumcenter of the focus and the projections of p and q on the directrix.
-		auto start_p = dir.projection(start);
-		auto end_p = dir.projection(end);
-
-		// If the points are collinear CGAL::circumcenter throws an error; draw a segment instead.
-		if (CGAL::collinear(focus, start_p, end_p)) return *this << Segment<K>(start, end);
-
-		auto control = CGAL::circumcenter(focus, start_p, end_p);
-		auto bezier = CubicBezierCurve(approximate(start), approximate(control), approximate(end));
-
-		m_renderer->draw(bezier);
-
+	VoronoiDrawer& operator<<(const typename CGAL::Parabola_segment_2<Gt>& p){
+		m_renderer->draw(parabolaSegmentToBezier(p));
 		return *this;
 	}
 };
-
+}
 #endif //CARTOCROW_VORONOI_DRAWER_H

@@ -9,7 +9,7 @@
 #include "cartocrow/simplesets/partition_painting.h"
 #include "cartocrow/simplesets/types.h"
 #include "demos/simplesets/colors/colors.h"
-#include "demos/widgets/double_slider.h"
+#include "cartocrow/widgets/double_slider.h"
 #include <CGAL/Bbox_2.h>
 #include <QApplication>
 #include <QDockWidget>

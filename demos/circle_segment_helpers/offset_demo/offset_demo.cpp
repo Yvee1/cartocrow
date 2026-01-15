@@ -5,7 +5,7 @@
 #include "cartocrow/renderer/geometry_painting.h"
 #include "cartocrow/renderer/geometry_widget.h"
 #include "cartocrow/renderer/render_path.h"
-#include "demos/widgets/double_slider.h"
+#include "cartocrow/widgets/double_slider.h"
 
 #include <QApplication>
 #include <QDockWidget>

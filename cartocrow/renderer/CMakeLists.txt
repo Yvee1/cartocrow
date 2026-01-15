@@ -26,6 +26,7 @@ set(HEADERS
 	function_painting.h
 	render_path.h
 	svg_renderer.h
+	voronoi_drawer.h
 )
 else()
 set(HEADERS
@@ -35,6 +36,7 @@ set(HEADERS
 	function_painting.h
 	render_path.h
 	svg_renderer.h
+	voronoi_drawer.h
 
 	ipe_renderer.h
 	geometry_widget.h
@@ -50,13 +52,6 @@ else()
 target_link_libraries(renderer
 	PUBLIC core Qt5::Widgets Ipe::ipelib
 )
-endif()
-
-if(WIN32)
-	find_package(ZLIB REQUIRED)
-	target_link_libraries(renderer
-		PUBLIC gdiplus ${ZLIB_LIBRARIES}
-	)
 endif()
 
 cartocrow_install_module(renderer)

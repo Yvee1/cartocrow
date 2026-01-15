@@ -23,14 +23,12 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <CGAL/Voronoi_diagram_2.h>
 #include <unordered_set>
 
+#include "cartocrow/core/segment_delaunay_graph_helpers.h"
+
 namespace cartocrow::isoline_simplification {
 typedef CGAL::Segment_Delaunay_graph_adaptation_traits_2<SDG2> AT;
 typedef CGAL::Segment_Delaunay_graph_degeneracy_removal_policy_2<SDG2> AP;
 typedef CGAL::Voronoi_diagram_2<SDG2, AT, AP> VD;
-
-std::pair<SDG2::Site_2, SDG2::Site_2> defining_sites(const SDG2::Edge& edge) {
-	return { edge.first->vertex(SDG2::cw(edge.second))->site(), edge.first->vertex(SDG2::ccw(edge.second))->site() };
-}
 
 SDG2::Point_2 point_of_site(const SDG2::Site_2& site) {
 	SDG2::Point_2 point;
@@ -110,7 +108,7 @@ Separator medial_axis_separator(const SDG2& delaunay, const PointToIsoline& isol
 
 	for (auto eit = delaunay.finite_edges_begin(); eit != delaunay.finite_edges_end(); ++eit) {
 		SDG2::Edge edge = *eit;
-		auto [p, q] = defining_sites(edge);
+		auto [p, q] = defining_sites<SDG2>(edge);
 		SDG2::Point_2 p_point = point_of_site(p);
 		SDG2::Point_2 q_point = point_of_site(q);
 
@@ -133,42 +131,6 @@ Separator medial_axis_separator(const SDG2& delaunay, const PointToIsoline& isol
 	}
 
 	return edges;
-}
-
-std::variant<Point<K>, Segment<K>> site_projection(const SDG2& delaunay, const SDG2::Edge& edge, const SDG2::Site_2& site) {
-	if (site.is_point()) {
-		return { site.point() };
-	} else {
-		Segment<K> s;
-		CGAL::Parabola_segment_2<Gt> ps;
-		CGAL::Object o = delaunay.primal(edge);
-
-		// Ray and line cases cannot occur because they require both sites to be a point
-		if (CGAL::assign(s, o)) {
-			auto start = site.segment().supporting_line().projection(s.source());
-			auto end = site.segment().supporting_line().projection(s.end());
-			return { Segment<Inexact>(start, end) };
-		}
-		else if (CGAL::assign(ps, o)) {
-			// Roundabout way to obtain start and end of parabolic segment because they are protected -_-
-			Open_Parabola_segment_2 ops{ps};
-			auto p1 = ops.get_p1();
-			auto p2 = ops.get_p2();
-
-			if (std::isnan(p1.x()) || std::isnan(p2.x())) {
-				return {Segment<K>(Point<K>(0.0, 0.0), Point<K>(1.0, 0.0))};
-			}
-
-			auto start = site.segment().supporting_line().projection(p1);
-			auto end = site.segment().supporting_line().projection(p2);
-
-			return {Segment<Inexact>(start, end)};
-		}
-		else {
-			throw std::runtime_error("Impossible: a segment Voronoi edge is neither a line segment nor a parabolic "
-			                         "segment, but at least one of its sites is a line segment.");
-		}
-	}
 }
 
 Segment<K> snap_endpoints(Segment<K> proj, Segment<K> original) {
@@ -404,7 +366,7 @@ void create_matching(const SDG2& delaunay, const SDG2::Edge& edge, Matching& mat
                      const PointToPoint& p_next, const PointToIsoline& p_isoline, const PointToVertex& p_vertex,
                      const double angle_filter, const double alignment_filter) {
 	SDG2::Site_2 p, q;
-	std::tie(p, q) = defining_sites(edge);
+	std::tie(p, q) = defining_sites<SDG2>(edge);
 
 	auto pl = supporting_line(p, p_prev, p_next);
 	auto ql = supporting_line(q, p_prev, p_next);
