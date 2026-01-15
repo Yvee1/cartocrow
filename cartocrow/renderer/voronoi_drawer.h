@@ -52,29 +52,7 @@ class VoronoiDrawer {
 	}
 
 	VoronoiDrawer& operator<<(const typename CGAL::Parabola_segment_2<Gt>& p){
-		// Directrix
-		auto dir = p.line();
-		// Focus
-		auto focus = p.center();
-
-		// Roundabout way to obtain start and end of parabolic segment because they are protected -_-
-		Open_Parabola_segment_2<Gt> op{p};
-		auto start = op.get_p1();
-		auto end = op.get_p2();
-
-		// Geometric magic: the intersection of the tangents at points p and q of the parabola is
-		// the circumcenter of the focus and the projections of p and q on the directrix.
-		auto start_p = dir.projection(start);
-		auto end_p = dir.projection(end);
-
-		// If the points are collinear CGAL::circumcenter throws an error; draw a segment instead.
-		if (CGAL::collinear(focus, start_p, end_p)) return *this << typename Gt::Segment_2(start, end);
-
-		auto control = CGAL::circumcenter(focus, start_p, end_p);
-		auto bezier = CubicBezierCurve(approximate(start), approximate(control), approximate(end));
-
-		m_renderer->draw(bezier);
-
+		m_renderer->draw(parabolaSegmentToBezier(p));
 		return *this;
 	}
 };
