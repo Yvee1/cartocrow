@@ -15,6 +15,7 @@ set(HEADERS
 	ellipse.h
 	boundary_map.h
 	arrangement_map.h
+	arrangement_map.hpp
 	region_arrangement.h
 	region_map.h
 	timer.h
