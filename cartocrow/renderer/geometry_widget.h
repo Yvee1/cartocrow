@@ -201,6 +201,12 @@ class GeometryWidget : public QWidget, public GeometryRenderer {
 	void draw(const Halfplane<Inexact>& h) override;
 	void draw(const RenderPath& p) override;
 	void drawText(const Point<Inexact>& p, const std::string& text, bool escape=true) override;
+	/// Draws a part of an \ref image inside the \ref target rectangle.
+	void drawImage(const Box& target, const QImage& image, const Box& source, Qt::ImageConversionFlag flags = Qt::AutoColor);
+	/// Draws an \ref image inside the rectangle.
+	void drawImage(const Box& target, const QImage& image);
+	/// Draws an \ref image at \ref pos.
+	void drawImage(const Point<Inexact>& pos, const QImage& image);
 
 	void pushStyle() override;
 	void popStyle() override;

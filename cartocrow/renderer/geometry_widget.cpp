@@ -365,8 +365,8 @@ QPointF GeometryWidget::convertPoint(Point<Inexact> p) const {
 }
 
 QRectF GeometryWidget::convertBox(Box b) const {
-	QPointF topLeft = convertPoint(Point<Inexact>(b.xmin(), b.ymin()));
-	QPointF bottomRight = convertPoint(Point<Inexact>(b.xmax(), b.ymax()));
+	QPointF topLeft = convertPoint(Point<Inexact>(b.xmin(), b.ymax()));
+	QPointF bottomRight = convertPoint(Point<Inexact>(b.xmax(), b.ymin()));
 	return QRectF(topLeft, bottomRight);
 }
 
@@ -714,6 +714,27 @@ void GeometryWidget::drawText(const Point<Inexact>& p, const std::string& text, 
 	QPointF p2 = convertPoint(p);
 	m_painter->drawText(QRectF(p2 - QPointF{500, 250}, p2 + QPointF{500, 250}), m_textAlignment,
 	                    QString::fromStdString(text));
+}
+
+void GeometryWidget::drawImage(const Box& target, const QImage& image, const Box& source, Qt::ImageConversionFlag flags) {
+	if (image.isNull()) {
+		std::cerr << "Image is null!" << std::endl;
+	}
+	m_painter->drawImage(convertBox(target), image, convertBox(source), flags);
+}
+
+void GeometryWidget::drawImage(const Box& target, const QImage& image) {
+	if (image.isNull()) {
+		std::cerr << "Image is null!" << std::endl;
+	}
+	m_painter->drawImage(convertBox(target), image);
+}
+
+void GeometryWidget::drawImage(const Point<Inexact>& pos, const QImage& image) {
+	if (image.isNull()) {
+		std::cerr << "Image is null!" << std::endl;
+	}
+	m_painter->drawImage(convertPoint(pos), image);
 }
 
 void GeometryWidget::setupPainter() {
