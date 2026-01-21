@@ -21,6 +21,8 @@
 #include <CGAL/Segment_Delaunay_graph_hierarchy_2.h>
 #include <CGAL/Segment_Delaunay_graph_traits_2.h>
 
+#include "segment_delaunay_graph_helpers.h"
+
 namespace cartocrow {
 template<class SDG>
 bool same_points(const SDG& dg, const typename SDG::Site_2& p, const typename SDG::Site_2& q) {
@@ -53,6 +55,26 @@ Stream& draw_dual_edge(const SDG& dg, typename SDG::Edge e, Stream& str)
 	return str;
 }
 
+template <class Stream, class SDG>
+Stream& draw_dual_edge_exact(const SDG& dg, typename SDG::Edge e, Stream& str)
+{
+	using Exact_SDG_traits = CGAL::Segment_Delaunay_graph_traits_2<Exact>;
+	typename Exact_SDG_traits::Line_2  l;
+	typename Exact_SDG_traits::Segment_2 s;
+	typename Exact_SDG_traits::Ray_2     r;
+	CGAL::Parabola_segment_2<Exact_SDG_traits> ps;
+
+	if (dg.is_infinite(e)) return str;
+	CGAL::Object o = exact_primal(e, dg);
+
+	if (CGAL::assign(l, o))   str << l;
+	if (CGAL::assign(s, o))   str << s;
+	if (CGAL::assign(r, o))   str << r;
+	if (CGAL::assign(ps, o))  str << ps;
+
+	return str;
+}
+
 template <class Stream,
           class SDG>
 Stream& draw_skeleton(const SDG& dg, Stream& str) {
@@ -76,10 +98,41 @@ Stream& draw_skeleton(const SDG& dg, Stream& str) {
 
 template <class Stream,
           class SDG>
+Stream& draw_skeleton_exact(const SDG& dg, Stream& str) {
+	auto eit = dg.finite_edges_begin();
+	for (; eit != dg.finite_edges_end(); ++eit) {
+		auto p = eit->first->vertex(  SDG::cw(eit->second) )->site();
+		auto q = eit->first->vertex( SDG::ccw(eit->second) )->site();
+
+		bool is_endpoint_of_seg =
+		    ( p.is_segment() && q.is_point() &&
+		     is_endpoint_of_segment<SDG>(dg, q, p) ) ||
+		    ( p.is_point() && q.is_segment() &&
+		     is_endpoint_of_segment<SDG>(dg, p, q) );
+
+		if ( !is_endpoint_of_seg ) {
+			draw_dual_edge_exact<Stream, SDG>(dg, *eit, str);
+		}
+	}
+	return str;
+}
+
+template <class Stream,
+          class SDG>
 Stream& draw_dual(const SDG& dg, Stream& str) {
 	auto eit = dg.finite_edges_begin();
 	for (; eit != dg.finite_edges_end(); ++eit) {
 		draw_dual_edge<Stream, SDG>(dg, *eit, str);
+	}
+	return str;
+}
+
+template <class Stream,
+          class SDG>
+Stream& draw_dual_exact(const SDG& dg, Stream& str) {
+	auto eit = dg.finite_edges_begin();
+	for (; eit != dg.finite_edges_end(); ++eit) {
+		draw_dual_edge_exact<Stream, SDG>(dg, *eit, str);
 	}
 	return str;
 }

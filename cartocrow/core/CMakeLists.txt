@@ -8,6 +8,7 @@ set(SOURCES
 	vector_helpers.cpp
 	transform_helpers.cpp
 	polyline.cpp
+	segment_delaunay_graph_helpers.cpp
 )
 set(HEADERS
 	centroid.h

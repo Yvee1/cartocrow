@@ -32,6 +32,8 @@ namespace cartocrow::renderer {
 template < class Gt >
 class VoronoiDrawer {
   public:
+	using GtE = CGAL::Segment_Delaunay_graph_traits_2<Exact>;
+
 	cartocrow::renderer::GeometryRenderer* m_renderer;
 
 	explicit VoronoiDrawer(cartocrow::renderer::GeometryRenderer* renderer): m_renderer(renderer) {};
@@ -52,6 +54,26 @@ class VoronoiDrawer {
 	}
 
 	VoronoiDrawer& operator<<(const typename CGAL::Parabola_segment_2<Gt>& p){
+		m_renderer->draw(parabolaSegmentToBezier(p));
+		return *this;
+	}
+
+	VoronoiDrawer& operator<<(const typename GtE::Segment_2& s) {
+		m_renderer->draw(s);
+		return *this;
+	}
+
+	VoronoiDrawer& operator<<(const typename GtE::Line_2& l) {
+		m_renderer->draw(l);
+		return *this;
+	}
+
+	VoronoiDrawer& operator<<(const typename GtE::Ray_2& r){
+		m_renderer->draw(r);
+		return *this;
+	}
+
+	VoronoiDrawer& operator<<(const typename CGAL::Parabola_segment_2<GtE>& p){
 		m_renderer->draw(parabolaSegmentToBezier(p));
 		return *this;
 	}

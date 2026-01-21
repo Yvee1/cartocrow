@@ -80,4 +80,103 @@ CubicBezierCurve parabolaSegmentToBezier(const CGAL::Parabola_segment_2<Gt>& p) 
 	auto control = CGAL::circumcenter(focus, start_p, end_p);
 	return CubicBezierCurve(approximate(start), approximate(control), approximate(end));
 }
+
+// The functions are adapted from a CGAL example. https://github.com/CGAL/cgal/blob/33a2a257bde0e33af8ff083c28ea12050b28e1b5/Segment_Delaunay_graph_2/examples/Segment_Delaunay_graph_2/sdg-advanced-draw.cpp
+template < typename ExactSite, typename SDGSite >
+ExactSite convert_site_to_exact(const SDGSite &site)
+{
+	// Note: in theory, a site can be constructed from more than just one or two points
+	// (e.g. 4 points for the segment defined by the intersection of two segments). Thus, it
+	// would be better to convert the input points at the very beginning and just maintain
+	// a type of map between the base and exact sites.
+	ExactSite es;
+	if(site.is_point())
+		es = ExactSite::construct_site_2(pretendExact(site.point()));
+	else
+		es = ExactSite::construct_site_2(pretendExact(site.segment().source()), pretendExact(site.segment().target()));
+
+	return es;
+}
+
+// Dual (Voronoi site) of an SDG face
+template < typename FiniteFacesIterator >
+Point<Exact> exact_primal(const FiniteFacesIterator sdg_f)
+{
+	using Exact_SDG_traits = CGAL::Segment_Delaunay_graph_traits_2<Exact>;
+	using Exact_site_2 = typename Exact_SDG_traits::Site_2;
+
+	static Exact_SDG_traits e_sdg_gt;
+	const Exact_site_2 es0 = convert_site_to_exact<Exact_site_2>(sdg_f->vertex(0)->site());
+	const Exact_site_2 es1 = convert_site_to_exact<Exact_site_2>(sdg_f->vertex(1)->site());
+	const Exact_site_2 es2 = convert_site_to_exact<Exact_site_2>(sdg_f->vertex(2)->site());
+
+	return e_sdg_gt.construct_svd_vertex_2_object()(es0, es1, es2);
+}
+
+// Dual (Voronoi edge) of an SDG edge
+// this function is identical 'SDG::primal()', but with a conversion to exact sites
+template < typename Edge, class SDG >
+CGAL::Object exact_primal(const Edge& e,
+                          const SDG& sdg)
+{
+	using Exact_SDG_traits = CGAL::Segment_Delaunay_graph_traits_2<Exact>;
+	using Exact_site_2 = typename Exact_SDG_traits::Site_2;
+
+	using DT = CGAL::Field_with_sqrt_tag;
+	using Construct_sdg_bisector_2 = CGAL::SegmentDelaunayGraph_2::Construct_sdg_bisector_2<Exact_SDG_traits, DT>;
+	using Construct_sdg_bisector_ray_2 = CGAL::SegmentDelaunayGraph_2::Construct_sdg_bisector_ray_2<Exact_SDG_traits, DT>;
+	using Construct_sdg_bisector_segment_2 = CGAL::SegmentDelaunayGraph_2::Construct_sdg_bisector_segment_2<Exact_SDG_traits, DT>;
+
+	CGAL_precondition(!sdg.is_infinite(e));
+
+	if(sdg.dimension() == 1)
+	{
+		Exact_site_2 p = convert_site_to_exact<Exact_site_2>((e.first)->vertex(sdg.cw(e.second))->site());
+		Exact_site_2 q = convert_site_to_exact<Exact_site_2>((e.first)->vertex(sdg.ccw(e.second))->site());
+
+		return make_object(Construct_sdg_bisector_2()(p, q));
+	}
+
+	// dimension == 2
+	// neither of the two adjacent faces is infinite
+	if((!sdg.is_infinite(e.first)) && (!sdg.is_infinite(e.first->neighbor(e.second))))
+	{
+		Exact_site_2 p = convert_site_to_exact<Exact_site_2>((e.first)->vertex(sdg.ccw(e.second))->site());
+		Exact_site_2 q = convert_site_to_exact<Exact_site_2>((e.first)->vertex(sdg.cw(e.second))->site());
+		Exact_site_2 r = convert_site_to_exact<Exact_site_2>((e.first)->vertex(e.second)->site());
+		Exact_site_2 s = convert_site_to_exact<Exact_site_2>(sdg.tds().mirror_vertex(e.first, e.second)->site());
+
+		return Construct_sdg_bisector_segment_2()(p, q, r, s);
+	}
+
+	// both of the adjacent faces are infinite
+	if(sdg.is_infinite(e.first) && sdg.is_infinite(e.first->neighbor(e.second)))
+	{
+		Exact_site_2 p = convert_site_to_exact<Exact_site_2>((e.first)->vertex(sdg.cw(e.second))->site());
+		Exact_site_2 q = convert_site_to_exact<Exact_site_2>((e.first)->vertex(sdg.ccw(e.second))->site());
+
+		return make_object(Construct_sdg_bisector_2()(p, q));
+	}
+
+	// only one of the adjacent faces is infinite
+	CGAL_assertion(sdg.is_infinite(e.first) || sdg.is_infinite(e.first->neighbor(e.second)));
+	CGAL_assertion(!(sdg.is_infinite(e.first) && sdg.is_infinite(e.first->neighbor(e.second))));
+	CGAL_assertion(sdg.is_infinite(e.first->vertex(e.second)) || sdg.is_infinite(sdg.tds().mirror_vertex(e.first, e.second)));
+
+	Edge ee = e;
+	if(sdg.is_infinite(e.first->vertex(e.second)))
+	{
+		ee = Edge(e.first->neighbor(e.second),
+		          e.first->neighbor(e.second)->index(sdg.tds().mirror_vertex(e.first, e.second)));
+	}
+
+	Exact_site_2 p = convert_site_to_exact<Exact_site_2>(ee.first->vertex(sdg.ccw(ee.second))->site());
+	Exact_site_2 q = convert_site_to_exact<Exact_site_2>(ee.first->vertex(sdg.cw(ee.second))->site());
+	Exact_site_2 r = convert_site_to_exact<Exact_site_2>(ee.first->vertex(ee.second)->site());
+
+	return make_object(Construct_sdg_bisector_ray_2()(p, q, r));
+}
+
+CGAL::Parabola_segment_2<CGAL::Segment_Delaunay_graph_traits_2<Inexact>>
+approximate(const CGAL::Parabola_segment_2<CGAL::Segment_Delaunay_graph_traits_2<Exact>>& ps);
 }
