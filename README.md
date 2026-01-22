@@ -178,6 +178,25 @@ where `<install-directory>/bin` is the directory where the executables will be i
 
 If you want to use [cartocrow-web](https://github.com/tue-alga/cartocrow-web), clone that repository to a separate directory, and use that directory as `<install-directory>`, so that the executables are installed in a location where the web application can find them. (See also the [README](https://github.com/tue-alga/cartocrow-web/blob/master/README.md) in the [cartocrow-web](https://github.com/tue-alga/cartocrow-web) repository for details.)
 
+### Emscripten for WebAssembly
+To compile to WebAssembly, first [install Emscripten](https://emscripten.org/docs/getting_started/downloads.html).
+The Qt, ipelib, and GDAL dependencies are not needed for WebAssembly.
+The remaining dependencies are header-only.
+To pass these to Emscripten, create a folder somewhere that will contain all the header files needed for CartoCrow.
+You can either copy the header files into that folder, or make a symbolic link to them, for example:
+```sh
+ln -s /usr/local/include/cavc ~/Documents/cartocrow_wasm_headers/cavc
+ln -s /usr/include/CGAL ~/Documents/cartocrow_wasm_headers/CGAL
+```
+Then, to build CartoCrow core, run the following commands in the root of the `cartocrow/core` source directory.
+Below, replace <path/to/cartocrow_wasm_headers> by the directory with the header files, as explained above.
+Replace <path/to/cartocrow_wasm_files> by a new empty directory; this is where all compiled Wasm files will be placed.
+```sh
+emcmake cmake -S . -B wasm_build -DCMAKE_BUILD_TYPE=Release -DEMSCRIPTEN_INCLUDE_DIR=<path/to/cartocrow_wasm_headers>
+cmake --build wasm_build
+cmake --install wasm_build --prefix <path/to/cartocrow_wasm_files>
+```
+CartoCrow/core can now be used in C++ projects that are compiled with Emscripten, by pointing to the cartocrow_wasm_files directory; the CartoCrow modules are examples on how to do this.
 
 ## Usage
 
