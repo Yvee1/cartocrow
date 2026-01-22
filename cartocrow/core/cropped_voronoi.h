@@ -1,12 +1,10 @@
 #ifndef CARTOCROW_CROPPED_VORONOI_H
 #define CARTOCROW_CROPPED_VORONOI_H
 
-#include "cartocrow/core/core.h"
-#include "cartocrow/simplesets/types.h"
+#include "core.h"
 #include <list>
 
 using namespace cartocrow;
-using namespace cartocrow::simplesets;
 
 std::optional<Segment<Exact>> intersectionConvex(const Polygon<Exact>& polygon, const Ray<Exact>& ray) {
 	auto sourceInside = polygon.has_on_bounded_side(ray.source());

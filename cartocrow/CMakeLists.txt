@@ -13,7 +13,6 @@ endmacro(cartocrow_install_module)
 add_subdirectory(core)
 add_subdirectory(circle_segment_helpers)
 add_subdirectory(renderer)
-add_subdirectory(simplesets)
 add_subdirectory(necklace_map)
 add_subdirectory(flow_map)
 if (NOT EMSCRIPTEN)
@@ -33,8 +32,12 @@ target_link_libraries(
     necklace_map
     flow_map
     isoline_simplification
+<<<<<<< HEAD
     simplesets
     widgets
+=======
+    chorematic_map
+>>>>>>> extract-simplesets
 )
 else()
 target_link_libraries(
@@ -44,7 +47,6 @@ target_link_libraries(
     renderer
     necklace_map
     flow_map
-    simplesets
 )
 endif()
 

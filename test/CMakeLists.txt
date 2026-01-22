@@ -19,9 +19,6 @@ set(TEST_SOURCES "cartocrow_test.cpp"
 	"necklace_map/necklace_map.cpp"
 	"necklace_map/range.cpp"
 	"renderer/ipe_renderer.cpp"
-	"simplesets/poly_line_gon_intersection.cpp"
-	"simplesets/partition_algorithm.cpp"
-	"simplesets/collinear_island.cpp"
 )
 
 
@@ -33,5 +30,4 @@ target_link_libraries(cartocrow_test
 	flow_map
 	renderer
 	reader
-	simplesets
 )

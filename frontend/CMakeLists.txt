@@ -14,7 +14,6 @@ target_link_libraries(
     flow_map
     necklace_map
     isoline_simplification
-    simplesets
     renderer
     CGAL::CGAL
     nlohmann_json::nlohmann_json
