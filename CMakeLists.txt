@@ -40,6 +40,7 @@ endif()
 
 ### DEPENDENCIES ###
 if(EMSCRIPTEN)
+    # If you modify anything in this Emscripten build setup, do not forget to also adjust cmake/CartoCrowConfig.cmake appropriately.
     add_compile_definitions(
         USE_BOOST_HEADERS=1
         CGAL_ALWAYS_ROUND_TO_NEAREST
@@ -48,7 +49,7 @@ if(EMSCRIPTEN)
     add_compile_options(-fwasm-exceptions)
     add_link_options(-g -fwasm-exceptions -lembind --preload-file ${CMAKE_CURRENT_SOURCE_DIR}/data@/data)
     if (NOT DEFINED EMSCRIPTEN_INCLUDE_DIR)
-        message(FATAL_ERROR "Please set EMSCRIPTEN_INCLUDE_DIR to the folder with all header files needed for emscripten compilation")
+        message(FATAL_ERROR "Please set EMSCRIPTEN_INCLUDE_DIR to the folder with all header files needed for Emscripten compilation")
     endif()
     include_directories(${EMSCRIPTEN_INCLUDE_DIR})
 else()
@@ -79,9 +80,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
 add_subdirectory(cartocrow)
-if (EMSCRIPTEN)
-    add_subdirectory(wasm_frontend)
-else()
+if (NOT EMSCRIPTEN)
     add_subdirectory(demos)
     add_subdirectory(frontend)
     add_subdirectory(test)
