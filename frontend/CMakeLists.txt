@@ -13,7 +13,6 @@ target_link_libraries(
     reader
     flow_map
     necklace_map
-    isoline_simplification
     renderer
     CGAL::CGAL
     nlohmann_json::nlohmann_json

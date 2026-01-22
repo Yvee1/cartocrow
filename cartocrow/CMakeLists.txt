@@ -16,7 +16,6 @@ add_subdirectory(renderer)
 add_subdirectory(necklace_map)
 add_subdirectory(flow_map)
 if (NOT EMSCRIPTEN)
-    add_subdirectory(isoline_simplification)
     add_subdirectory(reader)
     add_subdirectory(widgets)
 endif()
@@ -31,13 +30,7 @@ target_link_libraries(
     reader
     necklace_map
     flow_map
-    isoline_simplification
-<<<<<<< HEAD
-    simplesets
     widgets
-=======
-    chorematic_map
->>>>>>> extract-simplesets
 )
 else()
 target_link_libraries(
