@@ -128,6 +128,16 @@ template <class K> class Polyline {
 	[[nodiscard]] int size() const { return num_vertices(); }
 	[[nodiscard]] CGAL::Point_2<K> vertex(int i) const { return m_points[i]; }
 	[[nodiscard]] CGAL::Segment_2<K> edge(int i) const { return *(std::next(edges_begin(), i)); }
+	[[nodiscard]] CGAL::Bbox_2 bbox() const { return CGAL::bbox_2(m_points.begin(), m_points.end()); }
+	[[nodiscard]] CGAL::Point_2<K> source() const { return m_points.front(); }
+	[[nodiscard]] CGAL::Point_2<K> target() const { return m_points.back(); }
+	[[nodiscard]] Polyline<K> transform(const CGAL::Aff_transformation_2<K>& trans) const {
+		Polyline<K> transformed;
+		for (const auto& pt : m_points) {
+			transformed.push_back(pt.transform(trans));
+		}
+		return transformed;
+	}
   private:
 	std::vector<CGAL::Point_2<K>> m_points;
 };
