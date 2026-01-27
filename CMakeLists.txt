@@ -47,7 +47,7 @@ if(EMSCRIPTEN)
         CGAL_DISABLE_GMP=ON
     )
     add_compile_options(-fwasm-exceptions)
-    add_link_options(-g -fwasm-exceptions -lembind --preload-file ${CMAKE_CURRENT_SOURCE_DIR}/data@/data)
+    add_link_options(-g -fwasm-exceptions -lembind)
     if (NOT DEFINED EMSCRIPTEN_INCLUDE_DIR)
         message(FATAL_ERROR "Please set EMSCRIPTEN_INCLUDE_DIR to the folder with all header files needed for Emscripten compilation")
     endif()
