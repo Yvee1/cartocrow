@@ -53,6 +53,26 @@ PolygonWithHoles<Exact> ogrPolygonToPolygonWithHoles(const OGRPolygon& ogrPolygo
     return pgns.front();
 }
 
+std::vector<Polyline<Exact>> ogrMultiLineStringToMultiPolyline(const OGRMultiLineString& ogrMultiLineString) {
+	std::vector<Polyline<Exact>> pls;
+
+	for (const auto& lineString : ogrMultiLineString) {
+		pls.push_back(ogrLineStringToPolyline(*lineString));
+	}
+
+	return pls;
+}
+
+Polyline<Exact> ogrLineStringToPolyline(const OGRLineString& ogrLineString) {
+	Polyline<Exact> pl;
+
+	for (const auto& pt : ogrLineString) {
+		pl.push_back({pt.getX(), pt.getY()});
+	}
+
+	return pl;
+}
+
 OGRLinearRing polygonToOGRLinearRing(const Polygon<Inexact>& polygon) {
     OGRLinearRing ring;
     for (const auto& v : polygon.vertices()) {

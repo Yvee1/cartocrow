@@ -24,6 +24,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "../core/cubic_bezier.h"
 #include "../core/ellipse.h"
 #include "../core/polyline.h"
+#include "../core/polyline_set.h"
 #include "../core/halfplane.h"
 #include "render_path.h"
 
@@ -127,6 +128,8 @@ class GeometryRenderer {
 	void draw(const Polygon<Inexact>& p);
 	/// Draws a polyline with the currently set style.
 	void draw(const Polyline<Inexact>& p);
+	/// Draws a polyline set with the currently set style.
+	void draw(const PolylineSet<Inexact>& p);
 	/// Draws a polygon with holes with the currently set style.
 	void draw(const PolygonWithHoles<Inexact>& p);
 	/// Draws a polygon set with the currently set style.

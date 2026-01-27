@@ -8,6 +8,7 @@ set(SOURCES
 	vector_helpers.cpp
 	transform_helpers.cpp
 	polyline.cpp
+	polyline_set.cpp
 	segment_delaunay_graph_helpers.cpp
 )
 set(HEADERS
@@ -33,6 +34,7 @@ set(HEADERS
 	delaunay_voronoi_helpers.h
 	segment_delaunay_graph_helpers.h
 	segment_delaunay_graph_helpers_cgal_adapted.h
+	polyline_set.h
 )
 
 add_library(core ${SOURCES})

@@ -78,6 +78,17 @@ void GeometryRenderer::draw(const Polyline<Inexact>& p) {
 	draw(path);
 }
 
+void GeometryRenderer::draw(const PolylineSet<Inexact>& ps) {
+	RenderPath path;
+	for (const auto& p : ps.polylines) {
+		path.moveTo(p.source());
+		for (int i = 1; i < p.size(); ++i) {
+			path.lineTo(p.vertex(i));
+		}
+	}
+	draw(path);
+}
+
 void GeometryRenderer::draw(const PolygonWithHoles<Inexact>& p) {
 	RenderPath path;
 	path << p;
