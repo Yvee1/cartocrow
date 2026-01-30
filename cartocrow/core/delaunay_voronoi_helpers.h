@@ -38,9 +38,10 @@ void bfsOnVoronoiEdges(const SDG& delaunay, const std::function<bool(const typen
 
 	for (auto eit = delaunay.finite_edges_begin(); eit != delaunay.finite_edges_end(); ++eit) {
 		if (!predicate(*eit)) continue;
-		if (std::find(handled.begin(), handled.end(), *eit) != handled.end()) continue;
-
 		auto& e = *eit;
+
+		if (std::find(handled.begin(), handled.end(), e) != handled.end()) continue;
+		if (std::find(handled.begin(), handled.end(), mirror_edge(delaunay, e)) != handled.end()) continue;
 
 		// Construct the component that has edge e.
 		std::vector<Edge> component;
@@ -50,6 +51,7 @@ void bfsOnVoronoiEdges(const SDG& delaunay, const std::function<bool(const typen
 			auto current = q.front();
 			q.pop_front();
 			if (std::find(component.begin(), component.end(), current) != component.end()) continue;
+			if (std::find(component.begin(), component.end(), mirror_edge(delaunay, current)) != component.end()) continue;
 			handled.push_back(current);
 			if (!predicate(current)) continue;
 			component.push_back(current);
