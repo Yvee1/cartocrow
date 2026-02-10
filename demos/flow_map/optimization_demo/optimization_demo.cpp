@@ -145,7 +145,7 @@ void OptimizationDemo::recalculate() {
 		if (node->getType() == Node::ConnectionType::kSubdivision) {
 			node->m_position.setPhi(wrapAngle(
 			    node->m_position.phi() + static_cast<float>(std::rand()) / RAND_MAX * 0.2 - 0.1,
-			    -M_PI));
+			    -std::numbers::pi));
 		}
 	}*/
 	SmoothTreePainting::Options options;
