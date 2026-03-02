@@ -18,7 +18,6 @@ target_link_libraries(cartocrow_test
 	PRIVATE
 	core
 	necklace_map
-	flow_map
 	renderer
 	reader
 )

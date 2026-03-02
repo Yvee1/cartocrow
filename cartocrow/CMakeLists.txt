@@ -28,7 +28,6 @@ target_link_libraries(
     renderer
     reader
     necklace_map
-    flow_map
     widgets
 )
 else()
@@ -38,7 +37,6 @@ target_link_libraries(
     circle_segment_helpers
     renderer
     necklace_map
-    flow_map
 )
 endif()
 
