@@ -177,9 +177,8 @@ CubicBezierCurve CubicBezierCurve::transform(const CGAL::Aff_transformation_2<In
 }
 
 CubicBezierCurve::CurvePoint
-CubicBezierCurve::nearest(Point<K> point) const {
+CubicBezierCurve::nearest(Point<K> point, double threshold) const {
 	int nPoints = 10;
-	double threshold = M_EPSILON;
 
 	int closest = -1;
 	double minDist2 = std::numeric_limits<double>::infinity();
@@ -442,14 +441,14 @@ Number<Inexact> CubicBezierSpline::curvature(const SplineParameter& param) const
 }
 
 CubicBezierSpline::SplinePoint
-CubicBezierSpline::nearest(Point<Inexact> point) const {
+CubicBezierSpline::nearest(Point<Inexact> point, double threshold) const {
 	double minDist2 = std::numeric_limits<double>::infinity();
 	int closestIndex = -1;
 	Curve::CurvePoint closest;
 
 	int curveIndex = 0;
 	for (const auto& c : curves()) {
-		auto n = c.nearest(point);
+		auto n = c.nearest(point, threshold);
 		auto dist2 = CGAL::squared_distance(point, n.point);
 		if (dist2 < minDist2) {
 			minDist2 = dist2;

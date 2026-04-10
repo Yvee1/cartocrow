@@ -147,7 +147,7 @@ class CubicBezierCurve {
 	};
 
 	/// Given a point, return the nearest point on the curve together with its parameter value.
-	CurvePoint nearest(Point<K> point) const;
+	CurvePoint nearest(Point<K> point, double threshold = M_EPSILON) const;
 
 	/// Returns the extrema on the curve: left-, bottom-, right-, top-most points on the curve.
 	std::tuple<CurvePoint, CurvePoint, CurvePoint, CurvePoint> extrema() const;
@@ -480,7 +480,7 @@ class CubicBezierSpline {
 
 	// === More computational operations ===
 	/// Given a point, return the nearest point on the spline together with its parameter value.
-	SplinePoint nearest(Point<K> point) const;
+	SplinePoint nearest(Point<K> point, double threshold = M_EPSILON) const;
 	/// Returns the extrema on the spline: left-, bottom-, right-, top-most points on the curve.
 	std::tuple<SplinePoint, SplinePoint, SplinePoint, SplinePoint> extrema() const;
 	/// Returns the axis-aligned bounding box of the spline.
