@@ -1,10 +1,8 @@
 set(TEST_SOURCES "cartocrow_test.cpp"
 	"core/cubic_bezier.cpp"
-	"core/centroid.cpp"
 	"core/core.cpp"
 	"core/region_arrangement.cpp"
 	"core/region_map.cpp"
-	"core/timer.cpp"
 	"renderer/ipe_renderer.cpp"
 )
 
