@@ -19,10 +19,11 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "core.h"
 
+#include <CGAL/Multipolygon_with_holes_2.h>
+
 namespace cartocrow {
 
 template <class Kernel> Point<Kernel> centroid(const Polygon<Kernel>& polygon) {
-
 	int n = polygon.size();
 
 	switch (n) {
@@ -51,13 +52,14 @@ template <class Kernel> Point<Kernel> centroid(const Polygon<Kernel>& polygon) {
 	}
 }
 
-template <class Kernel> Point<Kernel> centroid(const std::vector<Polygon<Kernel>>& polygons) {
-
+// Returns the centroid of a collection of polygon geometries
+template <class Kernel, class InputIterator> Point<Kernel> centroid(InputIterator begin, InputIterator end) {
 	// NB: this assumes that the outerboundaries are CCW
 	// and the inner boundaries (holes) are CW
 	Number<Kernel> cx = 0, cy = 0;
 	Number<Kernel> totalarea = 0;
-	for (const Polygon<Kernel>& p : polygons) {
+	for (auto pit = begin; pit != end; ++pit) {
+		const auto& p = *pit;
 		Number<Kernel> a = p.area();
 		totalarea += a;
 		Point<Kernel> ctr = centroid(p);
@@ -71,7 +73,6 @@ template <class Kernel> Point<Kernel> centroid(const std::vector<Polygon<Kernel>
 }
 
 template <class Kernel> Point<Kernel> centroid(const PolygonWithHoles<Kernel>& polygon) {
-
 	Number<Kernel> cx = 0, cy = 0;
 	Number<Kernel> totalarea = 0;
 
@@ -98,4 +99,14 @@ template <class Kernel> Point<Kernel> centroid(const PolygonWithHoles<Kernel>& p
 	return Point<Kernel>(cx, cy);
 }
 
+template <class Kernel>
+Point<Kernel> centroid(const PolygonSet<Kernel>& ps) {
+	std::vector<PolygonWithHoles<Kernel>> pgns;
+	ps.polygons_with_holes(std::back_inserter(pgns));
+	return centroid(pgns.begin(), pgns.end());
+}
+
+template <class Kernel> Point<Kernel> centroid(const CGAL::Multipolygon_with_holes_2<Kernel>& mp) {
+	return centroid(mp.polygons_with_holes_begin(), mp.polygons_with_holes_end());
+}
 } // namespace cartocrow
