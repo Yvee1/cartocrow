@@ -21,7 +21,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace cartocrow {
 
-template <class Kernel> Point<Kernel> compute_centroid(const Polygon<Kernel>& polygon) {
+template <class Kernel> Point<Kernel> centroid(const Polygon<Kernel>& polygon) {
 
 	int n = polygon.size();
 
@@ -51,7 +51,7 @@ template <class Kernel> Point<Kernel> compute_centroid(const Polygon<Kernel>& po
 	}
 }
 
-template <class Kernel> Point<Kernel> compute_centroid(const std::vector<Polygon<Kernel>>& polygons) {
+template <class Kernel> Point<Kernel> centroid(const std::vector<Polygon<Kernel>>& polygons) {
 
 	// NB: this assumes that the outerboundaries are CCW
 	// and the inner boundaries (holes) are CW
@@ -70,7 +70,7 @@ template <class Kernel> Point<Kernel> compute_centroid(const std::vector<Polygon
 	return Point<Kernel>(cx, cy);
 }
 
-template <class Kernel> Point<Kernel> compute_centroid(const PolygonWithHoles<Kernel>& polygon) {
+template <class Kernel> Point<Kernel> centroid(const PolygonWithHoles<Kernel>& polygon) {
 
 	Number<Kernel> cx = 0, cy = 0;
 	Number<Kernel> totalarea = 0;
