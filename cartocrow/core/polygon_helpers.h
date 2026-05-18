@@ -60,7 +60,7 @@ template <class Kernel> Point<Kernel> centroid(const std::vector<Polygon<Kernel>
 	for (const Polygon<Kernel>& p : polygons) {
 		Number<Kernel> a = p.area();
 		totalarea += a;
-		Point<Kernel> ctr = compute_centroid(p);
+		Point<Kernel> ctr = centroid(p);
 		cx += a * ctr.x();
 		cy += a * ctr.y();
 	}
@@ -79,7 +79,7 @@ template <class Kernel> Point<Kernel> centroid(const PolygonWithHoles<Kernel>& p
 		const Polygon<Kernel>& p = polygon.outer_boundary();
 		Number<Kernel> a = CGAL::abs(p.area());
 		totalarea += a;
-		Point<Kernel> ctr = compute_centroid(p);
+		Point<Kernel> ctr = centroid(p);
 		cx += a * ctr.x();
 		cy += a * ctr.y();
 	}
@@ -87,7 +87,7 @@ template <class Kernel> Point<Kernel> centroid(const PolygonWithHoles<Kernel>& p
 	for (const Polygon<Kernel>& p : polygon.holes()) {
 		Number<Kernel> a = -1 * CGAL::abs(p.area());
 		totalarea += a;
-		Point<Kernel> ctr = compute_centroid(p);
+		Point<Kernel> ctr = centroid(p);
 		cx += a * ctr.x();
 		cy += a * ctr.y();
 	}
