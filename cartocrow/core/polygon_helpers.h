@@ -47,7 +47,6 @@ template <class Kernel> Point<Kernel> compute_centroid(const Polygon<Kernel>& po
 		A *= 3;
 		cx = cx / A;
 		cy = cy / A;
-		std::cout << "ctr -> " << cx << " , " << cy << "\n";
 		return Point<Kernel>(cx, cy);
 	}
 }
@@ -58,26 +57,21 @@ template <class Kernel> Point<Kernel> compute_centroid(const std::vector<Polygon
 	// and the inner boundaries (holes) are CW
 	Number<Kernel> cx = 0, cy = 0;
 	Number<Kernel> totalarea = 0;
-	std::cout << polygons.size() << "\n";
 	for (const Polygon<Kernel>& p : polygons) {
 		Number<Kernel> a = p.area();
 		totalarea += a;
 		Point<Kernel> ctr = compute_centroid(p);
-		std::cout << "!" << a << " || " << ctr << "\n";
 		cx += a * ctr.x();
 		cy += a * ctr.y();
 	}
 	cx /= totalarea;
 	cy /= totalarea;
 
-	std::cout << "list ctr -> " << cx << " , " << cy << "\n";
 	return Point<Kernel>(cx, cy);
 }
 
 template <class Kernel> Point<Kernel> compute_centroid(const PolygonWithHoles<Kernel>& polygon) {
 
-	// NB: this assumes that the outerboundary is CCW 
-	// and the inner boundaries (holes) are CW
 	Number<Kernel> cx = 0, cy = 0;
 	Number<Kernel> totalarea = 0;
 
@@ -99,9 +93,7 @@ template <class Kernel> Point<Kernel> compute_centroid(const PolygonWithHoles<Ke
 	}
 
 	cx /= totalarea;
-	cy /= totalarea;
-		
-	std::cout << "hole ctr -> " << cx << " , " << cy << "\n";
+	cy /= totalarea;		
 
 	return Point<Kernel>(cx, cy);
 }
