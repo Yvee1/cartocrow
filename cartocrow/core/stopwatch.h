@@ -13,39 +13,60 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
-*/                                                                                                \
+*/
 
 #pragma once
 
 #include <string>
+#include <vector>
 
 namespace cartocrow {
-		
-/// A simple Stopwatch class that allows for tracking wallclock time. Stopwatches are identified by name and use millisecond resolution.
-class Stopwatch {
 
+enum TimeResolution { SECONDS, MILLISECONDS, NANOSECONDS };
+
+class StopwatchPool;
+
+/// A simple Stopwatch class that allows for tracking wallclock time.
+class Stopwatch {
   private:
 	std::string name;
+	TimeResolution resolution;
 	long total = 0;
 	long count = 0;
 	long start_time = 0;
 
-	Stopwatch(std::string name) : name(name) {}
+	long current_time();
 
   public:
+	Stopwatch(std::string name, TimeResolution resolution = MILLISECONDS);
+
 	Stopwatch& start();
 	long stop();
 
 	long getTotalTime();
 	long getCount();
 
-	static Stopwatch& get(std::string name);
-
-	static void clear();
-
-	static void printAndClear();
-
-	static void printAll();
+	friend class StopwatchPool;
 };
 
-}
+/// A collection of Stopwatches, all at the same temporal resolution. Stopwatches are identified by their name.
+class StopwatchPool {
+  private:
+	std::string name;
+	TimeResolution resolution;
+	std::vector<Stopwatch> watches;
+
+  public:
+	StopwatchPool(std::string name, TimeResolution resolution = MILLISECONDS);
+
+	Stopwatch& get(std::string name);
+
+	void clear();
+	void printAll();
+	void printAndClear();
+
+	/// A global millisecond stopwatch pool.
+	static StopwatchPool& global();
+};
+
+} // namespace cartocrow

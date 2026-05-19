@@ -17,51 +17,27 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "stopwatch.h"
 
+#include <chrono>
 #include <iostream>
 #include <string>
-#include <chrono>
 
 namespace cartocrow {
 
-using TimeResolution = std::chrono::milliseconds;
-std::vector<Stopwatch> watches;
-
-int countDigits(long val) {
-	// NB: assume val >= 0
-	return val < 10 ? 1 : (1 + countDigits(val / 10));
-}
-
-void printLeftAlign(std::string s, int w) {
-	std::cout << s;
-	w -= s.length();
-	while (w > 0) {
-		std::cout << " ";
-		w--;
-	}
-}
-void printRightAlign(std::string s, int w) {
-	w -= s.length();
-	while (w > 0) {
-		std::cout << " ";
-		w--;
-	}
-	std::cout << s;
+Stopwatch::Stopwatch(std::string name, TimeResolution resolution)
+    : name(name), resolution(resolution) {
+	count = 0;
+	total = 0;
 }
 
 Stopwatch& Stopwatch::start() {
-	start_time = std::chrono::duration_cast<TimeResolution>(
-	                 std::chrono::system_clock::now().time_since_epoch())
-	                 .count();
+	start_time = current_time();
 	return *this;
 }
 
 long Stopwatch::stop() {
-	long end_time = std::chrono::duration_cast<TimeResolution>(
-	                    std::chrono::system_clock::now().time_since_epoch())
-	                    .count();
-	count++;
-	long duration = end_time - start_time;
+	long duration = current_time() - start_time;
 	total += duration;
+	count++;
 	return duration;
 }
 
@@ -73,64 +49,132 @@ long Stopwatch::getCount() {
 	return count;
 }
 
-Stopwatch& Stopwatch::get(std::string name) {
+long Stopwatch::current_time() {
+	switch (resolution) {
+	case SECONDS:
+		return std::chrono::duration_cast<std::chrono::seconds>(
+		           std::chrono::system_clock::now().time_since_epoch())
+		    .count();
+	case MILLISECONDS:
+		return std::chrono::duration_cast<std::chrono::milliseconds>(
+		           std::chrono::system_clock::now().time_since_epoch())
+		    .count();
+	case NANOSECONDS:
+		return std::chrono::duration_cast<std::chrono::nanoseconds>(
+		           std::chrono::system_clock::now().time_since_epoch())
+		    .count();
+	}
+}
+
+StopwatchPool::StopwatchPool(std::string name, TimeResolution resolution)
+    : name(name), resolution(resolution) {}
+
+Stopwatch& StopwatchPool::get(std::string name) {
 	for (Stopwatch& w : watches) {
 		if (w.name == name) {
 			return w;
 		}
 	}
-	Stopwatch w(name);
+	Stopwatch w(name, resolution);
 	watches.push_back(w);
-	return watches[watches.size()-1];
+	return watches[watches.size() - 1];
 }
 
-void Stopwatch::clear() {
+void StopwatchPool::clear() {
 	watches.clear();
 }
 
-void Stopwatch::printAndClear() {
-	Stopwatch::printAll();
-	Stopwatch::clear();
+void StopwatchPool::printAndClear() {
+	printAll();
+	clear();
 }
 
-void Stopwatch::printAll() {
-	std::cout << "------ TIMINGS -----------------------------" << std::endl;
+int countDigits(long val) {
+	// NB: assume val >= 0
+	return val < 10 ? 1 : (1 + countDigits(val / 10));
+}
 
-	int longestname = 4;
-	int longesttime = 5;
-	int longestcount = 5;
-	for (Stopwatch& w : watches) {
-		longestname = std::max(longestname, (int) w.name.length());
-		longesttime = std::max(longesttime, countDigits(w.total));
-		longestcount = std::max(longestcount, countDigits(w.count));
+inline void repeat(std::string s, int c) {
+	while (c > 0) {
+		std::cout << s;
+		c--;
 	}
-	int longestaverage = std::max(longesttime, 7);
+}
 
-	printLeftAlign("NAME", longestname);
+inline void printLeftAlign(std::string s, int w) {
+	std::cout << s;
+	repeat(" ", w - s.length());
+}
+inline void printRightAlign(std::string s, int w) {
+	repeat(" ", w - s.length());
+	std::cout << s;
+}
+
+inline std::string to_string(TimeResolution resolution) {
+	switch (resolution) {
+	case SECONDS:
+		return "s";
+	case MILLISECONDS:
+		return "ms";
+	case NANOSECONDS:
+		return "ns";
+	}
+}
+
+void StopwatchPool::printAll() {
+
+	int name_width = 4;
+	long maxtime = 0;
+	long maxcount = 0;
+	for (Stopwatch& w : watches) {
+		name_width = std::max(name_width, (int) w.name.length());
+		maxtime = std::max(maxtime, w.total);
+		maxcount = std::max(maxcount, w.count);
+	}
+	int time_width = std::max(5, countDigits(maxtime));
+	int count_width = std::max(5, countDigits(maxcount));
+	int average_width = std::max(time_width, 7);
+
+	std::cout << "------ " << name << " (" << to_string(resolution) << ") ";
+	repeat("-", name_width + time_width + count_width + average_width + 6 - name.length() -
+	                to_string(resolution).length() - 10);
+	std::cout << std::endl;
+
+	printLeftAlign("NAME", name_width);
 	std::cout << "  ";
-	printLeftAlign("TOTAL", longesttime);
+	printLeftAlign("TOTAL", time_width);
 	std::cout << "  ";
-	printLeftAlign("COUNT", longestcount);
+	printLeftAlign("COUNT", count_width);
 	std::cout << "  ";
-	printLeftAlign("AVERAGE", longestaverage);
-	std::cout << "  ";
+	printLeftAlign("AVERAGE", average_width);
+	std::cout << std::endl;
 
 	for (Stopwatch& w : watches) {
-		printLeftAlign(w.name, longestname);
+		printLeftAlign(w.name, name_width);
 		std::cout << "  ";
-		printRightAlign(std::to_string(w.total), longesttime);
+		printRightAlign(std::to_string(w.total), time_width);
 		std::cout << "  ";
-		printRightAlign(std::to_string(w.count), longestcount);
+		printRightAlign(std::to_string(w.count), count_width);
 		std::cout << "  ";
 		if (w.count == 0) {
-			printRightAlign("-", longestaverage);
+			printRightAlign("-", average_width);
 		} else {
-			printRightAlign(std::to_string(w.total / w.count), longestaverage);
+			printRightAlign(std::to_string(w.total / w.count), average_width);
 		}
 		std::cout << std::endl;
 	}
-	std::cout << "--------------------------------------------" << std::endl;
+
+	repeat("-", name_width + time_width + count_width + average_width + 6);
+	std::cout << std::endl;
 }
 
+static StopwatchPool* global_pool = nullptr;
+
+StopwatchPool& StopwatchPool::global() {
+	if (global_pool == nullptr) {
+		global_pool = new StopwatchPool("GLOBAL TIMING");
+	}
+	return *global_pool;
+}
 
 } // namespace cartocrow
