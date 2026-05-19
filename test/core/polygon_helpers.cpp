@@ -66,3 +66,33 @@ TEST_CASE("Nested centroid") {
 
 	CHECK(c12 == c3);
 }
+
+TEST_CASE("Centroid of multiple squares") {
+	Polygon<Exact> p;
+	p.push_back(Point<Exact>(0, 0));
+	p.push_back(Point<Exact>(10, 0));
+	p.push_back(Point<Exact>(10, 10));
+	p.push_back(Point<Exact>(0, 10));
+
+	Polygon<Exact> q;
+	q.push_back(Point<Exact>(20, 0));
+	q.push_back(Point<Exact>(30, 0));
+	q.push_back(Point<Exact>(30, 10));
+	q.push_back(Point<Exact>(20, 10));
+
+	std::vector<Polygon<Exact>> pgns({p, q});
+	Point<Exact> c = centroid<Exact>(pgns.begin(), pgns.end());
+
+	CHECK(c == Point<Exact>(15, 5));
+	
+	PolygonSet<Exact> pgnSet;
+	pgnSet.insert(p);
+	pgnSet.insert(q);
+	CHECK(centroid(pgnSet) == Point<Exact>(15, 5));
+
+	CGAL::Multipolygon_with_holes_2<Exact> multiPgn;
+	multiPgn.add_polygon_with_holes(PolygonWithHoles<Exact>(p));
+	multiPgn.add_polygon_with_holes(PolygonWithHoles<Exact>(q));
+
+	CHECK(centroid(multiPgn) == Point<Exact>(15, 5));
+}
