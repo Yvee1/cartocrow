@@ -1,6 +1,6 @@
 # CartoCrow - A framework for algorithmic cartography
 
-<img align="right" src="https://user-images.githubusercontent.com/7533280/122964753-ddca4b00-d387-11eb-8320-7ba7bbb7e496.png">
+<img align="right" src="https://github.com/user-attachments/assets/44ba2c30-bed2-451a-ae40-5763d4e8e74b"/>
 
 <!--
 ![Linux (g++-11 | Ubuntu 22.04)](https://github.com/tue-alga/cartocrow/workflows/Linux%20(g++-11%20|%20Ubuntu%2022.04)/badge.svg)
