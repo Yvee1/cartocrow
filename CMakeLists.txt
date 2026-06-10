@@ -1,9 +1,9 @@
 cmake_minimum_required(VERSION 3.15)
 
 project(cartocrow
-    VERSION 0.1.5
-    DESCRIPTION "Framework for algorithmic thematic mapping"
-    HOMEPAGE_URL "https://github.com/tue-alga/cartocrow"
+    VERSION 0.1.0
+    DESCRIPTION "Framework for algorithmic cartography"
+    HOMEPAGE_URL "https://github.com/cartocrow/core"
     LANGUAGES CXX)
 
 set(CMAKE_INSTALL_BINARY_DIR bin CACHE STRING "Installation subdirectory for compiled executables and shared libraries.")
