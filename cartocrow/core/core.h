@@ -231,43 +231,6 @@ struct Color {
 	Color(int rgb);
 };
 
-/// Wraps the given number \f$n\f$ to the interval \f$[a, b)\f$.
-/**
- * The returned number \f$r\f$ is \f$n + k \cdot (b - a)\f$ for \f$k \in
- * \mathbb{Z}\f$ such that \f$r \in [a, b)\f$.
- */
-template <class K> Number<K> wrap(Number<K> n, Number<K> a, Number<K> b) {
-	Number<K> constrained = n;
-	Number<K> interval_size = b - a;
-	while (constrained < a)
-		constrained += interval_size;
-	while (a + interval_size <= constrained)
-		constrained -= interval_size;
-	return constrained;
-}
-
-/// Wraps the given number \f$n\f$ to the interval \f$(a, b]\f$.
-/**
- * The returned number \f$r\f$ is \f$n + k \cdot (b - a)\f$ for \f$k \in
- * \mathbb{Z}\f$ such that \f$r \in (a, b]\f$.
- */
-template <class K> Number<K> wrapUpper(Number<K> n, Number<K> a, Number<K> b) {
-	Number<K> constrained = n;
-	Number<K> interval_size = b - a;
-	while (constrained <= a)
-		constrained += interval_size;
-	while (a + interval_size < constrained)
-		constrained -= interval_size;
-	return constrained;
-}
-
-/// Wraps the given number \f$\alpha\f$ to the interval \f$[\beta, \beta +
-/// 2\pi)\f$.
-Number<Inexact> wrapAngle(Number<Inexact> alpha, Number<Inexact> beta = 0);
-/// Wraps the given number \f$\alpha\f$ to the interval \f$(\beta, \beta +
-/// 2\pi]\f$.
-Number<Inexact> wrapAngleUpper(Number<Inexact> alpha, Number<Inexact> beta = 0);
-
 /// \f$2 \pi\f$, defined here for convenience.
 constexpr Number<Inexact> two_pi = std::numbers::pi * 2;
 
