@@ -194,12 +194,19 @@ class GeometryWidget : public QWidget, public GeometryRenderer {
 
 	void draw(const Point<Inexact>& p) override;
 	void draw(const Circle<Inexact>& c) override;
-	void draw(const BezierSpline& s) override;
+	void draw(const CubicBezierSpline& s) override;
+	void draw(const Ellipse& e) override;
 	void draw(const Line<Inexact>& l) override;
 	void draw(const Ray<Inexact>& r) override;
 	void draw(const Halfplane<Inexact>& h) override;
 	void draw(const RenderPath& p) override;
 	void drawText(const Point<Inexact>& p, const std::string& text, bool escape=true) override;
+	/// Draws a part of an \ref image inside the \ref target rectangle.
+	void drawImage(const Box& target, const QImage& image, const Box& source, Qt::ImageConversionFlag flags = Qt::AutoColor);
+	/// Draws an \ref image inside the rectangle.
+	void drawImage(const Box& target, const QImage& image);
+	/// Draws an \ref image at \ref pos.
+	void drawImage(const Point<Inexact>& pos, const QImage& image);
 
 	void pushStyle() override;
 	void popStyle() override;
@@ -222,12 +229,17 @@ class GeometryWidget : public QWidget, public GeometryRenderer {
 
 	/// Adds a new painting to this widget.
 	void addPainting(std::shared_ptr<GeometryPainting> painting, const std::string& name);
-	void addPainting(const std::function<void(renderer::GeometryRenderer&)>& draw_function, const std::string& name);
+	std::shared_ptr<GeometryPainting> addPainting(const std::function<void(renderer::GeometryRenderer&)>& draw_function, const std::string& name);
+	// Set visibility of a painting
+	void setVisibility(const std::shared_ptr<GeometryPainting>& painting, bool visible);
 	/// Removes all paintings from this widget.
 	void clear();
 
 	/// Returns the current zoom factor, in pixels per unit.
 	Number<Inexact> zoomFactor() const;
+
+	/// Returns the current mouse position.
+	Point<Inexact> mousePosition() const;
 
 	/// Adds an editable point.
 	void registerEditable(std::shared_ptr<Point<Inexact>> point);
@@ -286,6 +298,7 @@ class GeometryWidget : public QWidget, public GeometryRenderer {
 	void leaveEvent(QEvent* event) override;
 	QSize sizeHint() const override;
 
+  public:
 	/// Converts a point in drawing coordinates to Qt coordinates.
 	QPointF convertPoint(Point<Inexact> p) const;
 	/// Converts a rectangle in drawing coordinates to Qt coordinates.
@@ -295,6 +308,7 @@ class GeometryWidget : public QWidget, public GeometryRenderer {
 	/// Converts a rectangle in Qt coordinates back to drawing coordinates.
 	Box inverseConvertBox(QRectF r) const;
     /// Convert a render path to a Qt path.
+  private:
     QPainterPath renderPathToQt(const RenderPath& p);
 
   private:

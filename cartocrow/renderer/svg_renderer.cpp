@@ -37,12 +37,7 @@ SvgRenderer::SvgRenderer(const std::shared_ptr<GeometryPainting>& painting, cons
 	m_paintings.push_back(DrawnPainting{painting, name});
 }
 
-void SvgRenderer::save(const std::filesystem::path& file) {
-	std::locale::global(std::locale("C"));
-	m_out.open(file);
-	m_out << "<svg version=\"1.1\" xmlns:inkscape=\"http://www.inkscape.org/namespaces/inkscape\" xmlns=\"http://www.w3.org/2000/svg\">\n";
-	m_out << "<defs><circle id=\"vertex\" cx=\"0\" cy=\"0\" r=\"4\"/></defs>\n";
-
+void SvgRenderer::savePaintings() {
 	for (auto painting : m_paintings) {
 		m_out << "<g inkscape:groupmode=\"layer\"";
 		if (painting.name) {
@@ -54,13 +49,32 @@ void SvgRenderer::save(const std::filesystem::path& file) {
 		popStyle();
 		m_out << "</g>\n";
 	}
+}
 
+void SvgRenderer::save(const std::filesystem::path& file) {
+	std::locale::global(std::locale("C"));
+	m_out.open(file);
+	m_out << "<svg version=\"1.1\" xmlns:inkscape=\"http://www.inkscape.org/namespaces/inkscape\" xmlns=\"http://www.w3.org/2000/svg\">\n";
+	m_out << "<defs><circle id=\"vertex\" cx=\"0\" cy=\"0\" r=\"4\"/></defs>\n";
+	savePaintings();
+	m_out << "</svg>\n";
+	m_out.close();
+}
+
+void SvgRenderer::save(const std::filesystem::path& file, Box viewBox) {
+	std::locale::global(std::locale("C"));
+	m_out.open(file);
+	m_out << "<svg version=\"1.1\"" << " viewBox=\"" <<
+	    viewBox.xmin() << " " << -viewBox.ymax() << " " << viewBox.x_span() << " " << viewBox.y_span() <<
+	    "\" xmlns:inkscape=\"http://www.inkscape.org/namespaces/inkscape\" xmlns=\"http://www.w3.org/2000/svg\">\n";
+	m_out << "<defs><circle id=\"vertex\" cx=\"0\" cy=\"0\" r=\"4\"/></defs>\n";
+	savePaintings();
 	m_out << "</svg>\n";
 	m_out.close();
 }
 
 void SvgRenderer::draw(const Point<Inexact>& p) {
-	m_out << "<use xlink:href=\"#vertex\" " << getVertexStyle() << " x=\"" << p.x() << "\" y=\""
+	m_out << "<use href=\"#vertex\" " << getVertexStyle() << " x=\"" << p.x() << "\" y=\""
 	      << -p.y() << "\"/>\n";
 }
 
@@ -69,10 +83,11 @@ void SvgRenderer::draw(const Line<Inexact>& l) {
 	auto bounds = CGAL::Iso_rectangle_2<Inexact>(CGAL::ORIGIN, Point<Inexact>(1000.0, 1000.0));
 	auto result = intersection(l, bounds);
 	if (result) {
-		if (const Segment<Inexact>* s = boost::get<Segment<Inexact>>(&*result)) {
+		if (std::holds_alternative<Segment<Inexact>>(*result)) {
+			const Segment<Inexact> s = std::get<Segment<Inexact>>(*result);
 			int oldMode = m_style.m_mode;
 			setMode(oldMode & ~vertices);
-			GeometryRenderer::draw(*s);
+			GeometryRenderer::draw(s);
 			setMode(oldMode);
 		}
 	}
@@ -83,10 +98,11 @@ void SvgRenderer::draw(const Ray<Inexact>& r) {
 	auto bounds = CGAL::Iso_rectangle_2<Inexact>(CGAL::ORIGIN, Point<Inexact>(1000.0, 1000.0));
 	auto result = intersection(r, bounds);
 	if (result) {
-		if (const Segment<Inexact>* s = boost::get<Segment<Inexact>>(&*result)) {
+		if (std::holds_alternative<Segment<Inexact>>(*result)) {
+			const Segment<Inexact> s = std::get<Segment<Inexact>>(*result);
 			int oldMode = m_style.m_mode;
 			setMode(oldMode & ~vertices);
-			GeometryRenderer::draw(*s);
+			GeometryRenderer::draw(s);
 			setMode(oldMode);
 		}
 		if (m_style.m_mode & vertices) {
@@ -101,7 +117,8 @@ void SvgRenderer::draw(const Halfplane<Inexact>& h) {
 	auto bounds = CGAL::Iso_rectangle_2<Inexact>(CGAL::ORIGIN, Point<Inexact>(1000.0, 1000.0));
 	auto result = intersection(l, bounds);
 	if (result) {
-		if (const Segment<Inexact>* s = boost::get<Segment<Inexact>>(&*result)) {
+		if (std::holds_alternative<Segment<Inexact>>(*result)) {
+			const Segment<Inexact> s = std::get<Segment<Inexact>>(*result);
 			int oldMode = m_style.m_mode;
 			if (oldMode & fill) {
 				// Draw filled half-plane
@@ -111,7 +128,7 @@ void SvgRenderer::draw(const Halfplane<Inexact>& h) {
 				GeometryRenderer::draw(poly);
 			}
 			setMode(oldMode & ~vertices);
-			GeometryRenderer::draw(*s);
+			GeometryRenderer::draw(s);
 			setMode(oldMode);
 		}
 	}
@@ -123,9 +140,14 @@ void SvgRenderer::draw(const Circle<Inexact>& c) {
 	      << -c.center().y() << "\"/>\n";
 }
 
-void SvgRenderer::draw(const BezierSpline& s) {
+void SvgRenderer::draw(const Ellipse& e) {
 	// TODO
-	std::cerr << "The SVG renderer does not support BezierSplines; ignoring\n";
+	std::cerr << "Ellipsoid rendering is not implemented for svg format; ignoring\n";
+}
+
+void SvgRenderer::draw(const CubicBezierSpline& s) {
+	// TODO
+	std::cerr << "The SVG renderer does not support CubicBezierSplines; ignoring\n";
 }
 
 std::string renderPathToSVGCommands(const RenderPath& p) {

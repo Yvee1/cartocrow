@@ -1,21 +1,23 @@
-# CartoCrow - A framework for cartographic visualization algorithms
+# CartoCrow - A framework for algorithmic cartography
 
-<img align="right" src="https://user-images.githubusercontent.com/7533280/122964753-ddca4b00-d387-11eb-8320-7ba7bbb7e496.png">
+<img align="right" src="https://github.com/user-attachments/assets/44ba2c30-bed2-451a-ae40-5763d4e8e74b"/>
 
+<!--
 ![Linux (g++-11 | Ubuntu 22.04)](https://github.com/tue-alga/cartocrow/workflows/Linux%20(g++-11%20|%20Ubuntu%2022.04)/badge.svg)
 ![Linux (clang++-14 | Ubuntu 22.04)](https://github.com/tue-alga/cartocrow/workflows/Linux%20(clang++-14%20|%20Ubuntu%2022.04)/badge.svg)
+-->
 
-CartoCrow is a framework that simplifies the implementation of algorithms in cartographic visualization. It allows researchers to experiment with these algorithms and use them to generate maps. The framework behind CartoCrow can be used to run other cartography algorithms online. CartoCrow consists of a C++ library (this repository) which provides a set of command-line applications, and a web interface (see [cartocrow-web](https://github.com/tue-alga/cartocrow-web)) which allows end users to generate maps in a user-friendly way.
+This repository contains the core C++ framework of CartoCrow, which supports the implementation of algorithms in cartographic visualization.
+For implementations of specific cartographic algorithms that use the framework, see the other repositories under the [CartoCrow GitHub organization](https://github.com/cartocrow).
 
-> [!WARNING]  
+> [!WARNING]
 > CartoCrow is still a **work in progress**  and should not be considered stable yet.
 
 This repository consists of the following subdirectories:
 
 * `cartocrow`: the library itself, with subdirectories for each module
 * `test`: unit tests for each module
-* `frontend`: the command-line frontend
-* `demos`: a collection of GUI applications serving as a demonstration of various parts of the algorithms implemented
+* `demos`: a collection of GUI applications serving as a demonstration of various features
 
 ## Notes on KineticKelp implementation
 As the KineticKelp implementation does not directly match the description in the paper, we note here the main differences.
@@ -50,15 +52,17 @@ CartoCrow depends on the following build tools:
 
 And it depends on the following libraries:
 
-* CGAL (5.6) – for implementations of computational geometry algorithms we need
-* glog (0.5.0, 0.6.0) – for logging
-* ipelib (7.2.26) – for [Ipe](https://ipe.otfried.org) input and SVG/Ipe output
-* nlohmann-json (3.10.5, 3.11.2) – for JSON parsing
+* CGAL (6.0.1) – for computational geometry algorithms
 * Qt (5.15) – for the interactive GUI
+* CavalierContours (0.1) – for offsetting polygons and polylines that consist of line and circle segments
+* ipelib (7.2.26) – for [Ipe](https://ipe.otfried.org) IO
+* nlohmann-json (3.10.5, 3.11.2) – for JSON IO
+* GDAL (3.8.4) – for vector geospatial data formats IO
 
 The version numbers listed are the ones we're testing with. Newer (and possibly somewhat older) versions will most likely work as well.
 
-
+Currently, we only support Linux operating systems. To run on Windows one can use WSL2.
+<!--
 ### Windows (MSVC)
 
 <details>
@@ -81,17 +85,13 @@ On Windows systems, we recommend using [vcpkg](https://github.com/microsoft/vcpk
   In our experience, vcpkg may misbehave when installed in a directory with a long path name, or a path name containing exotic characters. vcpkg itself recommends `C:\src\vcpkg`.
 
   For more information on installing vcpkg, see [here](https://github.com/microsoft/vcpkg#quick-start-windows).
+  
+  We use vcpkg in Manifest mode. This means that the dependencies are stored in the vcpkg.json file and should not need to be configured anymore. If using classic mode, install the packages listed in the json file.
 
-* **Install dependencies.** As described [here](https://doc.cgal.org/latest/Manual/windows.html#title0):
+* **Configure user presets.** 
 
-  ```sh
-  vcpkg install cgal:x64-windows
-  vcpkg install qt5:x64-windows
-  vcpkg install glog:x64-windows
-  vcpkg install nlohmann-json:x64-windows
-  ```
-
-  This step can take a very long time, especially compiling CGAL (around 30 minutes) and Qt (around 2 hours).
+  The CMakePresets.json file configures three build types for Windows/MSVC: "_x64-Debug", "_x64-Release" and "_x64-RelWithDebInfo", matching the CMake build types. It is only missing some local paths depending on your installation, to be configured with a CMake.
+  The template file "CMakeUserPresets_template.json" provides a template that can be used. Create a copy of this file, called "CMakeUserPresets.json" and supply the paths in the template.
 
 * **Ipelib.** This library is not available in vcpkg, so we will have to build it ourselves. Unfortunately, the [upstream version](https://github.com/otfried/ipe/releases/download/v7.2.24/ipe-7.2.24-src.tar.gz) of ipelib does not compile cleanly with MSVC. We prepared a patched version *(to do: link coming soon)* that can be compiled and installed with
 
@@ -101,7 +101,6 @@ On Windows systems, we recommend using [vcpkg](https://github.com/microsoft/vcpk
   sudo cmake --install build
   ```
 </details>
-
 
 ### Windows (MSYS2 / MINGW64)
 
@@ -114,7 +113,7 @@ Most dependencies can be obtained from the repository:
 
 ```sh
 pacman -S base-devel mingw-w64-x86_64-toolchain mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja
-pacman -S mingw-w64-x86_64-cgal mingw-w64-x86_64-glog mingw-w64-x86_64-qt5 mingw-w64-x86_64-nlohmann-json
+pacman -S mingw-w64-x86_64-cgal mingw-w64-x86_64-qt5 mingw-w64-x86_64-nlohmann-json mingw-w64-x86_64-gdal
 ```
 
 The remaining dependencies need to be built manually.
@@ -138,7 +137,7 @@ The remaining dependencies need to be built manually.
     * in `src/ipelib/ipeplatform.cpp` and `src/ipelib/ipebitmap_win.cpp`, add an `#include <string>`;
     * in `src/ipelib/ipeplatform.cpp`, in `Platform::runLatex()`, replace `wcmd.data()` by `&wcmd[0]`;
     * in `src/ipelib/ipeplatform.cpp`, in `String::w()`, replace `result.data()` by `&result[0]`.
-  
+
   Then, to compile:
   ```sh
   cd src
@@ -147,45 +146,39 @@ The remaining dependencies need to be built manually.
   The compiled library `ipe.dll` ends up in `mingw64/bin`.
 </details>
 
-
+-->
 ### Linux
 
 <details>
   <summary><b>Installing dependencies on Linux</b></summary>
 
-On Ubuntu, most dependencies can be obtained from the repository:
+On Ubuntu 25.04, most dependencies can be obtained from the repository:
 
 ```sh
 sudo apt install build-essential cmake
 sudo apt install libcgal-dev nlohmann-json3-dev qtbase5-dev
+sudo apt install libpq-dev gdal-bin libgdal-dev
 ```
+
+(Note: Ubuntu 24.10 and earlier have CGAL 5.6, which does not work.)
 
 The remaining dependencies need to be built manually.
 
-* **glog.** This dependency is built manually because Ubuntu's packaging apparently does not include the CMake files we need.
-
-  ```sh
-  git clone https://github.com/google/glog.git
-  cd glog
-  cmake -S . -B build
-  cmake --build build
-  sudo cmake --install build
-  ```
-
 * **Ipelib.** Download the [source archive](https://github.com/otfried/ipe/releases/download/v7.2.24/ipe-7.2.24-src.tar.gz), unpack it, and compile and install it using the instructions given in `install.txt`.
-</details>
 
 * **CavalierContours.** We manually copy the headers to install the header-only library.
-```sh
-git clone https://github.com/jbuckmccready/CavalierContours.git
-cd CavalierContours
-sudo cp -R include/cavc /usr/local/include
-```
+  ```sh
+  git clone https://github.com/jbuckmccready/CavalierContours.git
+  cd CavalierContours
+  sudo cp -R include/cavc /usr/local/include
+  ```
+</details>
 
 ## Compiling
 
 CartoCrow uses CMake as its build system and can therefore be built like any other CMake application, for example:
 
+<!--
 **Windows (MSVC)**
 ```sh
 cmake.exe -DCMAKE_INSTALL_PREFIX=<install-directory> -DCMAKE_TOOLCHAIN_FILE=<path-to-vcpkg>\scripts\buildsystems\vcpkg.cmake -S . -B build
@@ -199,6 +192,7 @@ cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=<install-directory> -DIp
 cmake --build build
 cmake --install build
 ```
+-->
 
 **Linux**
 ```sh
@@ -207,27 +201,39 @@ cmake --build build
 cmake --install build
 ```
 
-where `<install-directory>/bin` is the directory where the executables will be installed. Note that on Windows (MSVC), it is necessary to supply the `CMAKE_TOOLCHAIN_FILE` generated by vcpkg; see the [vcpkg documentation](https://github.com/microsoft/vcpkg/blob/master/docs/users/integration.md#cmake-toolchain-file-recommended-for-open-source-cmake-projects) for details. On Windows (MSYS2 / MINGW64) `FindIpelib.cmake` needs a little help finding out where our self-compiled Ipelib library is. Otherwise, there is no difference in compiling between the platforms.
+where `<install-directory>/bin` is the directory where the executables will be installed.
+<!-- 
+Note that on Windows (MSVC), it is necessary to supply the `CMAKE_TOOLCHAIN_FILE` generated by vcpkg; see the [vcpkg documentation](https://github.com/microsoft/vcpkg/blob/master/docs/users/integration.md#cmake-toolchain-file-recommended-for-open-source-cmake-projects) for details. On Windows (MSYS2 / MINGW64) `FindIpelib.cmake` needs a little help finding out where our self-compiled Ipelib library is. Otherwise, there is no difference in compiling between the platforms.
+-->
 
-If you want to use [cartocrow-web](https://github.com/tue-alga/cartocrow-web), clone that repository to a separate directory, and use that directory as `<install-directory>`, so that the executables are installed in a location where the web application can find them. (See also the [README](https://github.com/tue-alga/cartocrow-web/blob/master/README.md) in the [cartocrow-web](https://github.com/tue-alga/cartocrow-web) repository for details.)
-
+<!--
+### Emscripten for WebAssembly
+To compile to WebAssembly, first [install Emscripten](https://emscripten.org/docs/getting_started/downloads.html).
+The Qt, ipelib, and GDAL dependencies are not needed for WebAssembly.
+The remaining dependencies are header-only.
+To pass these to Emscripten, create a folder somewhere that will contain all the header files needed for CartoCrow.
+You can either copy the header files into that folder, or make a symbolic link to them, for example:
+```sh
+ln -s /usr/local/include/cavc ~/Documents/cartocrow_wasm_headers/cavc
+ln -s /usr/include/CGAL ~/Documents/cartocrow_wasm_headers/CGAL
+```
+Then, to build CartoCrow core, run the following commands in the root of the `cartocrow/core` source directory.
+Below, replace <path/to/cartocrow_wasm_headers> by the directory with the header files, as explained above.
+Replace <path/to/cartocrow_wasm_files> by a new empty directory; this is where all compiled Wasm files will be placed.
+```sh
+emcmake cmake -S . -B wasm_build -DCMAKE_BUILD_TYPE=Release -DEMSCRIPTEN_INCLUDE_DIR=<path/to/cartocrow_wasm_headers>
+cmake --build wasm_build
+cmake --install wasm_build --prefix <path/to/cartocrow_wasm_files>
+```
+CartoCrow/core can now be used in C++ projects that are compiled with Emscripten, by pointing to the cartocrow_wasm_files directory; the CartoCrow modules are examples on how to do this.
+-->
 
 ## Usage
 
-CartoCrow provides a command-line application, simply called `cartocrow`, which can be used to generate maps in SVG format. To use it, you need a JSON file describing the map to generate, which can then be passed to `cartocrow`:
-
-```bash
-build/frontend/cartocrow <input-json> <output-svg> [<map-input>]
-```
-
-We provide some sample input data to generate a necklace map depicting the population of all countries in Europe:
-
-```bash
-build/frontend/cartocrow data/europe-population-necklace.json output.svg data/europe.ipe
-```
+To generate maps with CartoCrow, besides the core, you will need to use a module for the specific type of map you want. See the list of repositories [here](https://github.com/cartocrow).
 
 
 ## License
 
-Copyright (c) 2019-2023 Netherlands eScience Center and TU Eindhoven
+Copyright (c) 2019-2026 Netherlands eScience Center and TU Eindhoven
 Licensed under the GPLv3.0 license. See LICENSE for details.

@@ -9,7 +9,7 @@ doc/tags/
 *.code-workspace
 compile_commands.json
 out/
-CMakeSettings.json
+CMakeUserPresets.json
 .idea/
 cmake-build-debug/
 cmake-build-release/
@@ -17,4 +17,4 @@ cmake-build-relwithdebinfo/
 cmake-build-minsizerel/
 html/
 latex/
-frames/
+wasm_build/

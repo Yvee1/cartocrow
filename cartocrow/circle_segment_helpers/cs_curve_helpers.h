@@ -1,7 +1,24 @@
-#include "cs_types.h"
+/*
+Copyright (C) 2026  TU Eindhoven
 
-#ifndef CARTOCROW_CS_CURVE_HELPERS_H
-#define CARTOCROW_CS_CURVE_HELPERS_H
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
+#pragma once
+
+#include "cs_types.h"
+#include <variant>
 
 namespace cartocrow {
 /// Return the the point on the circle closest to the provided point.
@@ -13,13 +30,13 @@ template <class OutputIterator>
 void curveToXMonotoneCurves(const CSCurve& curve, OutputIterator out) {
 	ArrCSTraits traits;
 	auto make_x_monotone = traits.make_x_monotone_2_object();
-	std::vector<boost::variant<ArrCSTraits::Point_2, CSXMCurve>> curves_and_points;
+	std::vector<std::variant<ArrCSTraits::Point_2, CSXMCurve>> curves_and_points;
 	make_x_monotone(curve, std::back_inserter(curves_and_points));
 
 	// There should not be any isolated points
 	for (auto kinda_curve : curves_and_points) {
-		if (kinda_curve.which() == 1) {
-			*out++ = boost::get<CSXMCurve>(kinda_curve);
+		if (std::holds_alternative<CSXMCurve>(kinda_curve)) {
+			*out++ = std::get<CSXMCurve>(kinda_curve);
 		} else {
 			std::cout << "Converting curve into x-monotone curves results in isolated point."
 			          << std::endl;
@@ -109,5 +126,3 @@ Number<Inexact> approximateLength(const CSXMCurve& xmc);
 /// Return the approximate length of the curve.
 Number<Inexact> approximateLength(const CSCurve& c);
 }
-
-#endif //CARTOCROW_CS_CURVE_HELPERS_H

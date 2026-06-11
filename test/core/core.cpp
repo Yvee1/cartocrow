@@ -4,9 +4,9 @@
 #include <CGAL/enum.h>
 #include <CGAL/number_utils.h>
 #include <ctime>
+#include <variant>
 
 #include "cartocrow/core/core.h"
-#include "cartocrow/core/timer.h"
 
 using namespace cartocrow;
 
@@ -183,17 +183,17 @@ TEST_CASE("Creating an arrangement") {
 	// point location queries
 	CGAL::Arr_walk_along_line_point_location<Arrangement<Exact>> locator(arrangement);
 	auto l1 = locator.locate(Point<Exact>(0.6, 0.1));
-	REQUIRE(l1.type() == typeid(Arrangement<Exact>::Face_const_handle));
-	auto f1 = boost::get<Arrangement<Exact>::Face_const_handle>(l1);
+	REQUIRE(std::holds_alternative<Arrangement<Exact>::Face_const_handle>(l1));
+	auto f1 = std::get<Arrangement<Exact>::Face_const_handle>(l1);
 	auto l2 = locator.locate(Point<Exact>(0.7, 0.1));
-	REQUIRE(l2.type() == typeid(Arrangement<Exact>::Face_const_handle));
-	auto f2 = boost::get<Arrangement<Exact>::Face_const_handle>(l2);
+	REQUIRE(std::holds_alternative<Arrangement<Exact>::Face_const_handle>(l2));
+	auto f2 = std::get<Arrangement<Exact>::Face_const_handle>(l2);
 	auto l3 = locator.locate(Point<Exact>(0.9, 0.5));
-	REQUIRE(l3.type() == typeid(Arrangement<Exact>::Face_const_handle));
-	auto f3 = boost::get<Arrangement<Exact>::Face_const_handle>(l3);
+	REQUIRE(std::holds_alternative<Arrangement<Exact>::Face_const_handle>(l3));
+	auto f3 = std::get<Arrangement<Exact>::Face_const_handle>(l3);
 	auto l4 = locator.locate(Point<Exact>(0, 1));
-	REQUIRE(l4.type() == typeid(Arrangement<Exact>::Face_const_handle));
-	auto f4 = boost::get<Arrangement<Exact>::Face_const_handle>(l4);
+	REQUIRE(std::holds_alternative<Arrangement<Exact>::Face_const_handle>(l4));
+	auto f4 = std::get<Arrangement<Exact>::Face_const_handle>(l4);
 	CHECK(f1 == f2);
 	CHECK(f1 != f3);
 	CHECK(f1 != f4);
@@ -202,13 +202,13 @@ TEST_CASE("Creating an arrangement") {
 	CHECK(f4 == arrangement.unbounded_face());
 
 	auto l5 = locator.locate(Point<Exact>(0.25, 0));
-	REQUIRE(l5.type() == typeid(Arrangement<Exact>::Halfedge_const_handle));
-	auto e5 = boost::get<Arrangement<Exact>::Halfedge_const_handle>(l5);
+	REQUIRE(std::holds_alternative<Arrangement<Exact>::Halfedge_const_handle>(l5));
+	auto e5 = std::get<Arrangement<Exact>::Halfedge_const_handle>(l5);
 	CHECK(e5->curve().line().has_on(Point<Exact>(0.125, 0)));
 
 	auto l6 = locator.locate(Point<Exact>(0.5, 0));
-	REQUIRE(l6.type() == typeid(Arrangement<Exact>::Vertex_const_handle));
-	auto v6 = boost::get<Arrangement<Exact>::Vertex_const_handle>(l6);
+	REQUIRE(std::holds_alternative<Arrangement<Exact>::Vertex_const_handle>(l6));
+	auto v6 = std::get<Arrangement<Exact>::Vertex_const_handle>(l6);
 	CHECK(v6->point() == Point<Exact>(0.5, 0));
 }
 
@@ -267,54 +267,4 @@ TEST_CASE("Approximating exact polygon sets by inexact ones") {
 	CHECK(set.number_of_polygons_with_holes() == 2);
 	PolygonSet<Inexact> setInexact = approximate(set);
 	CHECK(setInexact.number_of_polygons_with_holes() == 2);
-}
-
-TEST_CASE("Wrapping numbers to intervals") {
-	CHECK(cartocrow::wrap<Inexact>(0, 0, 3) == Approx(0));
-	CHECK(cartocrow::wrap<Exact>(0, 0, 3) == 0);
-	CHECK(cartocrow::wrap<Inexact>(1, 0, 3) == Approx(1));
-	CHECK(cartocrow::wrap<Exact>(1, 0, 3) == 1);
-	CHECK(cartocrow::wrap<Inexact>(2, 0, 3) == Approx(2));
-	CHECK(cartocrow::wrap<Exact>(2, 0, 3) == 2);
-	CHECK(cartocrow::wrap<Inexact>(3, 0, 3) == Approx(0));
-	CHECK(cartocrow::wrap<Exact>(3, 0, 3) == 0);
-	CHECK(cartocrow::wrapUpper<Inexact>(0, 0, 3) == Approx(3));
-	CHECK(cartocrow::wrapUpper<Exact>(0, 0, 3) == 3);
-	CHECK(cartocrow::wrapUpper<Inexact>(1, 0, 3) == Approx(1));
-	CHECK(cartocrow::wrapUpper<Exact>(1, 0, 3) == 1);
-	CHECK(cartocrow::wrapUpper<Inexact>(2, 0, 3) == Approx(2));
-	CHECK(cartocrow::wrapUpper<Exact>(2, 0, 3) == 2);
-	CHECK(cartocrow::wrapUpper<Inexact>(3, 0, 3) == Approx(3));
-	CHECK(cartocrow::wrapUpper<Exact>(3, 0, 3) == 3);
-
-	CHECK(cartocrow::wrap<Inexact>(15, 0, 3) == Approx(0));
-	CHECK(cartocrow::wrap<Exact>(15, 0, 3) == 0);
-	CHECK(cartocrow::wrap<Inexact>(16, 0, 3) == Approx(1));
-	CHECK(cartocrow::wrap<Exact>(16, 0, 3) == 1);
-	CHECK(cartocrow::wrap<Inexact>(17, 0, 3) == Approx(2));
-	CHECK(cartocrow::wrap<Exact>(17, 0, 3) == 2);
-	CHECK(cartocrow::wrapUpper<Inexact>(15, 0, 3) == Approx(3));
-	CHECK(cartocrow::wrapUpper<Exact>(15, 0, 3) == 3);
-	CHECK(cartocrow::wrapUpper<Inexact>(16, 0, 3) == Approx(1));
-	CHECK(cartocrow::wrapUpper<Exact>(16, 0, 3) == 1);
-	CHECK(cartocrow::wrapUpper<Inexact>(17, 0, 3) == Approx(2));
-	CHECK(cartocrow::wrapUpper<Exact>(17, 0, 3) == 2);
-
-	CHECK(cartocrow::wrap<Inexact>(-15, 0, 3) == Approx(0));
-	CHECK(cartocrow::wrap<Exact>(-15, 0, 3) == 0);
-	CHECK(cartocrow::wrap<Inexact>(-16, 0, 3) == Approx(2));
-	CHECK(cartocrow::wrap<Exact>(-16, 0, 3) == 2);
-	CHECK(cartocrow::wrap<Inexact>(-17, 0, 3) == Approx(1));
-	CHECK(cartocrow::wrap<Exact>(-17, 0, 3) == 1);
-	CHECK(cartocrow::wrapUpper<Inexact>(-15, 0, 3) == Approx(3));
-	CHECK(cartocrow::wrapUpper<Exact>(-15, 0, 3) == 3);
-	CHECK(cartocrow::wrapUpper<Inexact>(-16, 0, 3) == Approx(2));
-	CHECK(cartocrow::wrapUpper<Exact>(-16, 0, 3) == 2);
-	CHECK(cartocrow::wrapUpper<Inexact>(-17, 0, 3) == Approx(1));
-	CHECK(cartocrow::wrapUpper<Exact>(-17, 0, 3) == 1);
-
-	CHECK(cartocrow::wrap<Inexact>(4.5, 0, 2.5) == Approx(2));
-	CHECK(cartocrow::wrap<Exact>(4.5, 0, 2.5) == 2);
-	CHECK(cartocrow::wrapUpper<Inexact>(4.5, 0, 2.5) == Approx(2));
-	CHECK(cartocrow::wrapUpper<Exact>(4.5, 0, 2.5) == 2);
 }

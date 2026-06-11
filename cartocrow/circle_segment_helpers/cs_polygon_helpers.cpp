@@ -1,3 +1,20 @@
+/*
+Copyright (C) 2026  TU Eindhoven
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
 #include "cs_polygon_helpers.h"
 #include "cs_curve_helpers.h"
 #include <CGAL/approximated_offset_2.h>
@@ -5,6 +22,7 @@
 #include <CGAL/Boolean_set_operations_2/Gps_polygon_validation.h>
 #include <CGAL/Surface_sweep_2.h>
 #include <CGAL/Surface_sweep_2/Default_visitor.h>
+#include <variant>
 
 // All area functions in this file are adapted from a Stack Overflow answer by HEKTO.
 // Link: https://stackoverflow.com/questions/69399922/how-does-one-obtain-the-area-of-a-general-polygon-set-in-cgal
@@ -99,12 +117,12 @@ bool onOrInside(const CSPolygon& polygon, const Point<Exact>& point) {
 
 	auto inter = CGAL::intersection(ray, rect);
 	if (!inter.has_value()) return false;
-	if (inter->type() == typeid(Point<Exact>)) return true;
-	auto seg = boost::get<Segment<Exact>>(*inter);
+	if (std::holds_alternative<Point<Exact>>(*inter)) return true;
+	auto seg = std::get<Segment<Exact>>(*inter);
 	CSXMCurve seg_xm_curve(seg.source(), seg.target());
 
 	typedef std::pair<ArrCSTraits::Point_2, unsigned int> Intersection_point;
-	typedef boost::variant<Intersection_point, CSXMCurve> Intersection_result;
+	typedef std::variant<Intersection_point, CSXMCurve> Intersection_result;
 	std::vector<Intersection_result> intersection_results;
 
 	for (auto cit = polygon.curves_begin(); cit != polygon.curves_end(); ++cit) {
@@ -114,7 +132,7 @@ bool onOrInside(const CSPolygon& polygon, const Point<Exact>& point) {
 
 	int count = 0;
 	for (const auto& ir : intersection_results) {
-		if (ir.which() == 0) {
+		if (std::holds_alternative<Intersection_point>(ir)) {
 			auto ip = get<Intersection_point>(ir);
 			//(ir) Intersection points are double-counted, so increase count by half.
 			bool found = false;

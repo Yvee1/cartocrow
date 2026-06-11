@@ -27,6 +27,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "cartocrow/core/core.h"
 #include "cartocrow/core/cubic_bezier.h"
+#include "cartocrow/core/polyline.h"
+#include "cartocrow/core/cubic_bezier.h"
 
 #include <ipeattributes.h>
 #include <ipedoc.h>

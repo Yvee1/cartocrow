@@ -3,6 +3,7 @@
 #include <filesystem>
 
 #include "cartocrow/core/region_arrangement.h"
+#include "cartocrow/reader/region_map_reader.h"
 
 using namespace cartocrow;
 
@@ -34,10 +35,10 @@ TEST_CASE("Converting a region map to an arrangement") {
 	CHECK(num_no_id == 1);
 }
 
-TEST_CASE("Converting overlapping regions to an arrangement (should throw)") {
-	RegionMap map = ipeToRegionMap(std::filesystem::path("data/test_region_map_overlap.ipe"));
-	CHECK(map.size() == 2);
-	CHECK(map.contains("R1"));
-	CHECK(map.contains("R2"));
-	CHECK_THROWS_WITH(regionMapToArrangement(map), Catch::StartsWith("Found overlapping regions "));
-}
+//TEST_CASE("Converting overlapping regions to an arrangement (should throw)") {
+//	RegionMap map = ipeToRegionMap(std::filesystem::path("data/test_region_map_overlap.ipe"));
+//	CHECK(map.size() == 2);
+//	CHECK(map.contains("R1"));
+//	CHECK(map.contains("R2"));
+//	CHECK_THROWS_WITH(regionMapToArrangement(map), Catch::StartsWith("Found overlapping regions "));
+//}

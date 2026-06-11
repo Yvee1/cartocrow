@@ -1,9 +1,9 @@
 cmake_minimum_required(VERSION 3.15)
 
 project(cartocrow
-    VERSION 0.1.5
-    DESCRIPTION "Framework for algorithmic thematic mapping"
-    HOMEPAGE_URL "https://github.com/tue-alga/cartocrow"
+    VERSION 0.1.0
+    DESCRIPTION "Framework for algorithmic cartography"
+    HOMEPAGE_URL "https://github.com/cartocrow/core"
     LANGUAGES CXX)
 
 set(CMAKE_INSTALL_BINARY_DIR bin CACHE STRING "Installation subdirectory for compiled executables and shared libraries.")
@@ -32,24 +32,45 @@ write_basic_package_version_file(
     COMPATIBILITY AnyNewerVersion
 )
 
-if(MSVC)
-    add_compile_definitions(_USE_MATH_DEFINES)
+if(EMSCRIPTEN)
+    message(STATUS "Building for WebAssembly / Emscripten")
+else()
+    message(STATUS "Building natively")
 endif()
 
-# ## DEPENDENCIES ###
-find_package(CGAL REQUIRED)
-find_path(CGAL_INCLUDE_DIR CGAL/Exact_predicates_inexact_constructions_kernel.h)
-include_directories(${CGAL_INCLUDE_DIR})
-link_libraries(${CGAL_LIBRARIES})
-find_package(GMP REQUIRED)
+### DEPENDENCIES ###
+if(EMSCRIPTEN)
+    # If you modify anything in this Emscripten build setup, do not forget to also adjust cmake/CartoCrowConfig.cmake appropriately.
+    add_compile_definitions(
+        USE_BOOST_HEADERS=1
+        CGAL_ALWAYS_ROUND_TO_NEAREST
+        CGAL_DISABLE_GMP=ON
+    )
+    add_compile_options(-fwasm-exceptions)
+    add_link_options(-g -fwasm-exceptions -lembind)
+    if (NOT DEFINED EMSCRIPTEN_INCLUDE_DIR)
+        message(FATAL_ERROR "Please set EMSCRIPTEN_INCLUDE_DIR to the folder with all header files needed for Emscripten compilation")
+    endif()
+    include_directories(${EMSCRIPTEN_INCLUDE_DIR})
+else()
+    find_package(CGAL REQUIRED)
+    find_path(CGAL_INCLUDE_DIR CGAL/Exact_predicates_inexact_constructions_kernel.h)
+    include_directories(${CGAL_INCLUDE_DIR})
+    link_libraries(${CGAL_LIBRARIES})
+    find_package(GMP REQUIRED)
 
-find_package(GDAL CONFIG REQUIRED)
-find_package(Qt5Widgets REQUIRED)
-set(CMAKE_AUTOMOC ON)
-find_package(glog REQUIRED)
-find_package(Ipelib REQUIRED)
+    find_package(GDAL CONFIG REQUIRED)
+    include_directories(${GDAL_INCLUDE_DIR})
 
-# ## SOURCES ###
+    find_package(Qt5Widgets REQUIRED)
+    set(CMAKE_AUTOMOC ON)
+    find_package(Ipelib REQUIRED)
+    include_directories(${Ipelib_INCLUDE_DIR})
+
+    include_directories(${CavalierContours_INCLUDE_DIR})
+endif()
+
+### SOURCES ###
 
 # All source files should use include paths relative to the source root
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
@@ -59,9 +80,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
 add_subdirectory(cartocrow)
-add_subdirectory(demos)
-add_subdirectory(frontend)
-add_subdirectory(test)
+if (NOT EMSCRIPTEN)
+    add_subdirectory(demos)
+    add_subdirectory(test)
+endif()
 
 # Install rules
 install(

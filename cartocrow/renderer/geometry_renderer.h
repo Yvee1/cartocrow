@@ -20,9 +20,11 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #ifndef CARTOCROW_RENDERER_GEOMETRY_RENDERER_H
 #define CARTOCROW_RENDERER_GEOMETRY_RENDERER_H
 
-#include "../core/bezier.h"
 #include "../core/core.h"
+#include "../core/cubic_bezier.h"
+#include "../core/ellipse.h"
 #include "../core/polyline.h"
+#include "../core/polyline_set.h"
 #include "../core/halfplane.h"
 #include "render_path.h"
 
@@ -126,16 +128,20 @@ class GeometryRenderer {
 	void draw(const Polygon<Inexact>& p);
 	/// Draws a polyline with the currently set style.
 	void draw(const Polyline<Inexact>& p);
+	/// Draws a polyline set with the currently set style.
+	void draw(const PolylineSet<Inexact>& p);
 	/// Draws a polygon with holes with the currently set style.
 	void draw(const PolygonWithHoles<Inexact>& p);
 	/// Draws a polygon set with the currently set style.
 	void draw(const PolygonSet<Inexact>& p);
 	/// Draws a circle with the currently set style.
 	virtual void draw(const Circle<Inexact>& c) = 0;
+	/// Draws an ellipse with the currently set style.
+	virtual void draw(const Ellipse& e) = 0;
 	/// Draws a Bézier curve with the currently set style.
-	void draw(const BezierCurve& c);
+	void draw(const CubicBezierCurve& c);
 	/// Draws a Bézier spline with the currently set style.
-	virtual void draw(const BezierSpline& s) = 0;
+	virtual void draw(const CubicBezierSpline& s) = 0;
 	/// Draws a line with the currently set style.
 	virtual void draw(const Line<Inexact>& l) = 0;
 	/// Draws a ray with the currently set style.

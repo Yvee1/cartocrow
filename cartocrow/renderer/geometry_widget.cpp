@@ -37,6 +37,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <cmath>
 #include <limits>
 
+#include <numbers>
+
 namespace cartocrow::renderer {
 
 GeometryWidget::Editable::Editable(GeometryWidget* widget) : m_widget(widget) {}
@@ -253,6 +255,10 @@ void GeometryWidget::paintEvent(QPaintEvent* event) {
 	drawCoordinates();
 }
 
+Point<Inexact> GeometryWidget::mousePosition() const {
+	return inverseConvertPoint(m_mousePos);
+}
+
 void GeometryWidget::mouseMoveEvent(QMouseEvent* event) {
 	m_mousePos = event->pos();
 
@@ -359,8 +365,8 @@ QPointF GeometryWidget::convertPoint(Point<Inexact> p) const {
 }
 
 QRectF GeometryWidget::convertBox(Box b) const {
-	QPointF topLeft = convertPoint(Point<Inexact>(b.xmin(), b.ymin()));
-	QPointF bottomRight = convertPoint(Point<Inexact>(b.xmax(), b.ymax()));
+	QPointF topLeft = convertPoint(Point<Inexact>(b.xmin(), b.ymax()));
+	QPointF bottomRight = convertPoint(Point<Inexact>(b.xmax(), b.ymin()));
 	return QRectF(topLeft, bottomRight);
 }
 
@@ -510,7 +516,7 @@ void GeometryWidget::drawCoordinates() {
 		double phiDecimalCount = std::max(0, static_cast<int>(log10(m_transform.m11() * r)) + 1);
 		Number<Inexact> theta = std::atan2(converted.y(), converted.x());
 		coordinate = "(r = " + QString::number(r, 'f', rDecimalCount) + ", φ = " +
-		             QString::number(theta / M_PI, 'f', phiDecimalCount) + "π)";
+		             QString::number(theta / std::numbers::pi, 'f', phiDecimalCount) + "π)";
 	}
 	m_painter->drawText(rect().marginsRemoved(QMargins(10, 10, 10, 10)),
 	                    Qt::AlignRight | Qt::AlignBottom, coordinate);
@@ -564,20 +570,30 @@ void GeometryWidget::draw(const Circle<Inexact>& c) {
 	m_painter->drawEllipse(rect);
 }
 
-void GeometryWidget::draw(const BezierSpline& s) {
+void GeometryWidget::draw(const Ellipse& e) {
+	setupPainter();
+	const auto p = e.parameters();
+	m_painter->save();
+	m_painter->translate(convertPoint(Point<Inexact>(p.x0, p.y0)));
+	m_painter->rotate(-p.angle * 180 * std::numbers::inv_pi);  // clockwise!
+	m_painter->drawEllipse(QPointF(), p.a * zoomFactor(), p.b * zoomFactor());
+	m_painter->restore();
+}
+
+void GeometryWidget::draw(const CubicBezierSpline& s) {
+	if (s.empty()) return;
 	setupPainter();
 	QPainterPath path;
-	path.moveTo(convertPoint(s.curves()[0].source()));
-	for (BezierCurve c : s.curves()) {
-		path.cubicTo(convertPoint(c.sourceControl()), convertPoint(c.targetControl()),
-		             convertPoint(c.target()));
+	path.moveTo(convertPoint(s.source()));
+	for (int i = 0; i < s.numCurves(); ++i) {
+		path.cubicTo(convertPoint(s.controlPoint(3 * i + 1)), convertPoint(s.controlPoint(3 * i + 2)),
+		             convertPoint(s.controlPoint(3 * i + 3)));
 	}
 	m_painter->drawPath(path);
 	if (m_style.m_mode & vertices) {
-		for (BezierCurve c : s.curves()) {
-			draw(c.source());
+		for (int i = 0; i <= s.numCurves(); ++i) {
+			draw(s.controlPoint(3 * i));
 		}
-		draw(s.curves().back().target());
 	}
 }
 
@@ -585,10 +601,11 @@ void GeometryWidget::draw(const Ray<Inexact>& r) {
 	Box bounds = inverseConvertBox(rect());
 	auto result = intersection(r, Rectangle<Inexact>(Point<Inexact>(bounds.xmin(), bounds.ymin()), Point<Inexact>(bounds.xmax(), bounds.ymax())));
 	if (result) {
-		if (const Segment<Inexact>* s = boost::get<Segment<Inexact>>(&*result)) {
+		if (std::holds_alternative<Segment<Inexact>>(*result)) {
+			const Segment<Inexact> s = std::get<Segment<Inexact>>(*result);
 			int oldMode = m_style.m_mode;
 			setMode(oldMode & ~vertices);
-			GeometryRenderer::draw(*s);
+			GeometryRenderer::draw(s);
 			setMode(oldMode);
 		}
 		if (m_style.m_mode & vertices) {
@@ -603,10 +620,11 @@ void GeometryWidget::draw(const Line<Inexact>& l) {
 	    intersection(l, CGAL::Iso_rectangle_2<Inexact>(Point<Inexact>(bounds.xmin(), bounds.ymin()),
 	                                                   Point<Inexact>(bounds.xmax(), bounds.ymax())));
 	if (result) {
-		if (const Segment<Inexact>* s = boost::get<Segment<Inexact>>(&*result)) {
+		if (std::holds_alternative<Segment<Inexact>>(*result)) {
+			const Segment<Inexact> s = std::get<Segment<Inexact>>(*result);
 			int oldMode = m_style.m_mode;
 			setMode(oldMode & ~vertices);
-			GeometryRenderer::draw(*s);
+			GeometryRenderer::draw(s);
 			setMode(oldMode);
 		}
 	}
@@ -619,7 +637,8 @@ void GeometryWidget::draw(const Halfplane<Inexact>& h) {
 		intersection(l, CGAL::Iso_rectangle_2<Inexact>(Point<Inexact>(bounds.xmin(), bounds.ymin()),
 													   Point<Inexact>(bounds.xmax(), bounds.ymax())));
 	if (result) {
-		if (const Segment<Inexact>* s = boost::get<Segment<Inexact>>(&*result)) {
+		if (std::holds_alternative<Segment<Inexact>>(*result)) {
+			const Segment<Inexact> s = std::get<Segment<Inexact>>(*result);
 			int oldMode = m_style.m_mode;
 			if (oldMode & fill) {
 				// Draw filled half-plane
@@ -629,7 +648,7 @@ void GeometryWidget::draw(const Halfplane<Inexact>& h) {
 				GeometryRenderer::draw(poly);
 			}
 			setMode(oldMode & ~vertices);
-			GeometryRenderer::draw(*s);
+			GeometryRenderer::draw(s);
 			setMode(oldMode);
 		}
 	}
@@ -656,8 +675,8 @@ QPainterPath GeometryWidget::renderPathToQt(const RenderPath& p) {
             Vector<Inexact> diagonal(radius, radius);
             QRectF bounds(convertPoint(center - diagonal), convertPoint(center + diagonal));
 
-            double startAngle = atan2((from - center).y(), (from - center).x()) * (180 / M_PI);
-            double endAngle = atan2((to - center).y(), (to - center).x()) * (180 / M_PI);
+            double startAngle = atan2((from - center).y(), (from - center).x()) * (180 / std::numbers::pi);
+            double endAngle = atan2((to - center).y(), (to - center).x()) * (180 / std::numbers::pi);
             double sweepLength = endAngle - startAngle;
             if (!clockwise && sweepLength < 0) {
                 sweepLength += 360;  // counter-clockwise -> positive sweepLength
@@ -697,6 +716,27 @@ void GeometryWidget::drawText(const Point<Inexact>& p, const std::string& text, 
 	                    QString::fromStdString(text));
 }
 
+void GeometryWidget::drawImage(const Box& target, const QImage& image, const Box& source, Qt::ImageConversionFlag flags) {
+	if (image.isNull()) {
+		std::cerr << "Image is null!" << std::endl;
+	}
+	m_painter->drawImage(convertBox(target), image, convertBox(source), flags);
+}
+
+void GeometryWidget::drawImage(const Box& target, const QImage& image) {
+	if (image.isNull()) {
+		std::cerr << "Image is null!" << std::endl;
+	}
+	m_painter->drawImage(convertBox(target), image);
+}
+
+void GeometryWidget::drawImage(const Point<Inexact>& pos, const QImage& image) {
+	if (image.isNull()) {
+		std::cerr << "Image is null!" << std::endl;
+	}
+	m_painter->drawImage(convertPoint(pos), image);
+}
+
 void GeometryWidget::setupPainter() {
 	if (m_style.m_mode & GeometryRenderer::fill) {
 		m_painter->setBrush(QBrush(m_style.m_fillColor));
@@ -726,7 +766,7 @@ void GeometryWidget::setMode(int mode) {
 }
 
 void GeometryWidget::setStroke(Color color, double width, bool absoluteWidth) {
-	m_style.m_strokeColor = QColor(color.r, color.g, color.b);
+	m_style.m_strokeColor.setRgb(color.r, color.g, color.b, m_style.m_strokeColor.alpha());
 	m_style.m_strokeWidth = width;
 	m_style.m_absoluteWidth = absoluteWidth;
 }
@@ -837,9 +877,17 @@ void GeometryWidget::addPainting(std::shared_ptr<GeometryPainting> painting, con
 	updateLayerList();
 }
 
-void GeometryWidget::addPainting(const std::function<void(renderer::GeometryRenderer&)>& draw_function, const std::string& name) {
+std::shared_ptr<GeometryPainting> GeometryWidget::addPainting(const std::function<void(renderer::GeometryRenderer&)>& draw_function, const std::string& name) {
 	auto painting = std::make_shared<FunctionPainting>(draw_function);
 	addPainting(painting, name);
+	return painting;
+}
+
+void GeometryWidget::setVisibility(const std::shared_ptr<GeometryPainting>& painting, bool visible) {
+	auto it = std::find_if(m_paintings.begin(), m_paintings.end(), [&painting](const DrawnPainting& dp) { return dp.m_painting == painting; });
+	if (it == m_paintings.end()) return;
+	it->visible = visible;
+	updateLayerList();
 }
 
 void GeometryWidget::clear() {
@@ -945,7 +993,11 @@ void GeometryWidget::saveToSvg() {
 	for (const DrawnPainting& painting : m_paintings) {
 		renderer.addPainting(painting.m_painting, painting.name);
 	}
-	renderer.save(fileName.toStdString());
+	auto windowSize = size();
+	auto bottomLeft = inverseConvertPoint(QPoint(0, windowSize.height()));
+	auto topRight = inverseConvertPoint(QPoint(windowSize.width(), 0));
+
+	renderer.save(fileName.toStdString(), Box(bottomLeft.x(), bottomLeft.y(), topRight.x(), topRight.y()));
 }
 
 } // namespace cartocrow::renderer

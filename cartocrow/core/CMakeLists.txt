@@ -1,23 +1,26 @@
 set(SOURCES
 	core.cpp
-	boundary_map.cpp
+	ellipse.cpp
 	region_arrangement.cpp
-	region_map.cpp
-	timer.cpp
-	bezier.cpp
+	cubic_bezier.cpp
 	rectangle_helpers.cpp
 	vector_helpers.cpp
 	transform_helpers.cpp
+	polyline.cpp
+	polyline_set.cpp
+	segment_delaunay_graph_helpers.cpp
+	stopwatch.cpp
 )
 set(HEADERS
-	centroid.h
 	core.h
+	ellipse.h
 	boundary_map.h
 	arrangement_map.h
+	arrangement_map.hpp
 	region_arrangement.h
 	region_map.h
-	timer.h
-	bezier.h
+	cubic_bezier.h
+	root_finding_helpers.h
 	rectangle_helpers.h
 	arrangement_helpers.h
 	polyline.h
@@ -26,12 +29,15 @@ set(HEADERS
 	halfplane.h
 	transform_helpers.h
 	cropped_voronoi.h
+	delaunay_voronoi_helpers.h
+	segment_delaunay_graph_helpers.h
+	segment_delaunay_graph_helpers_cgal_adapted.h
+	polyline_set.h
+	stopwatch.h
+	polygon_helpers.h
 )
 
 add_library(core ${SOURCES})
-target_link_libraries(core
-	PRIVATE glog::glog
-)
 
 cartocrow_install_module(core)
 install(FILES ${HEADERS} DESTINATION ${CARTOCROW_INSTALL_DIR}/core)

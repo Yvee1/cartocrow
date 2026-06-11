@@ -32,6 +32,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <ipetext.h>
 
 #include <string>
+#include <variant>
 
 namespace cartocrow::renderer {
 
@@ -130,10 +131,11 @@ void IpeRenderer::draw(const Line<Inexact>& l) {
 	auto bounds = CGAL::Iso_rectangle_2<Inexact>(CGAL::ORIGIN, Point<Inexact>(1000.0, 1000.0));
 	auto result = intersection(l, bounds);
 	if (result) {
-		if (const Segment<Inexact>* s = boost::get<Segment<Inexact>>(&*result)) {
+		if (std::holds_alternative<Segment<Inexact>>(*result)) {
+			const Segment<Inexact> s = std::get<Segment<Inexact>>(*result);
 			int oldMode = m_style.m_mode;
 			setMode(oldMode & ~vertices);
-			GeometryRenderer::draw(*s);
+			GeometryRenderer::draw(s);
 			setMode(oldMode);
 		}
 	}
@@ -144,10 +146,11 @@ void IpeRenderer::draw(const Ray<Inexact>& r) {
 	auto bounds = CGAL::Iso_rectangle_2<Inexact>(CGAL::ORIGIN, Point<Inexact>(1000.0, 1000.0));
 	auto result = intersection(r, bounds);
 	if (result) {
-		if (const Segment<Inexact>* s = boost::get<Segment<Inexact>>(&*result)) {
+		if (std::holds_alternative<Segment<Inexact>>(*result)) {
+			const Segment<Inexact> s = std::get<Segment<Inexact>>(*result);
 			int oldMode = m_style.m_mode;
 			setMode(oldMode & ~vertices);
-			GeometryRenderer::draw(*s);
+			GeometryRenderer::draw(s);
 			setMode(oldMode);
 		}
 		if (m_style.m_mode & vertices) {
@@ -162,7 +165,8 @@ void IpeRenderer::draw(const Halfplane<Inexact>& h) {
 	auto bounds = CGAL::Iso_rectangle_2<Inexact>(CGAL::ORIGIN, Point<Inexact>(1000.0, 1000.0));
 	auto result = intersection(l, bounds);
 	if (result) {
-		if (const Segment<Inexact>* s = boost::get<Segment<Inexact>>(&*result)) {
+		if (std::holds_alternative<Segment<Inexact>>(*result)) {
+			const Segment<Inexact> s = std::get<Segment<Inexact>>(*result);
 			int oldMode = m_style.m_mode;
 			if (oldMode & fill) {
 				// Draw filled half-plane
@@ -172,7 +176,7 @@ void IpeRenderer::draw(const Halfplane<Inexact>& h) {
 				GeometryRenderer::draw(poly);
 			}
 			setMode(oldMode & ~vertices);
-			GeometryRenderer::draw(*s);
+			GeometryRenderer::draw(s);
 			setMode(oldMode);
 		}
 	}
@@ -189,9 +193,25 @@ void IpeRenderer::draw(const Circle<Inexact>& c) {
 	drawPathOnPage(path);
 }
 
-void IpeRenderer::draw(const BezierSpline& s) {
+void IpeRenderer::draw(const Ellipse& e) {
+	const auto m = e.parameters().matrix();
+	ipe::Matrix matrix {
+		// transposed linear map:  (i.e., to make it column-major)
+		m[0][0], m[1][0],
+		m[0][1], m[1][1],
+		// translation:
+		m[0][2], m[1][2]
+	};
+	ipe::Ellipse* ellipse = new ipe::Ellipse(matrix);
+	ipe::Shape* shape = new ipe::Shape();
+	shape->appendSubPath(ellipse);
+	ipe::Path* path = new ipe::Path(getAttributesForStyle(), *shape);
+	m_page->append(ipe::TSelect::ENotSelected, m_layer, path);
+}
+
+void IpeRenderer::draw(const CubicBezierSpline& s) {
 	ipe::Curve* curve = new ipe::Curve();
-	for (BezierCurve c : s.curves()) {
+	for (CubicBezierCurve c : s.curves()) {
 		std::vector<ipe::Vector> coords;
 		coords.emplace_back(c.source().x(), c.source().y());
 		coords.emplace_back(c.sourceControl().x(), c.sourceControl().y());
@@ -205,7 +225,7 @@ void IpeRenderer::draw(const BezierSpline& s) {
 	drawPathOnPage(path);
 
 	if (m_style.m_mode & vertices) {
-		for (BezierCurve c : s.curves()) {
+		for (CubicBezierCurve c : s.curves()) {
 			draw(c.source());
 		}
 		draw(s.curves().back().target());

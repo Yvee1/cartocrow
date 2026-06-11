@@ -11,35 +11,33 @@ macro(cartocrow_install_module NAME)
 endmacro(cartocrow_install_module)
 
 add_subdirectory(core)
-add_subdirectory(renderer)
 add_subdirectory(circle_segment_helpers)
-add_subdirectory(necklace_map)
-add_subdirectory(simplification)
-add_subdirectory(flow_map)
-add_subdirectory(isoline_simplification)
-add_subdirectory(simplesets)
-add_subdirectory(chorematic_map)
+add_subdirectory(renderer)
+if (NOT EMSCRIPTEN)
+    add_subdirectory(reader)
+    add_subdirectory(widgets)
+endif()
 
 add_library(cartocrow_lib INTERFACE)
-target_link_libraries(
-    cartocrow_lib INTERFACE
-    core
-    renderer
-    circle_segment_helpers
-    necklace_map
-    flow_map
-    simplification
-    isoline_simplification
-    simplesets
-    chorematic_map
+if (NOT EMSCRIPTEN)
+	target_link_libraries(
+		cartocrow_lib INTERFACE
+		core
+		circle_segment_helpers
+		renderer
+		reader
+		widgets
 )
+else()
+	target_link_libraries(
+		cartocrow_lib INTERFACE
+		core
+		circle_segment_helpers
+		renderer
+	)
+endif()
 
-install(
-    TARGETS cartocrow_lib
-    EXPORT ${CARTOCROW_EXPORT_TARGETS}
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBRARY_DIR}
-    INCLUDES DESTINATION ${CMAKE_INSTALL_SOURCE_DIR}
-)
+cartocrow_install_module(cartocrow_lib)
 install(
     EXPORT ${CARTOCROW_EXPORT_TARGETS}
     FILE "${CARTOCROW_EXPORT_TARGETS}.cmake"

@@ -1,5 +1,21 @@
-#ifndef CARTOCROW_HALFPLANE_H
-#define CARTOCROW_HALFPLANE_H
+/*
+Copyright (C) 2026  TU Eindhoven
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
+#pragma once
 
 #include <CGAL/Line_2.h>
 #include <CGAL/Polygon_2.h>
@@ -52,9 +68,10 @@ template <class K> class Halfplane {
 		                                           Point<Inexact>(rect.xmax(), rect.ymax())));
 
 		if (result) {
-			if (const Segment<Inexact>* s = boost::get<Segment<Inexact>>(&*result)) {
-				poly.push_back(s->source());
-				poly.push_back(s->target());
+			if (std::holds_alternative<Segment<Inexact>>(*result)) {
+				const Segment<Inexact> s = std::get<Segment<Inexact>>(*result);
+				poly.push_back(s.source());
+				poly.push_back(s.target());
 
 				auto boundsSide = [&rect](const Point<Inexact>& p) {
 					if (abs(p.y() - rect.ymax()) < M_EPSILON) {
@@ -71,8 +88,8 @@ template <class K> class Halfplane {
 					}
 				};
 
-				auto sourceSide = boundsSide(s->source());
-				auto targetSide = boundsSide(s->target());
+				auto sourceSide = boundsSide(s.source());
+				auto targetSide = boundsSide(s.target());
 				auto current = targetSide;
 				while (current != sourceSide) {
 					auto next = next_side(current);
@@ -91,9 +108,10 @@ template <class K> class Halfplane {
 		                                           Point<Exact>(rect.xmax(), rect.ymax())));
 
 		if (result) {
-			if (const Segment<Exact>* s = boost::get<Segment<Exact>>(&*result)) {
-				poly.push_back(s->source());
-				poly.push_back(s->target());
+			if (std::holds_alternative<Segment<Exact>>(*result)) {
+				const Segment<Exact> s = std::get<Segment<Exact>>(*result);
+				poly.push_back(s.source());
+				poly.push_back(s.target());
 
 				auto boundsSide = [&rect](const Point<Exact>& p) {
 					if (p.y() == rect.ymax()) {
@@ -110,8 +128,8 @@ template <class K> class Halfplane {
 					}
 				};
 
-				auto sourceSide = boundsSide(s->source());
-				auto targetSide = boundsSide(s->target());
+				auto sourceSide = boundsSide(s.source());
+				auto targetSide = boundsSide(s.target());
 				auto current = targetSide;
 				while (current != sourceSide) {
 					auto next = next_side(current);
@@ -132,5 +150,3 @@ Halfplane<Inexact> approximate(const Halfplane<K>& p) {
 	return {approximate(p.line())};
 }
 }
-
-#endif //CARTOCROW_HALFPLANE_H

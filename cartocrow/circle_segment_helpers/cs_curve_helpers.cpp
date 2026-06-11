@@ -1,3 +1,20 @@
+/*
+Copyright (C) 2026  TU Eindhoven
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
 #include "cs_curve_helpers.h"
 #include "cartocrow/core/vector_helpers.h"
 
@@ -187,7 +204,7 @@ double approximateLength(const CSXMCurve& xmc) {
         auto acc = approximate(c.center());
         auto angle = orientedAngleBetween(s - acc, t - acc, xmc.orientation());
 		if (angle < 0) {
-			angle += M_2xPI;
+			angle += two_pi;
 		}
         return angle * CGAL::sqrt(CGAL::to_double(c.squared_radius()));
     }
@@ -202,12 +219,12 @@ double approximateLength(const CSCurve& c) {
         const auto& circ = c.supporting_circle();
         auto r = CGAL::sqrt(CGAL::to_double(circ.squared_radius()));
         if (c.is_full()) {
-            return M_2xPI * r;
+            return two_pi * r;
         }
         auto acc = approximate(circ.center());
         auto angle = orientedAngleBetween(s - acc, t - acc, c.orientation());
 		if (angle < 0) {
-			angle += M_2xPI;
+			angle += two_pi;
 		}
         return angle * r;
     }

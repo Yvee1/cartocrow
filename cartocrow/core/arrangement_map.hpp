@@ -1,3 +1,20 @@
+/*
+Copyright (C) 2026  TU Eindhoven
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
 // -----------------------------------------------------------------------------
 // IMPLEMENTATION OF TEMPLATE FUNCTIONS
 // Do not include this file, but the .h file instead
@@ -16,7 +33,7 @@ boundaryMapToArrangementMap(BoundaryMap& map) {
 
 //	CGAL::Arr_walk_along_line_point_location<Arr> loc(arr);
     CGAL::Arr_landmarks_point_location<Arr> loc(arr);
-	using PLResult = CGAL::Arr_point_location_result<Arr>::Type;
+	using PLResult = typename CGAL::Arr_point_location_result<Arr>::Type;
 
 	for (Boundary& b : map.boundaries) {
 

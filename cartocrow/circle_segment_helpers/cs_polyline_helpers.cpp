@@ -1,7 +1,25 @@
+/*
+Copyright (C) 2026  TU Eindhoven
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
 #include "cs_polyline_helpers.h"
 #include "cartocrow/core/rectangle_helpers.h"
 #include "cartocrow/core/vector_helpers.h"
 #include "cs_curve_helpers.h"
+#include "circle_tangents.h"
 #include <CGAL/Bbox_2.h>
 
 namespace cartocrow {
@@ -76,11 +94,6 @@ CSPolyline polylineToCSPolyline(const Polyline<Exact>& polyline) {
 	}
 	return {xm_curves.begin(), xm_curves.end()};
 }
-
-struct RationalRadiusCircle {
-	Point<Exact> center;
-	Number<Exact> radius;
-};
 
 // Adapted from https://github.com/CGAL/cgal/blob/38871d9b125c5513ff8d14f9562795aa12681b38/Minkowski_sum_2/include/CGAL/Minkowski_sum_2/Approx_offset_base_2.h
 // This function falls under the following license:
