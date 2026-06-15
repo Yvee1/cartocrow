@@ -12,22 +12,21 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        compiler:
-          - g++-11
-          - clang-17
+        include:
+          - cxx: g++-13
+            cc: gcc-13
+            pkg: g++-13
+          - cxx: clang++-17
+            cc: clang-17
+            pkg: clang-17
     steps:
     - uses: actions/checkout@v6
     - name: Install C++ compiler
       run: |
         sudo apt-get update
-        sudo apt-get install -y ${{ matrix.compiler }}
-        if [[ "${{ matrix.compiler }}" == clang* ]]; then
-          echo "CC=clang" >> $GITHUB_ENV
-          echo "CXX=${{ matrix.compiler }}" >> $GITHUB_ENV
-        else
-          echo "CC=gcc" >> $GITHUB_ENV
-          echo "CXX=${{ matrix.compiler }}" >> $GITHUB_ENV
-        fi
+        sudo apt-get install -y ${{ matrix.pkg }}
+        echo "CC=${{ matrix.cc }}" >> $GITHUB_ENV
+        echo "CXX=${{ matrix.cxx }}" >> $GITHUB_ENV
     - name: Check C++ compiler version
       run: $CXX --version
     - name: Install dependencies
