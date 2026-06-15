@@ -13,9 +13,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - cxx: g++-13
-            cc: gcc-13
-            pkg: g++-13
+          - cxx: g++-14
+            cc: gcc-14
+            pkg: g++-14
           - cxx: clang++-17
             cc: clang-17
             pkg: clang-17
