@@ -10,16 +10,16 @@ jobs:
   build:
     runs-on: ubuntu-26.04
     strategy:
+      fail-fast: false
       matrix:
         compiler:
           - g++-11
-          - clang-16
+          - clang-17
     steps:
     - uses: actions/checkout@v6
     - name: Install C++ compiler
       run: |
         sudo apt-get update
-        apt-cache search '^clang-[0-9]+$' | sort -V
         sudo apt-get install -y ${{ matrix.compiler }}
         if [[ "${{ matrix.compiler }}" == clang* ]]; then
           echo "CC=clang" >> $GITHUB_ENV
