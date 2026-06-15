@@ -1,14 +1,12 @@
 # CartoCrow - A framework for algorithmic cartography
 
-<img align="right" src="https://github.com/user-attachments/assets/44ba2c30-bed2-451a-ae40-5763d4e8e74b"/>
+[![Linux](https://github.com/cartocrow/core/actions/workflows/build-linux.yml/badge.svg)](https://github.com/cartocrow/core/actions/workflows/build-linux.yml)
 
-<!--
-![Linux (g++-11 | Ubuntu 22.04)](https://github.com/tue-alga/cartocrow/workflows/Linux%20(g++-11%20|%20Ubuntu%2022.04)/badge.svg)
-![Linux (clang++-14 | Ubuntu 22.04)](https://github.com/tue-alga/cartocrow/workflows/Linux%20(clang++-14%20|%20Ubuntu%2022.04)/badge.svg)
--->
+<img align="right" src="https://github.com/user-attachments/assets/44ba2c30-bed2-451a-ae40-5763d4e8e74b"/>
 
 This repository contains the core C++ framework of CartoCrow, which supports the implementation of algorithms in cartographic visualization.
 For implementations of specific cartographic algorithms that use the framework, see the other repositories under the [CartoCrow GitHub organization](https://github.com/cartocrow).
+Refer to [the website](https://algo.win.tue.nl/software/cartocrow/) for more information and for the API documentation
 
 > [!WARNING]
 > CartoCrow is still a **work in progress**  and should not be considered stable yet.
@@ -24,7 +22,7 @@ This repository consists of the following subdirectories:
 
 CartoCrow depends on the following build tools:
 
-* g++ (11.4.0, 12.3.0) / clang++ (14.0.0, 15.0.7) / MSVC (2019)
+* g++ (11.4.0, 12.3.0, 14.0.0) / clang++ (14.0.0, 15.0.7, 17) / MSVC (2019)
 * CMake (3.15)
 
 And it depends on the following libraries:
@@ -32,9 +30,9 @@ And it depends on the following libraries:
 * CGAL (6.0.1) – for computational geometry algorithms
 * Qt (5.15) – for the interactive GUI
 * CavalierContours (0.1) – for offsetting polygons and polylines that consist of line and circle segments
-* ipelib (7.2.26) – for [Ipe](https://ipe.otfried.org) IO
+* ipelib (7.2.30) – for [Ipe](https://ipe.otfried.org) IO
 * nlohmann-json (3.10.5, 3.11.2) – for JSON IO
-* GDAL (3.8.4) – for vector geospatial data formats IO
+* GDAL (3.8.4) – for vector geospatial data IO
 
 The version numbers listed are the ones we're testing with. Newer (and possibly somewhat older) versions will most likely work as well.
 
@@ -95,7 +93,7 @@ pacman -S mingw-w64-x86_64-cgal mingw-w64-x86_64-qt5 mingw-w64-x86_64-nlohmann-j
 
 The remaining dependencies need to be built manually.
 
-* **Ipelib.** Download the [source archive](https://github.com/otfried/ipe/releases/download/v7.2.26/ipe-7.2.26-src.tar.gz) and unpack it. Instead of the instructions for Ubuntu given in `install.txt`, you can use the following to install the dependencies:
+* **Ipelib.** Download the [source archive](https://github.com/otfried/ipe/archive/refs/tags/v7.2.30.zip) and unpack it. Instead of the instructions for Ubuntu given in `install.txt`, you can use the following to install the dependencies:
   ```sh
   pacman -S mingw-w64-x86_64-freetype mingw-w64-x86_64-cairo mingw-w64-x86_64-libjpeg-turbo
   pacman -S mingw-w64-x86_64-libpng mingw-w64-x86_64-lua mingw-w64-x86_64-zlib
@@ -141,7 +139,7 @@ sudo apt install libpq-dev gdal-bin libgdal-dev
 
 The remaining dependencies need to be built manually.
 
-* **Ipelib.** Download the [source archive](https://github.com/otfried/ipe/releases/download/v7.2.24/ipe-7.2.24-src.tar.gz), unpack it, and compile and install it using the instructions given in `install.txt`.
+* **Ipelib.** Download the [source archive](https://github.com/otfried/ipe/archive/refs/tags/v7.2.30.tar.gz), unpack it, and compile and install it using the instructions given in `install.txt`.
 
 * **CavalierContours.** We manually copy the headers to install the header-only library.
   ```sh
