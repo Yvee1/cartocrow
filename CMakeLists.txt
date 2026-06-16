@@ -28,7 +28,7 @@ endmacro(install_files_and_directories)
 include(CMakePackageConfigHelpers)
 write_basic_package_version_file(
     CartoCrowConfigVersion.cmake
-    VERSION 0.1.5
+    VERSION ${PROJECT_VERSION}
     COMPATIBILITY AnyNewerVersion
 )
 
