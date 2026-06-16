@@ -1,7 +1,5 @@
 /*
-The CartoCrow library implements algorithmic geo-visualization methods,
-developed at TU Eindhoven.
-Copyright (C) 2021  Netherlands eScience Center and TU Eindhoven
+Copyright (C) 2026  TU Eindhoven
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -17,8 +15,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CARTOCROW_CORE_IO_IPE_READER_H
-#define CARTOCROW_CORE_IO_IPE_READER_H
+#pragma once
 
 #include <filesystem>
 #include <memory>
@@ -59,5 +56,3 @@ class IpeReader {
 };
 
 } // namespace cartocrow
-
-#endif //CARTOCROW_CORE_IO_IPE_READER_H

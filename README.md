@@ -6,7 +6,7 @@
 
 This repository contains the core C++ framework of CartoCrow, which supports the implementation of algorithms in cartographic visualization.
 For implementations of specific cartographic algorithms that use the framework, see the other repositories under the [CartoCrow GitHub organization](https://github.com/cartocrow).
-Refer to [the website](https://algo.win.tue.nl/software/cartocrow/) for more information and for the API documentation
+Refer to [the website](https://algo.win.tue.nl/software/cartocrow/) for more information and for the API documentation.
 
 > [!WARNING]
 > CartoCrow is still a **work in progress**  and should not be considered stable yet.

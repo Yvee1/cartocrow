@@ -1,5 +1,4 @@
-#ifndef CARTOCROW_CORE_ELLIPSE_H
-#define CARTOCROW_CORE_ELLIPSE_H
+#pragma once
 
 #include <string>
 #include <utility>
@@ -65,5 +64,3 @@ class EllipseAtOrigin : public Ellipse {
 };
 
 } // namespace cartocrow
-
-#endif // CARTOCROW_CORE_ELLIPSE_H
